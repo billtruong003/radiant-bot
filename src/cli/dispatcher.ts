@@ -4,6 +4,7 @@ import { bulkOnboard } from './services/bulk-onboard.js';
 import { listChannels } from './services/list-channels.js';
 import { notify } from './services/notify.js';
 import { permissions } from './services/permissions.js';
+import { pinChannelGuides } from './services/pin-channel-guides.js';
 import { send } from './services/send.js';
 import { setupReactionRoles } from './services/setup-reaction-roles.js';
 import { simulateAutomod } from './services/simulate-automod.js';
@@ -26,6 +27,7 @@ const SERVICES: readonly BotCliService[] = [
   simulateWelcome,
   simulateWeeklyLeaderboard,
   simulateTribulation,
+  pinChannelGuides,
 ];
 
 function printHelp(): void {
