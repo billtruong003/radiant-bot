@@ -5,6 +5,7 @@ import { register as registerInteractionCreate } from './events/interactionCreat
 import { register as registerMessageCreate } from './events/messageCreate.js';
 import { register as registerMessageReactionAdd } from './events/messageReactionAdd.js';
 import { register as registerMessageReactionRemove } from './events/messageReactionRemove.js';
+import { startAkiCooldownSweeps, stopAkiCooldownSweeps } from './modules/aki/rate-limit.js';
 import { clearBotLogClient, setBotLogClient } from './modules/bot-log.js';
 import { startCooldownSweeps, stopCooldownSweeps } from './modules/leveling/cooldown.js';
 import { startScheduler, stopScheduler } from './modules/scheduler/index.js';
@@ -38,6 +39,7 @@ export async function startBot(): Promise<Client> {
     setBotLogClient(c);
     startScheduler(c);
     startCooldownSweeps();
+    startAkiCooldownSweeps();
     startHealthServer(env.HEALTH_PORT, c);
   });
 
@@ -56,6 +58,7 @@ export async function startBot(): Promise<Client> {
 export async function stopBot(client: Client): Promise<void> {
   stopScheduler();
   stopCooldownSweeps();
+  stopAkiCooldownSweeps();
   stopHealthServer();
   clearBotLogClient();
   await client.destroy();

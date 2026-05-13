@@ -105,3 +105,17 @@ export interface ReactionRolesConfig extends Record<string, unknown> {
   channel_id: string | null;
   mappings: ReactionRoleMapping[];
 }
+
+export interface AkiCallLog extends Record<string, unknown> {
+  id: string;
+  discord_id: string;
+  question_length: number;
+  has_image: boolean;
+  tokens_in: number;
+  tokens_out: number;
+  cached_tokens: number;
+  cost_usd: number;
+  refusal: boolean;
+  refusal_reason: string | null;
+  created_at: number;
+}

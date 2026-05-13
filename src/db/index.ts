@@ -58,6 +58,7 @@ export type {
   RaidState,
   ReactionRolesConfig,
   ReactionRoleMapping,
+  AkiCallLog,
   CultivationRankId,
 } from './types.js';
 export type { StoreOp } from './operations.js';

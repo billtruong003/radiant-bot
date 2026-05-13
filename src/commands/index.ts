@@ -1,4 +1,5 @@
 import type { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { command as ask } from './ask.js';
 import { command as automodConfig } from './automod-config.js';
 import { command as breakthrough } from './breakthrough.js';
 import { command as daily } from './daily.js';
@@ -28,6 +29,7 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [automodConfig.data.name, automodConfig as SlashCommand],
   [title.data.name, title as SlashCommand],
   [breakthrough.data.name, breakthrough as SlashCommand],
+  [ask.data.name, ask as SlashCommand],
 ]);
 
 export function findCommand(name: string): SlashCommand | undefined {

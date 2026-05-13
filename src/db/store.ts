@@ -7,6 +7,7 @@ import { Collection, type WalApplicable } from './collection.js';
 import type { StoreOp } from './operations.js';
 import { SingletonCollection } from './singleton-collection.js';
 import type {
+  AkiCallLog,
   AutomodLog,
   RaidState,
   ReactionRolesConfig,
@@ -32,6 +33,7 @@ interface SnapshotShape {
   automod_logs: AutomodLog[];
   raid_state: RaidState;
   reaction_roles_config?: ReactionRolesConfig;
+  aki_logs?: AkiCallLog[];
 }
 
 const DEFAULT_RAID_STATE: RaidState = {
@@ -74,6 +76,7 @@ export class Store {
   readonly automodLogs: AppendOnlyCollection<AutomodLog>;
   readonly raidState: SingletonCollection<RaidState>;
   readonly reactionRolesConfig: SingletonCollection<ReactionRolesConfig>;
+  readonly akiLogs: AppendOnlyCollection<AkiCallLog>;
 
   private readonly log: AppendOnlyLog;
   private readonly walPath: string;
@@ -113,6 +116,7 @@ export class Store {
       this.log,
       { ...DEFAULT_REACTION_ROLES, mappings: [] },
     );
+    this.akiLogs = new AppendOnlyCollection<AkiCallLog>('aki_logs', this.log);
 
     const map = new Map<string, WalApplicable>();
     for (const c of [
@@ -124,6 +128,7 @@ export class Store {
       this.automodLogs,
       this.raidState,
       this.reactionRolesConfig,
+      this.akiLogs,
     ]) {
       map.set(c.name, c);
     }
@@ -151,6 +156,7 @@ export class Store {
       if (snapshot.reaction_roles_config) {
         this.reactionRolesConfig._bulkLoad(snapshot.reaction_roles_config);
       }
+      this.akiLogs._bulkLoad(snapshot.aki_logs ?? []);
       logger.info(
         {
           version: snapshot.version,
@@ -262,6 +268,7 @@ export class Store {
         automod_logs: this.automodLogs._serialize(),
         raid_state: this.raidState._serialize(),
         reaction_roles_config: this.reactionRolesConfig._serialize(),
+        aki_logs: this.akiLogs._serialize(),
       };
 
       const tmpPath = `${this.snapshotPath}.tmp`;

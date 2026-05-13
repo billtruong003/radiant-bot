@@ -8,6 +8,7 @@ import { pinChannelGuides } from './services/pin-channel-guides.js';
 import { postLaunchAnnouncement } from './services/post-launch-announcement.js';
 import { send } from './services/send.js';
 import { setupReactionRoles } from './services/setup-reaction-roles.js';
+import { simulateAki } from './services/simulate-aki.js';
 import { simulateAutomod } from './services/simulate-automod.js';
 import { simulateTribulation } from './services/simulate-tribulation.js';
 import { simulateVerify } from './services/simulate-verify.js';
@@ -32,6 +33,7 @@ const SERVICES: readonly BotCliService[] = [
   pinChannelGuides,
   uploadRoleIcons,
   postLaunchAnnouncement,
+  simulateAki,
 ];
 
 function printHelp(): void {

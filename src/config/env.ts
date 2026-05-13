@@ -32,6 +32,16 @@ const envSchema = z.object({
 
   /** Health-check HTTP port. 0 disables. Default 3030 for prod, 0 for dev. */
   HEALTH_PORT: z.coerce.number().int().nonnegative().default(0),
+
+  // --- Aki AI helper (Phase 10) ---
+  /** xAI API key. Empty disables /ask command. Format: xai-... */
+  XAI_API_KEY: z.string().default(''),
+  /** Model ID. Default: grok-4-1-fast-reasoning ($0.20/$0.50/$0.05 cached per 1M). */
+  AKI_MODEL: z.string().default('grok-4-1-fast-reasoning'),
+  /** Max output tokens per Aki call. Keep tight for cost — Discord 2000 char limit caps usefulness past ~600 tokens anyway. */
+  AKI_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(600),
+  /** Server-wide cap on Aki cost per VN-calendar-day. Above this, /ask refuses. */
+  AKI_DAILY_BUDGET_USD: z.coerce.number().nonnegative().default(2.0),
 });
 
 export type Env = z.infer<typeof envSchema>;
