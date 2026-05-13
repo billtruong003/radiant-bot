@@ -102,7 +102,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const msg =
       quota.reason === 'minute'
         ? `⏱️ Tiền bối hỏi Aki nhanh quá rồi (${quota.callsThisMinute} câu trong 1 phút), đợi 1 chút (◕‿◕) — Aki cũng cần thở mà.`
-        : `😴 Aki phục vụ tiền bối đủ rồi hôm nay (${quota.callsThisDay}/50 lượt/24h). Mai lại nha ٩(◕‿◕)۶`;
+        : `😴 Aki phục vụ tiền bối đủ rồi hôm nay (${quota.callsThisDay}/100 lượt/24h). Mai lại nha ٩(◕‿◕)۶`;
     await logRefusal(userId, question.length, `rate-limit: ${quota.reason}`);
     await interaction.reply({ content: msg, ephemeral: true });
     return;

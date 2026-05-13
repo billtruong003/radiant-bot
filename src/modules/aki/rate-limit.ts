@@ -22,7 +22,7 @@ import { getStore } from '../../db/index.js';
 const MINUTE_MS = 60_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_PER_MINUTE = 5;
-const MAX_PER_DAY = 50;
+const MAX_PER_DAY = 100;
 
 export interface QuotaCheckResult {
   ok: boolean;
