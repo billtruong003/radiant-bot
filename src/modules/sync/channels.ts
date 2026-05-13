@@ -102,7 +102,7 @@ export async function syncCategoriesAndChannels(
 
     for (const chDef of catDef.channels) {
       const target = resolveOverwrites(chDef.perm, ctx);
-      await syncChannel(guild, category, chDef, target, opts, counters);
+      await syncChannel(guild, category, catDef.name, chDef, target, opts, counters);
     }
   }
 }
@@ -135,6 +135,7 @@ async function syncCategory(
 async function syncChannel(
   guild: Guild,
   category: CategoryChannel | null,
+  targetCategoryName: string,
   def: ChannelDef,
   targetOverwrites: OverwriteData[],
   opts: SyncOptions,
@@ -144,9 +145,11 @@ async function syncChannel(
   const existing = findChannelByName(guild, def.name, expectedType);
 
   if (existing && 'permissionOverwrites' in existing) {
-    const targetParentId = category?.id ?? null;
-    const currentParentId = existing.parentId ?? null;
-    const parentDrift = targetParentId !== null && currentParentId !== targetParentId;
+    // Compare parents by NAME, not ID. In dry-run the target category may not
+    // exist yet (no ID), but its name is stable; on apply the category exists.
+    // Same comparison covers both paths.
+    const currentParentName = existing.parent?.name ?? null;
+    const parentDrift = currentParentName !== targetCategoryName;
     const permsDrift = !overwritesEqual(existing, targetOverwrites);
 
     if (!parentDrift && !permsDrift) {
@@ -158,7 +161,9 @@ async function syncChannel(
     logger.info(
       {
         channel: def.name,
-        parent: parentDrift ? { from: currentParentId, to: targetParentId } : 'unchanged',
+        parent: parentDrift
+          ? { from: currentParentName ?? '(root)', to: targetCategoryName }
+          : 'unchanged',
         perms: permsDrift ? summarizeOverwrites(targetOverwrites) : 'unchanged',
       },
       'sync: channel drift — will update',
