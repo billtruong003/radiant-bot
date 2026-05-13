@@ -13,6 +13,7 @@
       "data",
       "logs",
       "backup-repo",
+      "tests/.tmp",
       "*.md",
       "package-lock.json"
     ]
