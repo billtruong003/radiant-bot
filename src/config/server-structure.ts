@@ -128,86 +128,94 @@ export const ROLES: readonly RoleDef[] = [
   },
 ] as const;
 
+/**
+ * Channel + category structure is English-first (audience is broad tech /
+ * dev, not necessarily into wuxia/cultivation theme). Cultivation flair
+ * lives in the VN-named ROLES above (visible as level badges, opt-in
+ * flavor). Four categories reuse names from the Discord starter template
+ * the guild was created with so `meme` / `game-development` / `gaming` /
+ * `highlight` / `Gaming` (voice) are moved in place without rename.
+ */
 export const CATEGORIES: readonly CategoryDef[] = [
   {
-    name: '🏯 Tông Môn Đại Điện',
+    name: '📢 Hub',
     channels: [
-      { name: 'thông-báo', type: 'announcement', perm: 'public_read' },
-      { name: 'nội-quy', type: 'text', perm: 'public_read' },
-      { name: 'nhật-ký-tông-môn', type: 'text', perm: 'bot_log', noXp: true },
-      { name: 'phòng-trưởng-lão', type: 'text', perm: 'admin_only' },
+      { name: 'announcements', type: 'text', perm: 'public_read' },
+      { name: 'rules', type: 'text', perm: 'public_read' },
+      { name: 'bot-log', type: 'text', perm: 'bot_log', noXp: true },
+      { name: 'elder-lounge', type: 'text', perm: 'admin_only' },
     ],
   },
   {
-    name: '🔒 Kiểm Tra',
-    channels: [{ name: 'xác-minh', type: 'text', perm: 'unverified_only', noXp: true }],
+    name: '🔒 Verification',
+    channels: [{ name: 'verify', type: 'text', perm: 'unverified_only', noXp: true }],
   },
   {
-    name: '📜 Đại Hội',
+    name: 'General Realm',
     channels: [
-      { name: 'thảo-luận-chung', type: 'text', perm: 'verified_full' },
-      { name: 'giới-thiệu', type: 'text', perm: 'verified_full' },
+      { name: 'general', type: 'text', perm: 'verified_full' },
+      { name: 'introductions', type: 'text', perm: 'verified_full' },
       { name: 'meme', type: 'text', perm: 'verified_full' },
-      { name: 'điểm-danh', type: 'text', perm: 'verified_full' },
+      { name: 'daily-checkin', type: 'text', perm: 'verified_full' },
     ],
   },
   {
-    name: '🔬 Công Nghệ',
+    name: 'Tech Innovations',
     channels: [
       { name: 'game-development', type: 'text', perm: 'verified_full' },
       { name: 'ai-ml', type: 'text', perm: 'verified_full' },
       { name: 'tools-showcase', type: 'text', perm: 'verified_full' },
-      { name: 'cứu-trợ', type: 'text', perm: 'verified_full' },
+      { name: 'help-me', type: 'text', perm: 'verified_full' },
     ],
   },
   {
-    name: '🎮 Giải Trí',
+    name: 'Entertainment',
     channels: [
       { name: 'gaming', type: 'text', perm: 'verified_full' },
       { name: 'highlight', type: 'text', perm: 'verified_full' },
-      { name: 'xem-phim-cùng', type: 'text', perm: 'verified_full' },
+      { name: 'movie-night', type: 'text', perm: 'verified_full' },
     ],
   },
   {
-    name: '🎨 Sáng Tạo',
+    name: '🎨 Creative',
     channels: [
-      { name: 'tranh-vẽ', type: 'text', perm: 'verified_full' },
-      { name: 'âm-nhạc', type: 'text', perm: 'verified_full' },
-      { name: 'văn-chương', type: 'text', perm: 'verified_full' },
+      { name: 'art', type: 'text', perm: 'verified_full' },
+      { name: 'music', type: 'text', perm: 'verified_full' },
+      { name: 'writing', type: 'text', perm: 'verified_full' },
     ],
   },
   {
-    name: '🌌 Tu Luyện',
+    name: '📈 Cultivation Path',
     channels: [
-      { name: 'hướng-dẫn-tu-luyện', type: 'text', perm: 'verified_read' },
-      { name: 'đột-phá', type: 'text', perm: 'verified_read' },
-      { name: 'bảng-xếp-hạng', type: 'text', perm: 'verified_read' },
-      { name: 'độ-kiếp', type: 'text', perm: 'verified_full' },
+      { name: 'leveling-guide', type: 'text', perm: 'verified_read' },
+      { name: 'level-up', type: 'text', perm: 'verified_read' },
+      { name: 'leaderboard', type: 'text', perm: 'verified_read' },
+      { name: 'tribulation', type: 'text', perm: 'verified_full' },
     ],
   },
   {
-    name: '🛠️ Phòng Luyện Khí',
+    name: '🛠️ Workshop',
     channels: [
-      { name: 'lệnh-bot', type: 'text', perm: 'verified_full', noXp: true },
+      { name: 'bot-commands', type: 'text', perm: 'verified_full', noXp: true },
       { name: 'bot-dev', type: 'text', perm: 'mod_only', noXp: true },
-      { name: 'ý-tưởng-automation', type: 'text', perm: 'verified_full' },
+      { name: 'automation-ideas', type: 'text', perm: 'verified_full' },
     ],
   },
   {
-    name: '📚 Tài Nguyên',
+    name: '📚 Resources',
     channels: [
-      { name: 'tài-liệu', type: 'text', perm: 'verified_full' },
-      { name: 'tin-tuyển-dụng', type: 'text', perm: 'verified_full' },
+      { name: 'docs', type: 'text', perm: 'verified_full' },
+      { name: 'jobs', type: 'text', perm: 'verified_full' },
     ],
   },
   {
-    name: '🔊 Voice',
+    name: 'Voice Channels',
     channels: [
-      { name: 'Sảnh Chính', type: 'voice', perm: 'verified_full' },
+      { name: 'Main Hall', type: 'voice', perm: 'verified_full' },
       { name: 'Gaming', type: 'voice', perm: 'verified_full' },
-      { name: 'Tu Luyện (Pomodoro)', type: 'voice', perm: 'verified_full' },
-      { name: 'Tu Luyện Tịnh Tâm', type: 'voice', perm: 'verified_full' },
-      { name: 'Phim Ảnh', type: 'voice', perm: 'verified_full' },
+      { name: 'Focus Room', type: 'voice', perm: 'verified_full' },
+      { name: 'Quiet Study', type: 'voice', perm: 'verified_full' },
+      { name: 'Movie Room', type: 'voice', perm: 'verified_full' },
       { name: 'Gaming 2', type: 'voice', perm: 'verified_full' },
     ],
   },

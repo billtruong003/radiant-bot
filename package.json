@@ -20,7 +20,8 @@
     "sync-server": "tsx scripts/sync-server.ts",
     "sync-server:dry": "tsx scripts/sync-server.ts -- --dry-run",
     "deploy-commands": "tsx scripts/deploy-commands.ts",
-    "deploy-commands:global": "tsx scripts/deploy-commands.ts -- --global"
+    "deploy-commands:global": "tsx scripts/deploy-commands.ts -- --global",
+    "cleanup-old-structure": "tsx scripts/cleanup-old-structure.ts"
   },
   "dependencies": {
     "async-mutex": "^0.5.0",

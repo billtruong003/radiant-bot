@@ -33,16 +33,16 @@ function buildCache(guild: Guild): Map<string, string> {
  * via the resolved cache).
  */
 export const NO_XP_CHANNEL_NAMES: ReadonlySet<string> = new Set([
-  'lệnh-bot',
+  'bot-commands',
   'bot-dev',
-  'nhật-ký-tông-môn',
-  'xác-minh',
+  'bot-log',
+  'verify',
 ]);
 
 export const ANNOUNCEMENT_CHANNELS = {
-  sectLog: 'nhật-ký-tông-môn',
-  levelUp: 'đột-phá',
-  leaderboard: 'bảng-xếp-hạng',
-  tribulation: 'độ-kiếp',
-  verification: 'xác-minh',
+  sectLog: 'bot-log',
+  levelUp: 'level-up',
+  leaderboard: 'leaderboard',
+  tribulation: 'tribulation',
+  verification: 'verify',
 } as const;
