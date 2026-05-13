@@ -1,5 +1,6 @@
 import type { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import { command as automodConfig } from './automod-config.js';
+import { command as breakthrough } from './breakthrough.js';
 import { command as daily } from './daily.js';
 import { command as leaderboard } from './leaderboard.js';
 import { command as raidMode } from './raid-mode.js';
@@ -26,6 +27,7 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [daily.data.name, daily as SlashCommand],
   [automodConfig.data.name, automodConfig as SlashCommand],
   [title.data.name, title as SlashCommand],
+  [breakthrough.data.name, breakthrough as SlashCommand],
 ]);
 
 export function findCommand(name: string): SlashCommand | undefined {

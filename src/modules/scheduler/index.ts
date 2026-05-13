@@ -7,6 +7,7 @@ import { runVoiceTick } from '../leveling/voice-xp.js';
 import { cleanupExpiredVerifications } from '../verification/flow.js';
 import { maybeAutoDisableRaid } from '../verification/raid.js';
 import { backupToGitHub } from './backup.js';
+import { maybeRunRandomTribulation } from './tribulation-trigger.js';
 import { postWeeklyLeaderboard } from './weekly-leaderboard.js';
 
 /**
@@ -94,9 +95,21 @@ export function startScheduler(client: Client): void {
   );
   tasks.push(nightly);
 
+  // Daily 18:00 VN — 25% chance random tribulation (gating inside fn).
+  const tribulationCron = cron.schedule(
+    '0 18 * * *',
+    () => {
+      maybeRunRandomTribulation(client).catch((err) => {
+        logger.error({ err }, 'scheduler: tribulation trigger failed');
+      });
+    },
+    { timezone: VN_TZ },
+  );
+  tasks.push(tribulationCron);
+
   logger.info(
     { jobs: tasks.length, tz: VN_TZ },
-    'scheduler: started (1 per-min + 1 weekly + 1 daily)',
+    'scheduler: started (per-min + weekly + nightly backup + tribulation)',
   );
 }
 
