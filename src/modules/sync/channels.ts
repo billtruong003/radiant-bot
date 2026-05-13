@@ -27,12 +27,18 @@ function findCategory(guild: Guild, name: string): CategoryChannel | undefined {
   return undefined;
 }
 
-function findChannelInCategory(
-  category: CategoryChannel,
+/**
+ * Searches the whole guild for a channel by name + type. Used regardless of
+ * dry-run vs apply so the projection is consistent: if a channel exists
+ * under the wrong parent (e.g. Discord starter channels at root), syncChannel
+ * will move it into the correct category and count it as an update.
+ */
+function findChannelByName(
+  guild: Guild,
   name: string,
   type: ChannelType,
 ): GuildBasedChannel | undefined {
-  for (const ch of category.children.cache.values()) {
+  for (const ch of guild.channels.cache.values()) {
     if (ch.name === name && ch.type === type) return ch;
   }
   return undefined;
@@ -135,38 +141,44 @@ async function syncChannel(
   counters: SyncCounters,
 ): Promise<void> {
   const expectedType = CHANNEL_TYPE_TO_DISCORD[def.type];
-
-  // Look up channel under this category, or anywhere if category is null
-  // (dry-run pre-create state).
-  let existing: GuildBasedChannel | undefined;
-  if (category) {
-    existing = findChannelInCategory(category, def.name, expectedType);
-  } else {
-    for (const ch of guild.channels.cache.values()) {
-      if (ch.name === def.name && ch.type === expectedType) {
-        existing = ch;
-        break;
-      }
-    }
-  }
+  const existing = findChannelByName(guild, def.name, expectedType);
 
   if (existing && 'permissionOverwrites' in existing) {
-    if (overwritesEqual(existing, targetOverwrites)) {
-      logger.debug({ channel: def.name }, 'sync: channel perms up-to-date');
+    const targetParentId = category?.id ?? null;
+    const currentParentId = existing.parentId ?? null;
+    const parentDrift = targetParentId !== null && currentParentId !== targetParentId;
+    const permsDrift = !overwritesEqual(existing, targetOverwrites);
+
+    if (!parentDrift && !permsDrift) {
+      logger.debug({ channel: def.name }, 'sync: channel up-to-date');
       counters.channelsUnchanged++;
-    } else {
-      logger.info(
-        { channel: def.name, target: summarizeOverwrites(targetOverwrites) },
-        'sync: channel perm drift — will set overwrites',
+      return;
+    }
+
+    logger.info(
+      {
+        channel: def.name,
+        parent: parentDrift ? { from: currentParentId, to: targetParentId } : 'unchanged',
+        perms: permsDrift ? summarizeOverwrites(targetOverwrites) : 'unchanged',
+      },
+      'sync: channel drift — will update',
+    );
+    counters.channelsUpdated++;
+    if (opts.dryRun) return;
+
+    if (parentDrift && category) {
+      await existing.setParent(category.id, {
+        lockPermissions: false,
+        reason: 'sync-server: move into target category',
+      });
+      await rateDelay(opts);
+    }
+    if (permsDrift) {
+      await existing.permissionOverwrites.set(
+        targetOverwrites,
+        'sync-server: align overwrites with server-structure.ts',
       );
-      counters.channelsUpdated++;
-      if (!opts.dryRun) {
-        await existing.permissionOverwrites.set(
-          targetOverwrites,
-          'sync-server: align overwrites with server-structure.ts',
-        );
-        await rateDelay(opts);
-      }
+      await rateDelay(opts);
     }
     return;
   }
