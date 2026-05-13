@@ -113,6 +113,16 @@ async function main(): Promise<void> {
 
   const stats = { deleted: 0, skipped: 0, notFound: 0 };
 
+  // Collect the IDs of channels we're about to delete so the category
+  // safety check (below) can subtract them from the children set —
+  // otherwise dry-run always REFUSES categories whose children are
+  // ALL in the delete list.
+  const channelIdsToDelete = new Set<string>();
+  for (const name of CHANNELS_TO_DELETE) {
+    const channel = guild.channels.cache.find((c) => c.name === name);
+    if (channel) channelIdsToDelete.add(channel.id);
+  }
+
   // --- Channels first (must drop before their parent category) -----------
   for (const name of CHANNELS_TO_DELETE) {
     const channel = guild.channels.cache.find((c) => c.name === name);
@@ -130,6 +140,11 @@ async function main(): Promise<void> {
     }
   }
 
+  // After deleting channels in apply mode, refresh the cache so the
+  // children check below sees the up-to-date state instead of relying
+  // on gateway event lag.
+  if (args.apply) await guild.channels.fetch();
+
   // --- Categories ---------------------------------------------------------
   for (const name of CATEGORIES_TO_DELETE) {
     const category = guild.channels.cache.find((c) => c.name === name && c.type === 4);
@@ -138,16 +153,26 @@ async function main(): Promise<void> {
       stats.notFound++;
       continue;
     }
-    // Refuse to delete a non-empty category — safety check, the user may have
-    // created channels under it after the first apply.
-    if ('children' in category && category.children.cache.size > 0) {
+    // Compute the projected remaining children: in apply mode this is
+    // accurate (children already deleted + cache refreshed). In dry-run
+    // we subtract the ids that WILL be deleted so the safety check
+    // matches the projected post-apply state.
+    const remainingChildren: { id: string; name: string }[] = [];
+    if ('children' in category) {
+      for (const c of category.children.cache.values()) {
+        if (!channelIdsToDelete.has(c.id)) {
+          remainingChildren.push({ id: c.id, name: c.name });
+        }
+      }
+    }
+    if (remainingChildren.length > 0) {
       logger.error(
         {
           name,
           id: category.id,
-          children: category.children.cache.map((c) => c.name),
+          remaining: remainingChildren.map((c) => c.name),
         },
-        'cleanup: category has children, REFUSING to delete (move/delete children first)',
+        'cleanup: category would still have unrelated children, REFUSING (delete them first or add to CHANNELS_TO_DELETE)',
       );
       continue;
     }
