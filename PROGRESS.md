@@ -23,11 +23,11 @@
 - [x] `biome.json` config
 - [x] `.env.example` (xem CLAUDE.md)
 - [x] `.gitignore`: `node_modules`, `.env`, `data/`, `logs/`, `backup-repo/`, `dist/`
-- [ ] Discord Application + Bot ở developer portal — **blocked**, needs user (xem Blockers)
-- [ ] Invite bot vô server với perms từ CLAUDE.md — **blocked**, needs user
+- [x] Discord Application + Bot ở developer portal (app ID `1503973391579742278`)
+- [x] Invite bot vô server với perms từ CLAUDE.md (Administrator trong dev, sẽ hạ xuống least-privilege ở Phase 9 per audit)
 - [x] Folder structure theo CLAUDE.md
 - [x] `src/index.ts`: connect, log "ready" (+ SIGTERM/SIGINT graceful shutdown skeleton)
-- [ ] Test connect: `npm run dev` — **blocked** on Discord token
+- [x] Test connect: `npm run dev` → `INFO logged in tag="Radiant Tech Sect Bot#0992" id=1503973391579742278 guilds=1`
 
 ### Acceptance criteria
 - `npm run dev` → bot online ở server, log "Logged in as <name>"
@@ -480,18 +480,15 @@ Critical:
 
 ## Blockers / Notes
 
-### Phase 0 blockers
-- **need Discord bot token + IDs** — to finalize `npm run dev` smoke test. User needs to:
-  1. Go to https://discord.com/developers/applications → New Application → "Radiant Tech Sect Bot"
-  2. Bot tab → Reset Token → copy into `.env` as `DISCORD_TOKEN`
-  3. General Information → copy Application ID → `.env` as `DISCORD_CLIENT_ID`
-  4. Enable **Privileged Gateway Intents**: SERVER MEMBERS, MESSAGE CONTENT, PRESENCE (optional)
-  5. OAuth2 → URL Generator → scopes: `bot` + `applications.commands` → bot perms per CLAUDE.md (Manage Roles, Manage Channels, Kick, Ban, Manage Messages, Read/Send Messages, Embed Links, Add Reactions) → use generated URL to invite bot to test server
-  6. Right-click your test server → Copy Server ID → `.env` as `DISCORD_GUILD_ID`
-  7. `cp .env.example .env` then fill values
-  8. `npm run dev` → should log `"logged in"` with the bot tag
+### Phase 0 blockers — all cleared 2026-05-13
+_(resolved)_
 
-- **git not initialized yet** — repo is plain dir. Will run `git init` + first commit at end of Phase 0 work; user can decide later whether to push to a remote.
+### Outstanding security task — carry into next session
+- **Reset DISCORD_TOKEN at end of Phase 0** — token was pasted in chat during onboarding. Risk is bounded (Anthropic API logs only, not public) but best practice is to rotate:
+  1. https://discord.com/developers/applications/1503973391579742278/bot → Reset Token
+  2. Edit `.env` directly, paste new value
+  3. `npm run dev` to confirm new token works
+  - Bot will keep working with old token until reset is clicked.
 
 ---
 
