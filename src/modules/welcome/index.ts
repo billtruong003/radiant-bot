@@ -1,5 +1,7 @@
-import { EmbedBuilder, type GuildMember, type TextChannel } from 'discord.js';
+import type { EmbedBuilder, GuildMember, TextChannel } from 'discord.js';
 import { ANNOUNCEMENT_CHANNELS } from '../../config/channels.js';
+import { DIVIDER, ICONS } from '../../config/ui.js';
+import { themedEmbed } from '../../utils/embed.js';
 import { logger } from '../../utils/logger.js';
 
 /**
@@ -21,29 +23,39 @@ function findChannelByName(member: GuildMember, name: string): TextChannel | nul
 }
 
 function buildWelcomeEmbed(member: GuildMember): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor(0x5dade2)
+  const hero = [
+    `${ICONS.sparkle} ${member} vừa gia nhập **Radiant Tech Sect** ${ICONS.sparkle}`,
+    '',
+    '🩶 Khởi đầu tu vi từ **Phàm Nhân** (Level 0)',
+    '*Đường tu là đường tự rèn — chăm chỉ là gốc của tu vi.*',
+  ].join('\n');
+
+  const quickStart = [
+    `${ICONS.scroll} **Bắt đầu thế nào:**`,
+    '• `/daily` — điểm danh hằng ngày, nhận **+100 XP**',
+    '• Nhắn tin trong các kênh — **15–25 XP** mỗi message (cooldown 60s)',
+    '• Tham gia voice channel — **10 XP**/phút (**15 XP** ở Focus Room)',
+    '• `/rank` — xem cấp độ + tiến độ',
+    '• `/leaderboard` — top 10 đệ tử',
+    `• \`/ask\` — hỏi **Aki** ${ICONS.aki_happy} hầu gái của tông môn`,
+  ].join('\n');
+
+  const path = [
+    `${ICONS.dao} **Đường tu vi 10 cảnh giới:**`,
+    '⚪ Phàm Nhân → 🌬️ Luyện Khí → 🔵 Trúc Cơ → 🟡 Kim Đan → 🟣 Nguyên Anh',
+    '→ 🔥 Hóa Thần → ☯️ Luyện Hư → 🌟 Hợp Thể → 💎 Đại Thừa → ⚡ Độ Kiếp',
+  ].join('\n');
+
+  return themedEmbed('info', {
+    title: '🌅 Chào mừng tân đệ tử',
+    description: [hero, DIVIDER, quickStart, DIVIDER, path].join('\n\n'),
+    footer: 'Radiant Tech Sect — Đường tu là đường tự rèn',
+  })
     .setAuthor({
       name: member.displayName,
-      iconURL: member.user.displayAvatarURL(),
+      iconURL: member.user.displayAvatarURL({ size: 128 }),
     })
-    .setTitle('🌅 Chào mừng tân đệ tử')
-    .setDescription(
-      [
-        `${member} vừa gia nhập **Radiant Tech Sect**. Khởi đầu tu vi từ **Phàm Nhân** (Level 0).`,
-        '',
-        '**Bắt đầu thế nào:**',
-        '• `/daily` — điểm danh hằng ngày, nhận **100 XP**',
-        '• Nhắn tin trong các kênh có XP — earn 15–25 XP mỗi message (cooldown 60s)',
-        '• Tham gia voice channel (≥ 2 người) — 10 XP/phút, 15 XP/phút trong Focus Room',
-        '• `/rank` — xem cấp độ + tiến độ',
-        '• `/leaderboard` — top 10 đệ tử có XP cao nhất',
-        '',
-        'Tu vi đạt mốc sẽ tự động đột phá cảnh giới mới (Luyện Khí → Trúc Cơ → Kim Đan → ...).',
-      ].join('\n'),
-    )
-    .setFooter({ text: 'Radiant Tech Sect — Đường tu là đường tự rèn' })
-    .setTimestamp();
+    .setThumbnail(member.user.displayAvatarURL({ size: 256 }));
 }
 
 function buildQuickStartDm(): string {

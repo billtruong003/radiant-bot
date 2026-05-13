@@ -1,14 +1,19 @@
-import { type ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
+import { type ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import { rankById } from '../config/cultivation.js';
+import { DIVIDER_SHORT, ICONS, RANK_ICONS } from '../config/ui.js';
 import { getStore } from '../db/index.js';
 import type { CultivationRankId } from '../db/types.js';
 import { levelProgress } from '../modules/leveling/engine.js';
+import { inlineField, themedEmbed } from '../utils/embed.js';
 
 /**
  * /rank [user?] — show level / XP / cultivation rank for the caller
- * (default) or a target user. Progress bar uses emoji blocks tinted
- * by the member's current cảnh giới color so /rank reads visually
- * (per Phase 9 UX feedback — ASCII bars look flat).
+ * (default) or a target user. Embed:
+ *   - Author block: target avatar + display name + sub-title
+ *   - Hero line: rank icon + rank name + level + cultivation phase
+ *   - Progress bar: 16-emoji bar tinted by cảnh giới + percentage
+ *   - Fields: Cảnh giới · Cấp độ · XP · XP đến level tới
+ *   - Footer: rank description
  */
 
 export const data = new SlashCommandBuilder()
@@ -19,26 +24,20 @@ export const data = new SlashCommandBuilder()
     opt.setName('user').setDescription('Thành viên cần xem (mặc định là bạn)').setRequired(false),
   );
 
-const BAR_WIDTH = 12;
+const BAR_WIDTH = 16;
 
-/**
- * Map each cultivation rank to a "fill" emoji that approximates its
- * hex color. Discord doesn't render arbitrary color text in chat, so
- * we lean on the colored square emojis 🟦🟨 etc + ⬛/⬜ for the empty
- * portion. Mapping picked to roughly match the rank's `colorHex`.
- */
 const FILL_EMOJI: Record<CultivationRankId, string> = {
-  pham_nhan: '⬛', // grey
-  luyen_khi: '⬜', // light grey/white
-  truc_co: '🟦', // blue
-  kim_dan: '🟨', // gold
-  nguyen_anh: '🟪', // purple
-  hoa_than: '🟥', // red
-  luyen_hu: '🟩', // green
-  hop_the: '🟧', // orange
-  dai_thua: '⬜', // white
-  do_kiep: '🟨', // gold
-  tien_nhan: '🟨', // gold (admin grant)
+  pham_nhan: '⬛',
+  luyen_khi: '⬜',
+  truc_co: '🟦',
+  kim_dan: '🟨',
+  nguyen_anh: '🟪',
+  hoa_than: '🟥',
+  luyen_hu: '🟩',
+  hop_the: '🟧',
+  dai_thua: '⬜',
+  do_kiep: '🟨',
+  tien_nhan: '🟨',
 };
 const EMPTY_EMOJI = '▫️';
 
@@ -59,7 +58,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   if (!user) {
     await interaction.reply({
-      content: `⚠️ **${target.username}** chưa có XP nào — chưa từng nhắn tin trên server.`,
+      content: `${ICONS.warn} **${target.username}** chưa có XP nào — chưa từng nhắn tin trên server.`,
       ephemeral: true,
     });
     return;
@@ -69,28 +68,37 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const progress = levelProgress(user.xp);
   const fill = FILL_EMOJI[user.cultivation_rank] ?? '⬜';
   const bar = renderEmojiBar(progress.currentInLevel, progress.neededForNext, fill);
+  const rankIcon = RANK_ICONS[user.cultivation_rank] ?? '⭐';
   const subTitle = user.sub_title ? ` · ${user.sub_title}` : '';
   const pct =
     progress.neededForNext > 0
       ? Math.round((progress.currentInLevel / progress.neededForNext) * 100)
       : 100;
 
-  const embed = new EmbedBuilder()
-    .setColor(hexToInt(rank.colorHex))
+  // Hero description: rank icon + name + level — emotional anchor.
+  const heroLine = `${rankIcon} **${rank.name}** ${DIVIDER_SHORT} Level **${user.level}**`;
+
+  const barBlock = [
+    `**Tiến độ đến Level ${user.level + 1}** \`${pct}%\``,
+    bar,
+    `\`${progress.currentInLevel.toLocaleString('vi-VN')}\` / \`${progress.neededForNext.toLocaleString('vi-VN')}\` XP`,
+  ].join('\n');
+
+  const embed = themedEmbed('plain', {
+    color: hexToInt(rank.colorHex),
+    description: `${heroLine}\n\n${barBlock}`,
+    footer: `${rank.description} · Radiant Tech Sect`,
+  })
     .setAuthor({
       name: `${user.display_name ?? user.username}${subTitle}`,
-      iconURL: target.displayAvatarURL(),
+      iconURL: target.displayAvatarURL({ size: 128 }),
     })
+    .setThumbnail(target.displayAvatarURL({ size: 256 }))
     .addFields(
-      { name: 'Cảnh giới', value: rank.name, inline: true },
-      { name: 'Cấp độ', value: `**${user.level}**`, inline: true },
-      { name: 'Tổng XP', value: user.xp.toLocaleString('vi-VN'), inline: true },
-      {
-        name: `Tiến độ → Level ${user.level + 1}  (${pct}%)`,
-        value: `${bar}\n\`${progress.currentInLevel.toLocaleString('vi-VN')}\` / \`${progress.neededForNext.toLocaleString('vi-VN')}\` XP`,
-      },
-    )
-    .setFooter({ text: rank.description });
+      inlineField(`${ICONS.xp} Tổng XP`, user.xp.toLocaleString('vi-VN')),
+      inlineField(`${ICONS.star} Cấp độ`, `${user.level}`),
+      inlineField(`${ICONS.dao} Cảnh giới`, rank.name),
+    );
 
   await interaction.reply({ embeds: [embed] });
 }

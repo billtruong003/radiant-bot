@@ -59,7 +59,11 @@ function buildFakes(): MockFakes {
     id: 'u-trib',
     toString: () => '<@u-trib>',
     displayName: 'Tester',
-    user: { username: 'Tester', tag: 'Tester#0001' },
+    user: {
+      username: 'Tester',
+      tag: 'Tester#0001',
+      displayAvatarURL: () => 'https://cdn.discordapp.com/avatars/u-trib/avatar.png',
+    },
     guild: {
       channels: {
         cache: {

@@ -1,8 +1,10 @@
-import { EmbedBuilder, type GuildMember, type TextChannel } from 'discord.js';
+import type { GuildMember, TextChannel } from 'discord.js';
 import { ANNOUNCEMENT_CHANNELS } from '../../config/channels.js';
 import { CULTIVATION_RANKS, rankById, rankForLevel } from '../../config/cultivation.js';
+import { DIVIDER_DOUBLE, ICONS, RANK_ICONS } from '../../config/ui.js';
 import { getStore } from '../../db/index.js';
 import type { CultivationRankId } from '../../db/types.js';
+import { themedEmbed } from '../../utils/embed.js';
 import { logger } from '../../utils/logger.js';
 
 /**
@@ -123,29 +125,58 @@ export async function postLevelUpEmbed(
 
   try {
     if (promotion.promoted) {
+      const oldRank = rankById(promotion.oldRank);
       const newRank = rankById(promotion.newRank);
-      const embed = new EmbedBuilder()
-        .setColor(hexToInt(newRank.colorHex))
-        .setTitle('⚡ Đột phá cảnh giới')
-        .setDescription(
-          `${member} đã thành công đột phá cảnh giới, bước vào **${newRank.name}**.\n*${newRank.description}*`,
-        )
-        .addFields({ name: 'Cấp độ', value: `**Level ${newLevel}**`, inline: true })
-        .setTimestamp();
+      const oldIcon = RANK_ICONS[promotion.oldRank] ?? '⭐';
+      const newIcon = RANK_ICONS[promotion.newRank] ?? '⭐';
+
+      const heroLine = `${ICONS.tribulation} **${member}** đã đột phá cảnh giới!`;
+      const transition = `${oldIcon} **${oldRank.name}**  ${ICONS.arrow_right}  ${newIcon} **${newRank.name}**`;
+      const flavor = `_${newRank.description}_`;
+
+      const description = [
+        DIVIDER_DOUBLE,
+        heroLine,
+        '',
+        transition,
+        '',
+        flavor,
+        DIVIDER_DOUBLE,
+      ].join('\n');
+
+      const embed = themedEmbed('cultivation', {
+        color: hexToInt(newRank.colorHex),
+        title: `${ICONS.cultivation} Đột phá cảnh giới ${ICONS.cultivation}`,
+        description,
+        footer: 'Cảnh giới mới đã mở khoá quyền lợi · Radiant Tech Sect',
+      })
+        .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
+        .addFields(
+          { name: '👤 Đệ tử', value: member.toString(), inline: true },
+          { name: '📈 Cấp độ', value: `**Level ${newLevel}**`, inline: true },
+          { name: `${newIcon} Cảnh giới`, value: newRank.name, inline: true },
+        );
+
       await channel.send({
-        content: `${member}`,
+        content: `🎉 Chúc mừng ${member}!`,
         embeds: [embed],
         allowedMentions: { users: [member.id] },
       });
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0x5dade2)
-      .setTitle('🎯 Lên cấp')
-      .setDescription(`${member} đã lên **Level ${newLevel}**.`)
-      .setTimestamp();
-    await channel.send({ embeds: [embed] });
+    // Plain level-up (no rank cross).
+    const user = getStore().users.get(member.id);
+    const rankIcon = user ? (RANK_ICONS[user.cultivation_rank] ?? '⭐') : '⭐';
+    const embed = themedEmbed('levelup', {
+      title: `${ICONS.sparkle} Lên cấp`,
+      description: `${member} vừa lên **Level ${newLevel}** ${rankIcon}`,
+      footer: undefined,
+    });
+    await channel.send({
+      embeds: [embed],
+      allowedMentions: { users: [member.id] },
+    });
   } catch (err) {
     logger.warn({ err, discord_id: member.id }, 'rank-promoter: embed post failed');
   }

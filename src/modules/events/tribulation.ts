@@ -2,7 +2,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder,
+  type EmbedBuilder,
   type GuildMember,
   type Message,
   type TextChannel,
@@ -17,8 +17,10 @@ import {
   TRIBULATION_PASS_XP,
   TRIBULATION_REACTION_TIMEOUT_MS,
 } from '../../config/leveling.js';
+import { DIVIDER, DIVIDER_DOUBLE, ICONS } from '../../config/ui.js';
 import { getStore } from '../../db/index.js';
 import type { SectEvent } from '../../db/types.js';
+import { themedEmbed } from '../../utils/embed.js';
 import { logger } from '../../utils/logger.js';
 import { applyXpPenalty, awardXp } from '../leveling/tracker.js';
 import { type MathPuzzle, generateMathPuzzle } from './games/math-puzzle.js';
@@ -103,22 +105,29 @@ function buildIntroEmbed(
   timeoutMs: number,
 ): EmbedBuilder {
   const seconds = Math.floor(timeoutMs / 1000);
-  return new EmbedBuilder()
-    .setColor(0x9b59b6)
-    .setTitle('⚡ Thiên Kiếp giáng lâm!')
-    .setDescription(
-      [
-        `🌩️ ${member} đối mặt với **Thiên Kiếp** — bài thử thuộc về đột phá cảnh giới.`,
-        '',
-        game === 'math'
-          ? `Giải bài toán dưới đây:\n# ${question}`
-          : 'Bấm nhanh vào **Thiên Long** (🐉) trong đám yêu thú:',
-        '',
-        `⏱️ Thời gian: **${seconds} giây**`,
-        `🏆 Pass: **+${PASS_XP} XP** · 💀 Fail: **-${FAIL_XP_PENALTY} XP** (sàn không xuống dưới ngưỡng cảnh giới)`,
-      ].join('\n'),
-    )
-    .setTimestamp();
+  const description = [
+    DIVIDER_DOUBLE,
+    `${ICONS.tribulation} **THIÊN KIẾP GIÁNG LÂM** ${ICONS.tribulation}`,
+    '',
+    `${member} đối mặt với **Thiên Kiếp** — bài thử của đột phá cảnh giới.`,
+    DIVIDER,
+    game === 'math'
+      ? `${ICONS.scroll} **Giải bài toán:**\n# ${question}`
+      : '🐉 **Bấm nhanh vào Thiên Long (🐉)** trong đám yêu thú trước khi Kiếp Lôi đánh trúng!',
+    DIVIDER_DOUBLE,
+  ].join('\n');
+
+  return themedEmbed('cultivation', {
+    title: `${ICONS.cultivation} Thiên Kiếp ${ICONS.cultivation}`,
+    description,
+    footer: 'Thiên đạo bất tử — vượt qua là đột phá',
+  })
+    .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
+    .addFields(
+      { name: '⏱️ Thời gian', value: `**${seconds}** giây`, inline: true },
+      { name: '🏆 Pass', value: `**+${PASS_XP}** XP`, inline: true },
+      { name: '💀 Fail', value: `**-${FAIL_XP_PENALTY}** XP (sàn)`, inline: true },
+    );
 }
 
 function buildOutcomeEmbed(
@@ -127,28 +136,47 @@ function buildOutcomeEmbed(
   xpDelta: number,
 ): EmbedBuilder {
   if (outcome === 'pass') {
-    return new EmbedBuilder()
-      .setColor(0xffd700)
-      .setTitle('✨ Đột phá thành công!')
-      .setDescription(`${member} đã vượt qua Thiên Kiếp.\n**+${xpDelta} XP** đã được trao.`)
-      .setTimestamp();
+    const description = [
+      DIVIDER_DOUBLE,
+      `${ICONS.sparkle} **${member} ĐÃ VƯỢT QUA THIÊN KIẾP** ${ICONS.sparkle}`,
+      '',
+      'Tu vi tiến một bước, cảnh giới rộng mở.',
+      DIVIDER_DOUBLE,
+    ].join('\n');
+    return themedEmbed('success', {
+      title: `${ICONS.crown} Đột phá thành công ${ICONS.crown}`,
+      description,
+      footer: 'Tiến lên đi đệ tử!',
+    })
+      .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
+      .addFields({ name: '🎁 Phần thưởng', value: `**+${xpDelta} XP**`, inline: false });
   }
-  if (outcome === 'timeout') {
-    return new EmbedBuilder()
-      .setColor(0xe74c3c)
-      .setTitle('⌛ Hết thời gian')
-      .setDescription(
-        `${member} không phản ứng kịp Thiên Kiếp.\n**${xpDelta} XP** (sàn ở ngưỡng cảnh giới).`,
-      )
-      .setTimestamp();
-  }
-  return new EmbedBuilder()
-    .setColor(0xe74c3c)
-    .setTitle('💥 Thất bại')
-    .setDescription(
-      `${member} không vượt qua được Thiên Kiếp.\n**${xpDelta} XP** (sàn ở ngưỡng cảnh giới).`,
-    )
-    .setTimestamp();
+
+  const isTimeout = outcome === 'timeout';
+  const title = isTimeout ? `${ICONS.timeout} Hết thời gian` : '💥 Thất bại';
+  const flavor = isTimeout
+    ? `${member} không phản ứng kịp Thiên Kiếp.`
+    : `${member} không vượt qua được Thiên Kiếp.`;
+
+  const description = [
+    DIVIDER,
+    flavor,
+    '',
+    '*Thiên đạo vô tình. Lần sau cố gắng hơn.*',
+    DIVIDER,
+  ].join('\n');
+
+  return themedEmbed('danger', {
+    title,
+    description,
+    footer: 'Sàn XP ở ngưỡng cảnh giới — không bị demotion',
+  })
+    .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
+    .addFields({
+      name: '💔 Phạt XP',
+      value: `**${xpDelta} XP** (đã floored)`,
+      inline: false,
+    });
 }
 
 function buildButtonsForMath(eventId: string, puzzle: MathPuzzle): ActionRowBuilder<ButtonBuilder> {

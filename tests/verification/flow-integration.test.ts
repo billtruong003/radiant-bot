@@ -136,7 +136,7 @@ describe('flow integration (mocked Discord)', () => {
       expect(verifyCh.send).toHaveBeenCalledTimes(1);
       const post = verifyCh.send.mock.calls[0]?.[0];
       expect(post.components).toBeDefined();
-      expect(post.content).toMatch(/Bấm nút bên dưới/);
+      expect(post.content).toMatch(/Bấm nút dưới/);
       // Record still persisted so reply can be matched later.
       expect(getStore().verifications.get('m-dm-blocked')?.status).toBe('pending');
     });

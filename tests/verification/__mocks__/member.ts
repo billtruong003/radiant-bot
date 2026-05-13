@@ -97,6 +97,7 @@ export function makeMockMember(opts: MockMemberOpts = {}): MockMember {
       username,
       avatar: hasAvatar ? 'avatar-hash' : null,
       createdTimestamp: NOW - ageDays * 24 * 60 * 60 * 1000,
+      displayAvatarURL: () => `https://cdn.discordapp.com/avatars/${id}/avatar.png`,
     },
     displayName: username,
     joinedTimestamp: NOW,

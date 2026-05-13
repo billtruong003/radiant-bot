@@ -188,7 +188,7 @@ describe('postLevelUpEmbed', () => {
     expect(channelSend).toHaveBeenCalledTimes(1);
     const payload = channelSend.mock.calls[0]?.[0];
     expect(payload.embeds).toHaveLength(1);
-    expect(payload.embeds[0].data.title).toBe('🎯 Lên cấp');
+    expect(payload.embeds[0].data.title).toBe('✨ Lên cấp');
     expect(payload.embeds[0].data.description).toContain('Level 5');
   });
 
@@ -201,7 +201,7 @@ describe('postLevelUpEmbed', () => {
     });
     const payload = channelSend.mock.calls[0]?.[0];
     expect(payload.content).toContain(member.id);
-    expect(payload.embeds[0].data.title).toBe('⚡ Đột phá cảnh giới');
+    expect(payload.embeds[0].data.title).toBe('⚡ Đột phá cảnh giới ⚡');
     expect(payload.embeds[0].data.description).toContain('Trúc Cơ');
   });
 

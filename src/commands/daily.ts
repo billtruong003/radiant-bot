@@ -1,20 +1,18 @@
-import { type ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
+import { type ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { DIVIDER_SHORT, ICONS } from '../config/ui.js';
 import { getStore } from '../db/index.js';
 import { computeDailyAward, nextMilestoneHint } from '../modules/leveling/daily.js';
 import { maybePromoteRank, postLevelUpEmbed } from '../modules/leveling/rank-promoter.js';
 import { awardXp } from '../modules/leveling/tracker.js';
+import { themedEmbed } from '../utils/embed.js';
 
 /**
- * /daily — claim daily XP + maintain streak. Calendar-day-based in
- * VN timezone (see modules/leveling/daily.ts).
+ * /daily — claim daily XP + maintain streak. Embed includes:
+ *   - Hero line: +N XP earned, breakdown of base + bonus
+ *   - Streak visual: number + flame/spark per streak day milestone
+ *   - Next milestone hint
  *
- * Successful claim:
- *   1. computeDailyAward → { ok, amount, newStreak, bonus }
- *   2. awardXp(amount, source='daily' | 'streak_7' | etc.)
- *   3. Update user.daily_streak + last_daily_at
- *   4. Reply with embed showing streak + bonus + next milestone
- *
- * Failed (already claimed): ephemeral nudge to try again tomorrow.
+ * Calendar-day-based in VN timezone (see modules/leveling/daily.ts).
  */
 
 export const data = new SlashCommandBuilder()
@@ -29,9 +27,23 @@ function streakSourceFor(newStreak: number): 'streak_7' | 'streak_14' | 'streak_
   return 'daily';
 }
 
+/** Visual streak meter: highlight days past + show milestones at 7/14/30. */
+function renderStreakLadder(currentStreak: number): string {
+  const milestones = [7, 14, 30];
+  const parts: string[] = [];
+  for (const m of milestones) {
+    const reached = currentStreak >= m;
+    parts.push(`${reached ? '🔥' : '·'} ${m}d`);
+  }
+  return parts.join('  ');
+}
+
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!interaction.inGuild() || !interaction.member) {
-    await interaction.reply({ content: '⚠️ Lệnh này chỉ dùng trong server.', ephemeral: true });
+    await interaction.reply({
+      content: `${ICONS.warn} Lệnh này chỉ dùng trong server.`,
+      ephemeral: true,
+    });
     return;
   }
 
@@ -41,13 +53,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   if (!award.ok) {
     await interaction.reply({
-      content: `🕛 Hôm nay bạn đã điểm danh rồi (streak hiện tại: **${award.newStreak} ngày**). Quay lại vào ngày mai.`,
+      content: `🕛 Hôm nay bạn đã điểm danh rồi (streak hiện tại: **${award.newStreak} ngày** 🔥). Quay lại vào **ngày mai** nhé!`,
       ephemeral: true,
     });
     return;
   }
 
-  // Award XP first — this handles user creation if missing.
+  // Award XP first.
   const member = await interaction.guild?.members.fetch(interaction.user.id).catch(() => null);
   const displayName = member?.displayName ?? interaction.user.username;
   const result = await awardXp({
@@ -59,8 +71,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     metadata: { streak: award.newStreak, base: award.base, bonus: award.bonus },
   });
 
-  // Persist streak + last_daily_at on the User record. Re-fetch post-awardXp
-  // so we don't clobber concurrent XP changes.
+  // Persist streak + last_daily_at.
   const fresh = store.users.get(interaction.user.id);
   if (fresh) {
     await store.users.set({
@@ -71,16 +82,28 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   const hint = nextMilestoneHint(award.newStreak);
-  const bonusLine =
-    award.bonus > 0 ? `\n🎁 **Streak ${award.newStreak} ngày** bonus: +${award.bonus} XP` : '';
+  const ladder = renderStreakLadder(award.newStreak);
 
-  const embed = new EmbedBuilder()
-    .setColor(0x5dade2)
-    .setTitle('🌅 Điểm danh thành công')
-    .setDescription(
-      `${interaction.user} nhận **+${award.amount} XP**.${bonusLine}\n\nStreak hiện tại: **${award.newStreak} ngày**.${hint ? `\n*${hint}*` : ''}`,
-    )
-    .setTimestamp();
+  const baseLine = `**+${award.base} XP** điểm danh`;
+  const bonusLine =
+    award.bonus > 0 ? `\n🎁 **+${award.bonus} XP** bonus streak ${award.newStreak} ngày!` : '';
+  const heroLine = `${ICONS.sparkle} ${interaction.user} nhận **+${award.amount} XP**`;
+
+  const streakBlock = [
+    `🔥 **Streak hiện tại:** ${award.newStreak} ngày`,
+    ladder,
+    hint ? `*${hint}*` : '*Đã đạt tất cả mốc streak — giữ vững!* 👑',
+  ].join('\n');
+
+  const description = [heroLine, `${baseLine}${bonusLine}`, DIVIDER_SHORT, streakBlock].join(
+    '\n\n',
+  );
+
+  const embed = themedEmbed(award.bonus > 0 ? 'success' : 'info', {
+    title: `🌅 Điểm danh ${award.bonus > 0 ? '— Mốc streak!' : 'thành công'}`,
+    description,
+    footer: 'Cron reset theo lịch VN (Asia/Ho_Chi_Minh)',
+  }).setThumbnail(interaction.user.displayAvatarURL({ size: 128 }));
 
   await interaction.reply({ embeds: [embed] });
 

@@ -43,11 +43,22 @@ export function generateMathChallenge(opts: MathChallengeOptions = {}): MathChal
  */
 export function renderMathChallenge(c: MathChallenge): string {
   return [
-    '🏯 **Chào mừng đến Radiant Tech Sect**',
+    '╔═══════════════════════════════════╗',
+    '   🏯 **RADIANT TECH SECT**',
+    '   *Cổng tu hành — Xác minh tân đệ tử*',
+    '╚═══════════════════════════════════╝',
     '',
-    `Để gia nhập, hãy giải bài toán: **${c.a} + ${c.b} = ?**`,
+    'Chào tân đạo hữu! Aki — hầu gái của tông môn — sẽ kiểm tra một chút trước khi mở cửa.',
     '',
-    'Trả lời tin nhắn này với chỉ con số đáp án (vd: `25`).',
+    '━━━━━━━━━━━━━━━━━━━━━━━━',
+    '📜 **Bài thử:**',
+    `# ${c.a} + ${c.b} = ?`,
+    '━━━━━━━━━━━━━━━━━━━━━━━━',
+    '',
+    'Reply tin nhắn này với **chỉ con số đáp án** (vd: `25`).',
+    '',
+    '⏱️ Thời gian: **5 phút** · Tối đa **3 lần thử**',
+    '*(◕‿◕) Aki sẽ ngồi đợi đạo hữu đây~*',
   ].join('\n');
 }
 

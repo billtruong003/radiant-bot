@@ -89,13 +89,25 @@ export function buildChallenge(
     });
     const expected = `${img.text} ${math.expected}`;
     const dm = [
-      '🏯 **Chào mừng đến Radiant Tech Sect**',
+      '╔═══════════════════════════════════╗',
+      '   🏯 **RADIANT TECH SECT**',
+      '   *Cổng tu hành — Xác minh nâng cao*',
+      '╚═══════════════════════════════════╝',
       '',
-      'Tài khoản của bạn được đánh giá là cần xác minh nâng cao.',
-      `Hãy nhìn vào ảnh đính kèm và trả lời theo định dạng: \`<chữ trong ảnh> ${math.a}+${math.b}\``,
-      `Ví dụ: \`ABC2XY ${math.a + math.b}\``,
+      'Aki nhận thấy tài khoản đạo hữu cần **xác minh kỹ hơn một chút** (¬_¬)',
+      'Đừng lo, vượt qua là vào liền~',
       '',
-      `Thời gian: **${Math.floor(config.thresholds.captchaTimeoutMs / 60_000)} phút**. Tối đa **${config.thresholds.captchaMaxAttempts}** lần thử.`,
+      '━━━━━━━━━━━━━━━━━━━━━━━━',
+      '📜 **Bài thử (2 phần):**',
+      '🖼️ Nhìn ảnh → đọc chuỗi chữ',
+      `🧮 Cộng: \`${math.a} + ${math.b} = ?\``,
+      '━━━━━━━━━━━━━━━━━━━━━━━━',
+      '',
+      '**Format reply:** `<chữ trong ảnh> <tổng>`',
+      `**Ví dụ:** \`ABC2XY ${math.a + math.b}\``,
+      '',
+      `⏱️ Thời gian: **${Math.floor(config.thresholds.captchaTimeoutMs / 60_000)} phút** · Tối đa **${config.thresholds.captchaMaxAttempts}** lần thử`,
+      '*(◕‿◕) Aki kiên nhẫn đợi đạo hữu~*',
     ].join('\n');
     return {
       challenge_type: 'image+math',
@@ -312,7 +324,12 @@ async function postFallbackButton(
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
   try {
     await channel.send({
-      content: `${member}, tin nhắn riêng (DM) của bạn đang chặn bot. Bấm nút bên dưới để xác minh.`,
+      content: [
+        `${member} ✨ chào tân đạo hữu!`,
+        '',
+        'Aki gửi DM nhưng bạn đang **chặn tin nhắn riêng** — không sao.',
+        'Bấm nút dưới để xác minh ngay tại đây nhé. *(◕‿◕)*',
+      ].join('\n'),
       components: [row],
       allowedMentions: { users: [member.id] },
     });
