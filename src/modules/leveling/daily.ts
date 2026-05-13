@@ -1,10 +1,11 @@
+import { DAILY_BASE_XP, DAILY_STREAK_BONUSES } from '../../config/leveling.js';
 import type { User } from '../../db/types.js';
 
 /**
  * /daily reward + streak logic. Pure functions (no I/O, no Discord) so
  * the command file is a thin wrapper that persists the result.
  *
- * SPEC §3 daily rewards:
+ * SPEC §3 daily rewards (values come from `config/leveling.ts`):
  *   - base                 : 100 XP
  *   - streak day 7         : +50  bonus
  *   - streak day 14        : +150 bonus
@@ -17,12 +18,6 @@ import type { User } from '../../db/types.js';
 
 const DEFAULT_TZ = 'Asia/Ho_Chi_Minh';
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const BASE_AMOUNT = 100;
-const STREAK_BONUSES: ReadonlyMap<number, number> = new Map([
-  [7, 50],
-  [14, 150],
-  [30, 500],
-]);
 
 export interface DailyAwardResult {
   /** True if the user can claim today; false if already claimed. */
@@ -79,11 +74,11 @@ export function computeDailyAward(
   const isContinuation = lastTs !== null && dayKey(lastTs, tz) === yesterdayKey;
   const newStreak = isContinuation ? (user?.daily_streak ?? 0) + 1 : 1;
 
-  const bonus = STREAK_BONUSES.get(newStreak) ?? 0;
+  const bonus = DAILY_STREAK_BONUSES.get(newStreak) ?? 0;
   return {
     ok: true,
-    amount: BASE_AMOUNT + bonus,
-    base: BASE_AMOUNT,
+    amount: DAILY_BASE_XP + bonus,
+    base: DAILY_BASE_XP,
     bonus,
     newStreak,
   };
@@ -94,7 +89,7 @@ export function computeDailyAward(
  * the /daily reply embed.
  */
 export function nextMilestoneHint(currentStreak: number): string | null {
-  for (const [day, bonus] of STREAK_BONUSES) {
+  for (const [day, bonus] of DAILY_STREAK_BONUSES) {
     if (day > currentStreak) {
       return `Còn ${day - currentStreak} ngày nữa đến mốc streak ${day} ngày (+${bonus} XP bonus)`;
     }

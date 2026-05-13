@@ -1,20 +1,26 @@
 import type { Guild, GuildMember, Role } from 'discord.js';
 import { CULTIVATION_RANKS } from '../../config/cultivation.js';
+import {
+  ROLE_BOT_FLAIR,
+  ROLE_ELDER,
+  ROLE_MOD,
+  ROLE_PHAM_NHAN,
+  ROLE_SECT_MASTER,
+  ROLE_TIEN_NHAN,
+  ROLE_UNVERIFIED,
+} from '../../config/roles.js';
 import type { BotCliService } from '../service.js';
-
-const PHAM_NHAN_ROLE_NAME = 'Phàm Nhân';
-const UNVERIFIED_ROLE_NAME = 'Chưa Xác Minh';
 
 const CULTIVATION_ROLE_NAMES: ReadonlySet<string> = new Set(CULTIVATION_RANKS.map((r) => r.name));
 // Also accept Tiên Nhân (admin-grant top) + Thiên Đạo (bot's flair role) so
 // members already promoted aren't downgraded.
 const PROTECTED_ROLE_NAMES: ReadonlySet<string> = new Set([
   ...CULTIVATION_ROLE_NAMES,
-  'Tiên Nhân',
-  'Chưởng Môn',
-  'Thiên Đạo',
-  'Trưởng Lão',
-  'Chấp Pháp', // was Nội Môn Đệ Tử
+  ROLE_TIEN_NHAN,
+  ROLE_SECT_MASTER,
+  ROLE_BOT_FLAIR,
+  ROLE_ELDER,
+  ROLE_MOD,
 ]);
 
 interface OnboardOutcome {
@@ -38,16 +44,12 @@ function classifyMember(
     return { member, reason: 'is-owner', actions: {} };
   }
   // Has any protected role (already a cultivator or staff) → skip.
+  const staffRoles = new Set([ROLE_SECT_MASTER, ROLE_BOT_FLAIR, ROLE_ELDER, ROLE_MOD]);
   for (const role of member.roles.cache.values()) {
     if (PROTECTED_ROLE_NAMES.has(role.name)) {
-      const isStaff =
-        role.name === 'Chưởng Môn' ||
-        role.name === 'Thiên Đạo' ||
-        role.name === 'Trưởng Lão' ||
-        role.name === 'Chấp Pháp';
       return {
         member,
-        reason: isStaff ? 'is-staff' : 'has-rank',
+        reason: staffRoles.has(role.name) ? 'is-staff' : 'has-rank',
         actions: {},
       };
     }
@@ -78,8 +80,8 @@ export const bulkOnboard: BotCliService = {
 
     // Populate role + member caches before any lookups.
     await g.roles.fetch();
-    const phamNhan = resolveRole(g, PHAM_NHAN_ROLE_NAME);
-    const unverified = resolveRole(g, UNVERIFIED_ROLE_NAME);
+    const phamNhan = resolveRole(g, ROLE_PHAM_NHAN);
+    const unverified = resolveRole(g, ROLE_UNVERIFIED);
 
     // Discord caps fetch() at 1000 by default; bots <1k members fit in one call.
     const members = await g.members.fetch();

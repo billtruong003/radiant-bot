@@ -1,5 +1,6 @@
 import type { Client } from 'discord.js';
 import { env } from '../../config/env.js';
+import { TRIBULATION_DAILY_TRIGGER_CHANCE } from '../../config/leveling.js';
 import {
   isTribulationOnCooldown,
   pickEligibleUserId,
@@ -26,11 +27,9 @@ import { logger } from '../../utils/logger.js';
  * the bot-log channel.
  */
 
-const TRIGGER_CHANCE = 0.25;
-
 export async function maybeRunRandomTribulation(client: Client): Promise<void> {
-  if (Math.random() >= TRIGGER_CHANCE) {
-    logger.debug({ chance: TRIGGER_CHANCE }, 'tribulation-cron: skipped by roll');
+  if (Math.random() >= TRIBULATION_DAILY_TRIGGER_CHANCE) {
+    logger.debug({ chance: TRIBULATION_DAILY_TRIGGER_CHANCE }, 'tribulation-cron: skipped by roll');
     return;
   }
 

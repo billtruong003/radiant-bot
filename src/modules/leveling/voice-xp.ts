@@ -1,5 +1,6 @@
 import { ChannelType, type Guild, type VoiceChannel } from 'discord.js';
 import { WORKING_VOICE_CHANNEL_NAMES } from '../../config/channels.js';
+import { VOICE_WORKING_XP_PER_MIN, VOICE_XP_PER_MIN } from '../../config/leveling.js';
 import { logger } from '../../utils/logger.js';
 import { maybePromoteRank, postLevelUpEmbed } from './rank-promoter.js';
 import { awardXp } from './tracker.js';
@@ -19,9 +20,6 @@ import { awardXp } from './tracker.js';
  *   - Trade-off: a member who joins for <60s right between ticks
  *     earns nothing. Acceptable — sub-minute presence shouldn't grind.
  */
-
-const MESSAGE_XP_PER_MIN = 10;
-const WORKING_XP_PER_MIN = 15;
 
 function isWorkingChannel(name: string): boolean {
   return WORKING_VOICE_CHANNEL_NAMES.has(name);
@@ -56,7 +54,7 @@ export async function runVoiceTick(guild: Guild): Promise<{
     const humans = countNonBotHumans(vc);
     if (humans < 2) continue; // solo or empty
 
-    const amount = isWorkingChannel(vc.name) ? WORKING_XP_PER_MIN : MESSAGE_XP_PER_MIN;
+    const amount = isWorkingChannel(vc.name) ? VOICE_WORKING_XP_PER_MIN : VOICE_XP_PER_MIN;
     const source = isWorkingChannel(vc.name) ? 'voice_working' : 'voice';
 
     for (const member of vc.members.values()) {

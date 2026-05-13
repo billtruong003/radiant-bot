@@ -1,6 +1,8 @@
 import { type Client, Events, type GuildMember, type Message } from 'discord.js';
 import { NO_XP_CHANNEL_NAMES } from '../config/channels.js';
 import { env } from '../config/env.js';
+import { MESSAGE_XP_MAX, MESSAGE_XP_MIN } from '../config/leveling.js';
+import { STAFF_ROLE_NAMES } from '../config/roles.js';
 import { loadVerificationConfig } from '../config/verification.js';
 import { applyDecision, automodEngine } from '../modules/automod/index.js';
 import { messageXpCooldown } from '../modules/leveling/cooldown.js';
@@ -9,13 +11,6 @@ import { maybePromoteRank, postLevelUpEmbed } from '../modules/leveling/rank-pro
 import { awardXp, randomXpAmount } from '../modules/leveling/tracker.js';
 import { handleDmReply } from '../modules/verification/flow.js';
 import { logger } from '../utils/logger.js';
-
-const STAFF_ROLE_NAMES: ReadonlySet<string> = new Set([
-  'Chưởng Môn',
-  'Trưởng Lão',
-  'Chấp Pháp',
-  'Thiên Đạo', // bot's flair role — also exempt
-]);
 
 function isStaff(member: GuildMember): boolean {
   for (const role of member.roles.cache.values()) {
@@ -90,7 +85,7 @@ async function handleGuildMessage(message: Message): Promise<void> {
   // 60s/user cooldown (SPEC §3 sacred constant).
   if (!messageXpCooldown.tryConsume(message.author.id)) return;
 
-  const amount = randomXpAmount(15, 25);
+  const amount = randomXpAmount(MESSAGE_XP_MIN, MESSAGE_XP_MAX);
   const result = await awardXp({
     discordId: message.author.id,
     username: message.author.username,

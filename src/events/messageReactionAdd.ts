@@ -7,6 +7,7 @@ import {
   type User,
 } from 'discord.js';
 import { NO_XP_CHANNEL_NAMES } from '../config/channels.js';
+import { REACTION_MAX_PER_MESSAGE, REACTION_XP_AMOUNT } from '../config/leveling.js';
 import { reactionXpCooldown } from '../modules/leveling/cooldown.js';
 import { maybePromoteRank, postLevelUpEmbed } from '../modules/leveling/rank-promoter.js';
 import { awardXp } from '../modules/leveling/tracker.js';
@@ -24,9 +25,6 @@ import { logger } from '../utils/logger.js';
  * Partial reactions / users get fetched on the spot — Discord sends a
  * partial when the message wasn't in cache (older messages).
  */
-
-const REACTION_XP_AMOUNT = 2;
-const REACTION_MAX_PER_MESSAGE = 10;
 
 function totalReactionCount(reaction: MessageReaction | PartialMessageReaction): number {
   let total = 0;

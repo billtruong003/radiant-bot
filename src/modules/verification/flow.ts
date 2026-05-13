@@ -14,6 +14,7 @@ import {
 } from 'discord.js';
 import { ulid } from 'ulid';
 import { ANNOUNCEMENT_CHANNELS } from '../../config/channels.js';
+import { ROLE_PHAM_NHAN, ROLE_UNVERIFIED } from '../../config/roles.js';
 import type { VerificationConfig } from '../../config/verification.js';
 import { getStore } from '../../db/index.js';
 import type { Verification } from '../../db/types.js';
@@ -42,8 +43,9 @@ import { generateMathChallenge, renderMathChallenge, verifyMathReply } from './c
  * (Chunk 5) so flow.ts stays headless and testable for the pure parts.
  */
 
-export const PHAM_NHAN_ROLE_NAME = 'Phàm Nhân';
-export const UNVERIFIED_ROLE_NAME = 'Chưa Xác Minh';
+/** Re-exported from `config/roles.ts` for callers that already import from flow. */
+export const PHAM_NHAN_ROLE_NAME = ROLE_PHAM_NHAN;
+export const UNVERIFIED_ROLE_NAME = ROLE_UNVERIFIED;
 
 export const BUTTON_ID_START = 'verify:start';
 export const BUTTON_ID_OPEN_MODAL = 'verify:open';

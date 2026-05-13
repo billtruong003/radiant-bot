@@ -9,6 +9,14 @@ import {
 } from 'discord.js';
 import { ulid } from 'ulid';
 import { ANNOUNCEMENT_CHANNELS } from '../../config/channels.js';
+import {
+  TRIBULATION_COOLDOWN_MS,
+  TRIBULATION_FAIL_PENALTY,
+  TRIBULATION_MATH_TIMEOUT_MS,
+  TRIBULATION_MIN_LEVEL,
+  TRIBULATION_PASS_XP,
+  TRIBULATION_REACTION_TIMEOUT_MS,
+} from '../../config/leveling.js';
 import { getStore } from '../../db/index.js';
 import type { SectEvent } from '../../db/types.js';
 import { logger } from '../../utils/logger.js';
@@ -38,12 +46,14 @@ import { type ReactionGame, generateReactionGame } from './games/reaction-speed.
  * so we can reconstruct what happened.
  */
 
-const MATH_TIMEOUT_MS = 30_000;
-const REACTION_TIMEOUT_MS = 5_000;
-const PASS_XP = 500;
-const FAIL_XP_PENALTY = 100;
-const SERVER_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-const TRIBULATION_LEVEL_MIN = 10;
+// Re-export shorter aliases for inline use in this file. Values come
+// from config/leveling.ts — edit there to retune.
+const MATH_TIMEOUT_MS = TRIBULATION_MATH_TIMEOUT_MS;
+const REACTION_TIMEOUT_MS = TRIBULATION_REACTION_TIMEOUT_MS;
+const PASS_XP = TRIBULATION_PASS_XP;
+const FAIL_XP_PENALTY = TRIBULATION_FAIL_PENALTY;
+const SERVER_COOLDOWN_MS = TRIBULATION_COOLDOWN_MS;
+const TRIBULATION_LEVEL_MIN = TRIBULATION_MIN_LEVEL;
 
 export type TribulationGameType = 'math' | 'reaction';
 export type TribulationOutcome = 'pass' | 'fail' | 'timeout' | 'aborted';

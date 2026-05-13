@@ -1,8 +1,10 @@
+import { MESSAGE_XP_MIN_CHARS } from '../../config/leveling.js';
+
 /**
- * SPEC §3 anti-abuse: messages shorter than 5 "substantive" chars or
- * emoji-only don't earn XP. Substantive length = char count after
- * stripping custom Discord emojis (`<:name:id>` / `<a:name:id>`) and
- * standard Unicode emojis.
+ * SPEC §3 anti-abuse: messages shorter than the configured substantive
+ * threshold (default 5 chars) or emoji-only don't earn XP. Substantive
+ * length = char count after stripping custom Discord emojis
+ * (`<:name:id>` / `<a:name:id>`) and standard Unicode emojis.
  *
  * Pure functions — no I/O, no Discord types. Easy to unit-test.
  */
@@ -17,5 +19,5 @@ export function substantiveLength(content: string): number {
 }
 
 export function isXpEligibleMessage(content: string): boolean {
-  return substantiveLength(content) >= 5;
+  return substantiveLength(content) >= MESSAGE_XP_MIN_CHARS;
 }
