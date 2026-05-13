@@ -42,6 +42,11 @@ const envSchema = z.object({
   AKI_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(600),
   /** Server-wide cap on Aki cost per VN-calendar-day. Above this, /ask refuses. */
   AKI_DAILY_BUDGET_USD: z.coerce.number().nonnegative().default(2.0),
+
+  /** Google Gemini API key (for /ask filter stage). Empty disables filter — all questions go straight to Grok. */
+  GEMINI_API_KEY: z.string().default(''),
+  /** Gemini Flash model for the cheap filter. */
+  AKI_FILTER_MODEL: z.string().default('gemini-2.0-flash'),
 });
 
 export type Env = z.infer<typeof envSchema>;

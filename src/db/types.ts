@@ -111,11 +111,31 @@ export interface AkiCallLog extends Record<string, unknown> {
   discord_id: string;
   question_length: number;
   has_image: boolean;
+  /** Grok-stage tokens (0 if filter rejected before Grok was called). */
   tokens_in: number;
   tokens_out: number;
   cached_tokens: number;
+  /** Grok-stage cost. Excludes filter cost — see filter_cost_usd. */
   cost_usd: number;
   refusal: boolean;
   refusal_reason: string | null;
   created_at: number;
+  /**
+   * Filter-stage (Gemini Flash) cost + tokens, since Phase 10 chunk 7.
+   * Optional for backward-compat with logs written before the field
+   * existed. Values default to 0 / null in code that reads them.
+   *
+   * `filter_stage`:
+   *   - 'gemini'      → Gemini call succeeded, used its verdict
+   *   - 'pre-filter'  → local heuristic caught it, no Gemini call
+   *   - 'fail-open'   → Gemini errored, fell through to Grok
+   *   - 'disabled'    → GEMINI_API_KEY not set
+   *   - null          → pre-filter era log
+   */
+  filter_stage?: 'gemini' | 'pre-filter' | 'fail-open' | 'disabled' | null;
+  filter_tokens_in?: number;
+  filter_tokens_out?: number;
+  filter_cost_usd?: number;
+  /** True if filter rejected and Grok was NOT called. */
+  filter_rejected?: boolean;
 }

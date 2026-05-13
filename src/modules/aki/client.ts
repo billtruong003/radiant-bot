@@ -45,6 +45,13 @@ export interface AskAkiInput {
   question: string;
   /** Discord attachment URL (image/jpeg, image/png, image/webp). */
   imageUrl?: string;
+  /** Filter stage attribution (Phase 10 chunk 7). Optional. */
+  filterMeta?: {
+    stage: 'gemini' | 'pre-filter' | 'fail-open' | 'disabled';
+    tokensIn: number;
+    tokensOut: number;
+    costUsd: number;
+  };
 }
 
 export interface AkiResponse {
@@ -126,6 +133,11 @@ export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
     refusal: false,
     refusal_reason: null,
     created_at: Date.now(),
+    filter_stage: input.filterMeta?.stage ?? null,
+    filter_tokens_in: input.filterMeta?.tokensIn ?? 0,
+    filter_tokens_out: input.filterMeta?.tokensOut ?? 0,
+    filter_cost_usd: input.filterMeta?.costUsd ?? 0,
+    filter_rejected: false,
   });
 
   logger.info(
@@ -144,14 +156,24 @@ export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
 }
 
 /**
- * Persist a refusal (rate-limit or budget) without making an API call.
- * Lets analytics show how much demand was capped vs. served.
+ * Persist a refusal (rate-limit, budget, or filter-reject) without
+ * calling Grok. Lets analytics show how much demand was capped vs. served.
+ *
+ * `filterMeta` is optional — set it when the refusal came from the
+ * Gemini filter so its tokens/cost still get tracked.
  */
 export async function logRefusal(
   discordId: string,
   questionLength: number,
   reason: string,
+  filterMeta?: {
+    stage: 'gemini' | 'pre-filter' | 'fail-open' | 'disabled';
+    tokensIn: number;
+    tokensOut: number;
+    costUsd: number;
+  },
 ): Promise<void> {
+  const isFilter = reason.startsWith('filter:');
   await getStore().akiLogs.append({
     id: ulid(),
     discord_id: discordId,
@@ -164,5 +186,10 @@ export async function logRefusal(
     refusal: true,
     refusal_reason: reason,
     created_at: Date.now(),
+    filter_stage: filterMeta?.stage ?? null,
+    filter_tokens_in: filterMeta?.tokensIn ?? 0,
+    filter_tokens_out: filterMeta?.tokensOut ?? 0,
+    filter_cost_usd: filterMeta?.costUsd ?? 0,
+    filter_rejected: isFilter,
   });
 }

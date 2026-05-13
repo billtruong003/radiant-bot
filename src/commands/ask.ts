@@ -1,19 +1,24 @@
 import { type Attachment, type ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import { getBudgetStatus, isBudgetExhausted } from '../modules/aki/budget.js';
 import { askAki, isAkiEnabled, logRefusal } from '../modules/aki/client.js';
+import { runFilter } from '../modules/aki/filter.js';
 import { tryAcquireAskQuota } from '../modules/aki/rate-limit.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * /ask <question> [image?] — call Aki (Grok 4.1 Fast Reasoning).
+ * /ask <question> [image?] — 2-stage pipeline.
  *
  * Gating, in order:
  *   1. Service enabled (XAI_API_KEY set) → else "Aki đang ngủ"
- *   2. Question length < 500 chars (Discord option max anyway)
- *   3. Image (optional): image/* + ≤ 10MB
- *   4. Per-user quota: ~5/min, ~50/day
- *   5. Daily budget not exhausted (server-wide cost cap)
- *   6. Call → reply (truncated to Discord 2000 char limit if needed)
+ *   2. Image (optional): image/* + ≤ 10MB
+ *   3. Per-user quota: ~5/min, ~100/day
+ *   4. Daily budget not exhausted (server-wide cost cap)
+ *   5. Filter stage (Gemini Flash, mean Aki persona):
+ *      - legit=false → reply directly with Gemini's sass, skip Grok
+ *      - legit=true  → fall through to Grok
+ *      - Filter disabled / errored → fail-open, forward to Grok
+ *      - Image attached → skip filter (Gemini text-only here; Grok has vision)
+ *   6. Grok call → reply (truncated to Discord 2000 char limit if needed)
  *
  * All refusals log to AkiCallLog (refusal=true) for analytics.
  */
@@ -119,15 +124,51 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  // 5. Defer (Grok call takes 2-10s)
+  // 5. Defer — filter is fast (~300ms) but Grok can be 2-10s, and we
+  //    want a single defer point so the typing indicator appears
+  //    immediately regardless of which stage answers.
   await interaction.deferReply();
 
-  // 6. Call
+  // 6. Filter stage (skip when image attached — text-only filter
+  //    can't see attachments, and an image with a one-word caption
+  //    would otherwise get rejected as "xàm").
+  let filterMeta: {
+    stage: 'gemini' | 'pre-filter' | 'fail-open' | 'disabled';
+    tokensIn: number;
+    tokensOut: number;
+    costUsd: number;
+  };
+
+  if (imgCheck.url) {
+    filterMeta = { stage: 'disabled', tokensIn: 0, tokensOut: 0, costUsd: 0 };
+  } else {
+    const filter = await runFilter(question);
+    filterMeta = {
+      stage: filter.source,
+      tokensIn: filter.tokensIn,
+      tokensOut: filter.tokensOut,
+      costUsd: filter.costUsd,
+    };
+
+    if (!filter.legit && filter.response) {
+      // Gemini (or pre-filter) wrote a mean Aki rejection. Use it.
+      await logRefusal(userId, question.length, `filter: ${filter.source}`, filterMeta);
+      const chunks = chunkForDiscord(filter.response);
+      await interaction.editReply({ content: chunks[0] });
+      for (let i = 1; i < chunks.length; i++) {
+        await interaction.followUp({ content: chunks[i], ephemeral: false });
+      }
+      return;
+    }
+  }
+
+  // 7. Grok call (legit-only path)
   try {
     const result = await askAki({
       discordId: userId,
       question,
       imageUrl: imgCheck.url,
+      filterMeta,
     });
 
     const chunks = chunkForDiscord(result.reply);
