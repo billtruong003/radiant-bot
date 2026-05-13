@@ -7,6 +7,7 @@ import { permissions } from './services/permissions.js';
 import { send } from './services/send.js';
 import { setupReactionRoles } from './services/setup-reaction-roles.js';
 import { simulateAutomod } from './services/simulate-automod.js';
+import { simulateTribulation } from './services/simulate-tribulation.js';
 import { simulateVerify } from './services/simulate-verify.js';
 import { simulateWeeklyLeaderboard } from './services/simulate-weekly-leaderboard.js';
 import { simulateWelcome } from './services/simulate-welcome.js';
@@ -24,6 +25,7 @@ const SERVICES: readonly BotCliService[] = [
   setupReactionRoles,
   simulateWelcome,
   simulateWeeklyLeaderboard,
+  simulateTribulation,
 ];
 
 function printHelp(): void {

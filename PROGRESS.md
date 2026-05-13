@@ -5,7 +5,7 @@
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
 **Last updated:** 2026-05-13
-**Current phase:** `Phase 7` (Phase 6 code-complete; welcome + reaction roles + /title + weekly leaderboard + backup deployed)
+**Current phase:** `Phase 8` (Phase 7 code-complete; tribulation events + /breakthrough deployed)
 
 ---
 
@@ -485,27 +485,41 @@ Backup:
 
 ## Phase 7 — Tribulation events
 
-**Status:** `todo`
-**Estimated complexity:** M (1-2 ngày)
+**Status:** `done` (code-complete + /breakthrough deployed)
+**Estimated complexity:** M (1-2 ngày) — actual: 1 session
 **Goal:** Random mini-game cho member level ≥ 10.
 
 ### Tasks
-- [ ] `src/modules/events/tribulation.ts` — orchestrator
-- [ ] `src/modules/events/games/math-puzzle.ts`
-- [ ] `src/modules/events/games/reaction-speed.ts`
-- [ ] Random trigger via scheduler (25% daily 18-22h VN)
-- [ ] Pick eligible: level ≥ 10, online, not AFK
-- [ ] Post in `#độ-kiếp` với Button components
-- [ ] 30s timer + timeout handle
-- [ ] Reward XP, log event in `store.events.set()`
-- [ ] `/breakthrough` self-trigger (24h cooldown)
+- [x] `src/modules/events/games/math-puzzle.ts` — difficulty-by-level multiple choice — Chunk 1
+- [x] `src/modules/events/games/reaction-speed.ts` — 5 emoji buttons, click 🐉 — Chunk 1
+- [x] `src/modules/leveling/tracker.ts:applyXpPenalty` — floored XP loss helper — Chunk 2
+- [x] `src/modules/events/tribulation.ts` — orchestrator + button collector + outcome embed — Chunk 2
+- [x] Eligibility helpers (`isTribulationOnCooldown`, `pickEligibleUserId`) — Chunk 2
+- [x] `/breakthrough` self-trigger slash command — Chunk 3
+- [x] `src/modules/scheduler/tribulation-trigger.ts` — 25% daily 18:00 VN cron — Chunk 3
+- [x] Cron job registered (4th scheduler handle) — Chunk 3
+- [x] `simulate-tribulation` CLI (gating + game preview) — Chunk 4
+- [x] Slash commands deployed (7 total now)
+- [x] Event entity persists to `store.events` with outcome metadata
+- [ ] Pick eligibility "online, not AFK" — Phase 7 keeps it simple (level ≥ 10 + member-in-guild check); voice-state / presence filter deferred to Phase 9 polish
+
+### Test results (automated)
+- **23 test files, 237 tests, all pass in ~4s**
+- New in Phase 7 (+22 tests):
+  - `games.test.ts` (8): math puzzle shape correctness (3 difficulty tiers), unique options, no negative distractors; reaction game unique 5 options, target always present, target shuffles
+  - `tribulation-helpers.test.ts` (14): applyXpPenalty (5 cases), isTribulationOnCooldown (5), pickEligibleUserId (4)
 
 ### Acceptance criteria
-- Event tự trigger random
-- Member level < 10 không pick
-- Cooldown 24h server-wide
-- Pass: +500 XP, fail: -100 XP (floor không xuống dưới level threshold)
-- Embed đẹp, có suspense
+- [x] Event tự trigger random (25% roll daily 18:00 VN, gated by cooldown + eligible-user check)
+- [x] Member level < 10 không pick (`pickEligibleUserId` filters)
+- [x] Cooldown 24h server-wide (`isTribulationOnCooldown` queries store.events)
+- [x] Pass: +500 XP via awardXp; fail: -100 XP via applyXpPenalty (floor at cumulativeXpForLevel)
+- [x] Embed đẹp với suspense — purple intro, gold pass, red fail/timeout, animal emoji decoys for the dragon button game
+- [ ] Manual e2e: `/breakthrough` while < level 10 → ephemeral refusal
+- [ ] Manual e2e: `/breakthrough` while ≥ 10 → public embed in #tribulation + buttons functional
+- [ ] Manual e2e: click correct answer → +500 XP + #tribulation pass embed + event recorded
+- [ ] Manual e2e: click wrong / let it timeout → -100 XP capped + fail/timeout embed
+- [ ] Manual e2e: trigger twice in < 24h → second call gets cooldown refusal
 
 ### Prompt template
 ```
