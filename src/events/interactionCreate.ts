@@ -1,10 +1,12 @@
 import {
   type ButtonInteraction,
+  type ChatInputCommandInteraction,
   type Client,
   Events,
   type Interaction,
   type ModalSubmitInteraction,
 } from 'discord.js';
+import { findCommand } from '../commands/index.js';
 import { loadVerificationConfig } from '../config/verification.js';
 import {
   BUTTON_ID_OPEN_MODAL,
@@ -44,7 +46,23 @@ async function dispatchModal(interaction: ModalSubmitInteraction): Promise<void>
   }
 }
 
+async function dispatchSlashCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+  const cmd = findCommand(interaction.commandName);
+  if (!cmd) {
+    logger.warn(
+      { name: interaction.commandName },
+      'interactionCreate: unknown slash command, skipping',
+    );
+    return;
+  }
+  await cmd.execute(interaction);
+}
+
 async function handle(interaction: Interaction): Promise<void> {
+  if (interaction.isChatInputCommand()) {
+    await dispatchSlashCommand(interaction);
+    return;
+  }
   if (interaction.isButton()) {
     await dispatchButton(interaction);
     return;
@@ -53,7 +71,6 @@ async function handle(interaction: Interaction): Promise<void> {
     await dispatchModal(interaction);
     return;
   }
-  // Slash commands etc — wired up in Chunk 6 + Phase 4.
 }
 
 export function register(client: Client): void {
