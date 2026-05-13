@@ -645,6 +645,33 @@ Critical:
 
 ---
 
+## Phase 10 — Aki AI helper (designed, awaiting impl)
+
+**Status:** `designed` — full spec in `docs/PHASE_10_AKI.md`
+**Estimated complexity:** M (1-2 sessions)
+**Goal:** `/ask` command calling Grok 4.1 Fast Reasoning as Aki — cute
+maid persona that answers server/game questions but refuses to write
+code for users (anti-spam policy).
+
+### Design highlights (see `docs/PHASE_10_AKI.md` for full)
+- **API**: `grok-4-1-fast-reasoning` via `https://api.x.ai/v1` (OpenAI-compatible)
+- **Pricing**: $0.20 input / $0.50 output / $0.05 cached per 1M tokens
+- **Cost estimate**: ~$0.0003/call → $3-9/mo at heavy use with caching
+- **Persona**: Vietnamese maid, sassy with lazy questions, knows full server context, refuses to write code (gives prompt templates instead)
+- **Image input**: supported via OpenAI-compatible `image_url` (multimodal)
+- **5 chunks**: client wrapper → rate-limit/budget → /ask command → simulate CLI → manual e2e
+
+### Caveat
+- **Model retirement**: `grok-4-1-fast-reasoning` reported retirement
+  date 2026-05-15. Verify + plan successor when starting Phase 10.
+
+### Open questions for Bill (before start)
+- Daily budget cap ($2/day default OK?)
+- Per-user limits (5/min, 50/day OK?)
+- Channel scoping (all channels, or `#bot-commands` + `#help-me` only?)
+
+---
+
 ## Blockers / Notes
 
 ### Phase 0 blockers — all cleared 2026-05-13

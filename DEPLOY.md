@@ -1,23 +1,63 @@
 # Deployment guide — Radiant Tech Sect Bot
 
-Production deploy on Oracle Cloud Always Free Tier (ARM Ampere A1 Flex).
 Single-VM, single-instance — Discord bots can't be horizontally
 clustered (one gateway connection per token).
 
+> **Important for VN operators:** Oracle Cloud Free Tier signup often
+> fails for Vietnamese accounts (anti-fraud flagging — same with
+> Google Cloud Free Tier). See **§0** for alternatives. Once you have
+> a Linux VM with outbound internet, the rest of this guide is
+> provider-agnostic.
+
 ---
 
-## 1. Provision the VM
+## 0. Hosting provider — pick one
 
-In Oracle Cloud Console:
-- Create **Ampere A1 Flex** instance (Always Free)
-- Shape: 2 OCPU, 12 GB RAM (free tier max — overkill but free)
-- Image: **Ubuntu 22.04 LTS**
-- Networking: VCN default, **add ingress rule for TCP 3030** on the
-  health-check security list (for UptimeRobot) — restrict to
-  UptimeRobot's IPs if you want zero public exposure.
-- Generate SSH keypair, save private key.
+Bot is **outbound-only** (connects TO Discord). No public IP required.
+The `/health` endpoint on port 3030 is optional (for UptimeRobot).
 
-Note the public IP — you'll need it for SSH + UptimeRobot config.
+| Provider | Cost/mo | Region (latency from VN) | VN signup | Notes |
+|---|---|---|---|---|
+| **Vultr** Cloud Compute 1GB | $6 (HF $3.50) | Singapore (~60ms) | ✅ VN cards work | **Recommended default** |
+| **DigitalOcean** Droplet 1GB | $6 | Singapore | ✅ Usually works | Stable, well-documented |
+| **AWS Lightsail** 1GB | $5 | Singapore | ✅ | Cheapest reputable |
+| **Linode/Akamai** Nanode 1GB | $5 | Singapore | ✅ | Solid alternative |
+| **Hetzner** CX22 (2vCPU/4GB) | €3.29 (~$3.60) | Helsinki (~280ms) | ⚠️ Strict, no VPN | Cheapest perf |
+| **Tino Host** VPS | ~99k VNĐ (~$4) | Vietnam (LAN-class) | ✅ MoMo/bank | Local payment + lowest admin SSH latency |
+| **FPT Smart Cloud** | from ~$8 | Vietnam | ✅ Native VN | Enterprise tier |
+| **Viettel IDC** | ~500k VNĐ (~$20) | Vietnam | ✅ | Pricier but enterprise SLA |
+| **Google Cloud (paid)** | ~$5-10 | Singapore / Jakarta | ✅ | Works for VN — costs money; reliable GCP ecosystem |
+| **Home PC** | $0 (electricity) | LAN | N/A | Bot is outbound-only — no port forward needed. Just keep PC on 24/7. |
+| ~~Oracle Cloud Free~~ | $0 | Tokyo | ❌ Often blocked for VN | Confirmed blocker for Bill |
+| ~~Google Cloud Free e2-micro~~ | $0 | US only | ⚠️ Flaky for VN | Paid GCP works fine; free tier specifically is iffy |
+| ~~Render free / Fly.io free~~ | $0 | Various | ✅ | ❌ Sleeps after idle — gateway disconnects |
+
+**Default recommendation**: **Vultr or DigitalOcean Singapore $6/mo**.
+Predictable price, VN cards work, ~60ms latency for admin SSH.
+
+**Cheapest with native VN payment**: **Tino Host ~$4/mo** (MoMo/bank).
+
+**Free**: run on a **home PC**. Bot needs only outbound internet — no
+public IP, no port forwarding. Health endpoint optional (skip UptimeRobot
+or expose via Cloudflare Tunnel free tier).
+
+---
+
+## 1. Provision the VM (Vultr Singapore example)
+
+Vultr console:
+- **Deploy Server** → **Cloud Compute** → Regular Performance
+- Region: **Singapore**, OS: **Ubuntu 22.04 LTS**, Plan: **$6/mo**
+- Upload SSH key during provision
+
+Note the public IP. DigitalOcean / Linode / Lightsail flow is similar.
+
+For **Tino Host / FPT / Viettel** (VN): order via web, SSH creds via
+email; same Ubuntu install applies.
+
+For **home PC**: skip this section, go to §2 on your existing Ubuntu
+(or WSL2 on Windows) machine. Make sure the machine stays powered on
+and connected to the internet.
 
 ---
 
