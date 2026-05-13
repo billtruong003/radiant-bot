@@ -8,6 +8,8 @@ import { send } from './services/send.js';
 import { setupReactionRoles } from './services/setup-reaction-roles.js';
 import { simulateAutomod } from './services/simulate-automod.js';
 import { simulateVerify } from './services/simulate-verify.js';
+import { simulateWeeklyLeaderboard } from './services/simulate-weekly-leaderboard.js';
+import { simulateWelcome } from './services/simulate-welcome.js';
 import { whoami } from './services/whoami.js';
 
 const SERVICES: readonly BotCliService[] = [
@@ -20,6 +22,8 @@ const SERVICES: readonly BotCliService[] = [
   simulateVerify,
   simulateAutomod,
   setupReactionRoles,
+  simulateWelcome,
+  simulateWeeklyLeaderboard,
 ];
 
 function printHelp(): void {
