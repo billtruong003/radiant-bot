@@ -582,6 +582,12 @@ Critical:
   - Upload via Discord UI (one-time) OR write `scripts/upload-role-icons.ts` reading PNGs from `assets/role-icons/`.
 - [ ] **Custom rank-up animation/sticker** in `#level-up` embed — maybe an animated GIF of the orb glowing brighter for đột phá cảnh giới
 - [ ] **Server-emoji upload script** — `scripts/upload-emojis.ts` reading `assets/emojis/` for any custom emojis the bot relies on (progress bar fills, ⚔️🧪🔮🌀 sub-title icons if we go custom there)
+- [ ] **Public launch announcement** — when Phase 9 closes, post to `#announcements`:
+  - VN-language welcome embed with cultivation theme
+  - Feature roll-call: verification, XP/leveling, cảnh giới ranks, daily check-in, leaderboard, raid protection, tribulation events
+  - Quick-start: "Bắt đầu bằng `/daily` để nhận 100 XP đầu tiên" + link to pinned guides
+  - Bot version + changelog mention
+  - Build via `scripts/post-launch-announcement.ts` so the embed content lives in version control
 
 ### Acceptance criteria
 - Soft launch không complain bug critical
