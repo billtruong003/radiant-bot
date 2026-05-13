@@ -1,5 +1,8 @@
 import type { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { command as daily } from './daily.js';
+import { command as leaderboard } from './leaderboard.js';
 import { command as raidMode } from './raid-mode.js';
+import { command as rank } from './rank.js';
 
 /**
  * Slash command registry. Each command lives in its own file and is
@@ -16,6 +19,9 @@ export interface SlashCommand {
 
 const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [raidMode.data.name, raidMode as SlashCommand],
+  [rank.data.name, rank as SlashCommand],
+  [leaderboard.data.name, leaderboard as SlashCommand],
+  [daily.data.name, daily as SlashCommand],
 ]);
 
 export function findCommand(name: string): SlashCommand | undefined {

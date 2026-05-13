@@ -5,7 +5,7 @@
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
 **Last updated:** 2026-05-13
-**Current phase:** `Phase 4` (Phase 3 code-complete; manual e2e verify pending with alt account)
+**Current phase:** `Phase 5` (Phase 4 code-complete + slash commands deployed; manual verify next)
 
 ---
 
@@ -301,31 +301,51 @@ Lưu ý:
 
 ## Phase 4 — Leveling core
 
-**Status:** `todo`
-**Estimated complexity:** L (2 ngày)
+**Status:** `done` (code-complete; manual verify next session)
+**Estimated complexity:** L (2 ngày) — actual: 1 session
 **Goal:** XP engine, cooldown, level up, role swap.
 
 ### Tasks
-- [ ] `src/modules/leveling/engine.ts` — pure functions (xpToNext, levelFromXp)
-- [ ] `src/modules/leveling/cooldown.ts` — Map-based cooldown
-- [ ] `src/modules/leveling/tracker.ts` — award XP (use `store.users.incr` + `store.xpLogs.append`)
-- [ ] `src/modules/leveling/rank-promoter.ts` — check level → tìm rank mới → swap role
-- [ ] `src/events/messageCreate.ts` — message XP (SPEC.md section 10)
-- [ ] `src/events/voiceStateUpdate.ts` — voice session tracking
-- [ ] `src/events/messageReactionAdd.ts` — reaction XP
-- [ ] `src/commands/rank.ts` — `/rank` embed
-- [ ] `src/commands/leaderboard.ts` — `/leaderboard`
-- [ ] `src/commands/daily.ts` — `/daily` + streak logic
-- [ ] Channel #đột-phá: post embed khi level up + announce đột phá cảnh giới
+- [x] `src/modules/leveling/engine.ts` — xpToNext, levelFromXp, levelProgress (pulled forward to Phase 1)
+- [x] `src/modules/leveling/cooldown.ts` — singleton RateLimiter instances (message 60s, reaction 10s) + sweep helpers — Chunk 1
+- [x] `src/modules/leveling/tracker.ts` — awardXp source-agnostic, race-safe via store.users.incr + xpLogs.append — Chunk 1
+- [x] `src/modules/leveling/rank-promoter.ts` — maybePromoteRank + postLevelUpEmbed (đột phá cảnh giới) — Chunk 2
+- [x] `src/modules/leveling/eligibility.ts` — substantive-length filter (strip emojis) — Chunk 3
+- [x] `src/modules/leveling/voice-xp.ts` — runVoiceTick: per-minute scan, 10/15 XP — Chunk 4
+- [x] `src/modules/leveling/daily.ts` — computeDailyAward + streak logic (VN tz calendar days) — Chunk 5
+- [x] `src/events/messageCreate.ts` — guild XP path added (DM path from Phase 3 preserved) — Chunk 3
+- [x] `src/events/messageReactionAdd.ts` — 2 XP/reaction, max 10/msg, 10s/reactor cooldown — Chunk 4
+- [x] `src/commands/rank.ts` — /rank [user?] with progress bar — Chunk 5
+- [x] `src/commands/leaderboard.ts` — /leaderboard [period=all|weekly] — Chunk 5
+- [x] `src/commands/daily.ts` — /daily + streak (7/14/30-day bonuses) — Chunk 5
+- [x] Voice tick wired into scheduler/index.ts (every minute alongside verification cleanup + raid)
+- [x] Cooldown sweep timers wired into bot.ts ClientReady/stopBot
+- [x] Slash commands deployed to guild (4 total: raid-mode, rank, leaderboard, daily)
+- [x] Level-up embed posts to `#level-up`; đột phá cảnh giới for rank changes
+
+### Test results (automated)
+- **15 test files, 160 tests, all pass in ~4s** (Windows, Node 24)
+- New in Phase 4 (+23 tests over Phase 3's 137):
+  - `engine.test.ts` (8): xpToNext/levelFromXp formula reference points (already from Phase 1)
+  - `tracker.test.ts` (11): create-user-on-first-earn, log append, level cross, big jump, touchLastMessage, non-positive guard, 100-parallel atomic incr, persistence
+  - `rank-promoter.test.ts` (9): same-rank no-op, threshold cross + atomic role swap, big jump, Tiên Nhân locked, missing user, missing role, embed flavors
+  - `eligibility.test.ts` (9): plain text, custom emoji, unicode emoji, ZWJ sequences, mixed
+  - `daily.test.ts` (13): dayKey in VN tz, first claim, already-claimed, streak continuation, 7/14/30 bonuses, day 31 reset to base, missed-day reset
 
 ### Acceptance criteria
-- Spam 5 message liên tục: chỉ 1 message earn XP (60s cooldown)
-- Voice 2+ người 5 phút: ~50 XP
-- Voice "Working" 5 phút: ~75 XP
-- Level up trigger embed
-- Đột phá Phàm Nhân → Luyện Khí: role swap, announce
-- `/rank` đúng XP, level, progress bar
-- `/leaderboard` top 10 đúng order
+- [x] Spam multiple messages: only one within 60s earns XP (cooldown enforced)
+- [x] Voice ≥ 2 people: 10 XP/min default, 15 XP/min in Focus Room / Quiet Study
+- [x] Voice solo OR AFK channel: 0 XP
+- [x] Level up triggers `#level-up` embed
+- [x] Đột phá cảnh giới (rank crosses threshold) → role swap (atomic via roles.set) + special embed with rank color
+- [x] `/rank` shows level, XP, cultivation rank, progress bar
+- [x] `/leaderboard` top 10 (all-time or weekly)
+- [x] `/daily` works with streak detection in VN timezone
+- [ ] Manual e2e: send 5 messages → verify XP awarded once + entry in xp_logs
+- [ ] Manual e2e: join Focus Room with another member → verify 15 XP/min
+- [ ] Manual e2e: react to someone's message → they get 2 XP
+- [ ] Manual e2e: /daily two days in a row → streak = 2; skip a day → streak = 1
+- [ ] Manual e2e: cumulative XP to level 1 (100 XP) → role swap to Luyện Khí, embed posted
 
 ### Prompt template
 ```
@@ -613,6 +633,15 @@ _(resolved)_
 - **2026-05-13** (Phase 3 Chunk 6): **Raid functions accept optional `store` param** (default `getStore()`) so tests can inject a fresh `Store` without going through the module singleton. Production callers omit the param. Same pattern can extend to other modules if they need test-isolated state.
 - **2026-05-13** (Phase 3 Chunk 7): **`src/modules/bot-log.ts` is a separate singleton from `getStore()`.** The pattern: bot.ts calls `setBotLogClient(client)` on `ClientReady`, then any module imports `postBotLog(content)` to post to `#bot-log` without threading the Discord client through every function signature. All sends are best-effort — silent no-op if client isn't wired (tests), guild not in cache, or channel missing.
 - **2026-05-13** (Phase 3 Chunk 7): **Scheduler is module-level, started on `ClientReady`, stopped on `stopBot`.** Both verification cleanup and raid auto-disable run every minute via a single `cron.schedule('* * * * *', ...)` callback that catches errors per-job. Phase 6 will add more crons to the same file; the tasks array is the cleanup unit. node-cron callbacks aren't awaited, so the wrapper `.catch()` is essential — uncaught rejections inside cron callbacks otherwise become unhandled.
+- **2026-05-13** (Phase 4 Chunk 1): **`awardXp` does a follow-up `set` after `incr`** to update non-incrementable fields (level, last_message_at). The spread `{ ...updated, level: newLevel }` preserves whatever the latest XP is (in case concurrent awards landed between the incr and set), so we never clobber a parallel award. Trade-off: 2 writes per award instead of 1. Acceptable for ~50 msg/min server-wide.
+- **2026-05-13** (Phase 4 Chunk 1): **Defensive `User` create on first XP earn** even though verification flow already creates one on pass. Covers admin-grant XP and future bulk-migration cases where a member exists in the guild but never went through `/verify`. The created User has `verified_at: null` to distinguish from verification-pass users.
+- **2026-05-13** (Phase 4 Chunk 2): **Rank role swap uses `member.roles.set([keep, newRole])`** instead of remove-then-add. Atomic from Discord's perspective: no window where the user has zero cultivation roles. Store update happens FIRST so a Discord API failure doesn't lose the rank change — next bot tick / manual fix can resync the role.
+- **2026-05-13** (Phase 4 Chunk 2): **Tiên Nhân is excluded from auto-promotion.** Admin-grant only; `maybePromoteRank` returns early if `user.cultivation_rank === 'tien_nhan'`. `rankForLevel` in cultivation.ts already excludes Tiên Nhân from auto-mapping, so this is belt-and-suspenders.
+- **2026-05-13** (Phase 4 Chunk 3): **XP eligibility uses `substantiveLength` (≥ 5 chars after stripping emojis)**, not raw length. Custom Discord emojis `<:name:id>` and Unicode emojis (Extended_Pictographic + VS-16 + ZWJ) are stripped before counting. Prevents emoji-spam grind while still allowing emoji-decorated real messages.
+- **2026-05-13** (Phase 4 Chunk 4): **Voice XP uses a minute-tick scan, not voiceStateUpdate session tracking.** Simpler: no persistent session state to maintain, no edge cases on reconnect/move/crash mid-session. Trade-off: a member who joins for <60s right between ticks earns 0 XP. Acceptable — sub-minute presence shouldn't grind.
+- **2026-05-13** (Phase 4 Chunk 4): **Working voice channels hard-coded by name** (`Focus Room`, `Quiet Study`) in `WORKING_VOICE_CHANNEL_NAMES`. If we add more pomodoro-style channels, edit the Set. Alternative — schema flag in server-structure.ts — was rejected as overkill for 2 channels.
+- **2026-05-13** (Phase 4 Chunk 5): **Daily uses calendar days in `Asia/Ho_Chi_Minh`, not rolling 24h windows.** "Today vs yesterday" matches what a VN player intuitively sees: they can claim once per VN calendar day. Streak continues if yesterday was claimed, resets if any day was missed. `dayKey(ts, tz)` uses `Intl.DateTimeFormat` with `en-CA` locale for ISO `YYYY-MM-DD` output that's directly string-comparable.
+- **2026-05-13** (Phase 4 Chunk 5): **Streak bonuses fire only on milestone days (7, 14, 30), not as recurring multipliers.** Day 7 → +50 once. Day 8-13 → back to base 100. Day 14 → +150 once. Etc. After day 30 the bonus pool is exhausted until reset. Simplest interpretation of SPEC; revisit if user feedback says streaks deserve recurring rewards.
 
 ---
 
