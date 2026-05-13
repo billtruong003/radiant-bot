@@ -21,21 +21,65 @@ import { Client, GatewayIntentBits } from 'discord.js';
 import { env } from '../src/config/env.js';
 import { logger } from '../src/utils/logger.js';
 
+/**
+ * The user's guild ended up running a full VN sync successfully between
+ * the bug fixes and the English pivot — so we now have ~25 VN-named
+ * channels in 10 VN-named categories. Channels with English names that
+ * already exist (`meme`, `game-development`, `ai-ml`, `tools-showcase`,
+ * `gaming`, `highlight`, `bot-dev`, `Gaming`, `Gaming 2`) are NOT in
+ * the delete list — the sync will move them into the new English
+ * categories. Only the VN-named ones (no English equivalent in the new
+ * schema, or English name differs) need deletion.
+ */
 const CATEGORIES_TO_DELETE: readonly string[] = [
-  '🏯 Tông Môn Đại Điện', // from first failed apply
-  // The 5 below become empty AFTER `npm run sync-server` moves their
-  // channels into the new English categories. Cleanup refuses non-empty
-  // categories, so the order is: sync first → cleanup last.
+  '🏯 Tông Môn Đại Điện',
+  '🔒 Kiểm Tra',
   '📜 Đại Hội',
   '🔬 Công Nghệ',
   '🎮 Giải Trí',
+  '🎨 Sáng Tạo',
+  '🌌 Tu Luyện',
   '🛠️ Phòng Luyện Khí',
+  '📚 Tài Nguyên',
   '🔊 Voice',
 ];
 
 const CHANNELS_TO_DELETE: readonly string[] = [
-  // No VN channels survived the first apply (failed before any channel was
-  // created). Kept here so the schema is symmetric if future cleanups need it.
+  // 🏯 Tông Môn Đại Điện
+  'thông-báo',
+  'nội-quy',
+  'nhật-ký-tông-môn',
+  'phòng-trưởng-lão',
+  // 🔒 Kiểm Tra
+  'xác-minh',
+  // 📜 Đại Hội (meme stays, will be moved by sync)
+  'thảo-luận-chung',
+  'giới-thiệu',
+  'điểm-danh',
+  // 🔬 Công Nghệ (game-development, ai-ml, tools-showcase stay)
+  'cứu-trợ',
+  // 🎮 Giải Trí (gaming, highlight stay)
+  'xem-phim-cùng',
+  // 🎨 Sáng Tạo
+  'tranh-vẽ',
+  'âm-nhạc',
+  'văn-chương',
+  // 🌌 Tu Luyện
+  'hướng-dẫn-tu-luyện',
+  'đột-phá',
+  'bảng-xếp-hạng',
+  'độ-kiếp',
+  // 🛠️ Phòng Luyện Khí (bot-dev stays)
+  'lệnh-bot',
+  'ý-tưởng-automation',
+  // 📚 Tài Nguyên
+  'tài-liệu',
+  'tin-tuyển-dụng',
+  // 🔊 Voice (Gaming, Gaming 2 stay)
+  'Sảnh Chính',
+  'Tu Luyện (Pomodoro)',
+  'Tu Luyện Tịnh Tâm',
+  'Phim Ảnh',
 ];
 
 const ROLES_TO_DELETE: readonly string[] = [
