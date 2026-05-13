@@ -6,13 +6,15 @@ const PHAM_NHAN_ROLE_NAME = 'Phàm Nhân';
 const UNVERIFIED_ROLE_NAME = 'Chưa Xác Minh';
 
 const CULTIVATION_ROLE_NAMES: ReadonlySet<string> = new Set(CULTIVATION_RANKS.map((r) => r.name));
-// Also accept Tiên Nhân (admin-grant top) so members already promoted aren't downgraded.
+// Also accept Tiên Nhân (admin-grant top) + Thiên Đạo (bot's flair role) so
+// members already promoted aren't downgraded.
 const PROTECTED_ROLE_NAMES: ReadonlySet<string> = new Set([
   ...CULTIVATION_ROLE_NAMES,
   'Tiên Nhân',
   'Chưởng Môn',
+  'Thiên Đạo',
   'Trưởng Lão',
-  'Nội Môn Đệ Tử',
+  'Chấp Pháp', // was Nội Môn Đệ Tử
 ]);
 
 interface OnboardOutcome {
@@ -39,7 +41,10 @@ function classifyMember(
   for (const role of member.roles.cache.values()) {
     if (PROTECTED_ROLE_NAMES.has(role.name)) {
       const isStaff =
-        role.name === 'Chưởng Môn' || role.name === 'Trưởng Lão' || role.name === 'Nội Môn Đệ Tử';
+        role.name === 'Chưởng Môn' ||
+        role.name === 'Thiên Đạo' ||
+        role.name === 'Trưởng Lão' ||
+        role.name === 'Chấp Pháp';
       return {
         member,
         reason: isStaff ? 'is-staff' : 'has-rank',

@@ -148,9 +148,10 @@ export const permissions: BotCliService = {
     lines.push(
       '  Cultiv      = Phàm Nhân, Luyện Khí, ..., Độ Kiếp, Tiên Nhân (11 cultivation roles)',
     );
-    lines.push('  Mod         = Nội Môn Đệ Tử — moderator');
+    lines.push('  Mod         = Chấp Pháp — law enforcer / moderator');
     lines.push('  Elder       = Trưởng Lão — senior advisor (supermod, manual assign)');
     lines.push('  Master      = Chưởng Môn — sect master (top admin, manage channels/roles)');
+    lines.push('  (Bot wears Thiên Đạo — decorative flair, not in this matrix)');
     lines.push('');
 
     process.stdout.write(lines.join('\n'));

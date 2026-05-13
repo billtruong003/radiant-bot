@@ -83,8 +83,10 @@ const CHANNELS_TO_DELETE: readonly string[] = [
 ];
 
 const ROLES_TO_DELETE: readonly string[] = [
-  // User opted to KEEP the 18 cultivation/staff/unverified VN roles as theme
-  // flair (visible as level badges). Don't add them here.
+  // Renamed to "Chấp Pháp" — the old role is orphaned after sync rewrites
+  // channel overwrites to reference the new name. Always 0 members at the
+  // moment of cleanup (we manually onboarded no one into this role).
+  'Nội Môn Đệ Tử',
 ];
 
 interface Args {

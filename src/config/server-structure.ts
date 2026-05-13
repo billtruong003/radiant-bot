@@ -46,11 +46,18 @@ export const ROLES: readonly RoleDef[] = [
   // overwrites. Bot operator / server owner usually holds this.
   { name: 'Chưởng Môn', colorHex: '#d4af37', hoist: true, mentionable: true, isStaff: true },
   { name: 'Tiên Nhân', colorHex: '#ffffff', hoist: true, mentionable: true },
+  // The bot's flair role — "Heavenly Dao", positioned between Tiên Nhân and
+  // Trưởng Lão. Decorative for now: real bot perms come from its managed
+  // role (Administrator in dev). Phase 9 audit will move bot perms here
+  // and drop Administrator from the managed role.
+  { name: 'Thiên Đạo', colorHex: '#fdb913', hoist: true, mentionable: false, isStaff: true },
   // Senior advisor — supermod tier, manually granted to trusted seniors by
   // Chưởng Môn. Same channel visibility as admin, mod-level message powers,
   // CANNOT manage channels/roles (that stays with Chưởng Môn alone).
   { name: 'Trưởng Lão', colorHex: '#a569bd', hoist: true, mentionable: true, isStaff: true },
-  { name: 'Nội Môn Đệ Tử', colorHex: '#5dade2', hoist: true, mentionable: true, isStaff: true },
+  // Law enforcer — moderator tier. Renamed from "Nội Môn Đệ Tử" to better
+  // signal the law-enforcement role (chấp pháp đường) in the sect metaphor.
+  { name: 'Chấp Pháp', colorHex: '#5dade2', hoist: true, mentionable: true, isStaff: true },
   {
     name: 'Độ Kiếp',
     colorHex: '#ffd700',

@@ -48,10 +48,14 @@ const CULTIVATION_ROLE_NAMES = [
   'Tiên Nhân',
 ] as const;
 
-const STAFF_MOD = 'Nội Môn Đệ Tử';
+const STAFF_MOD = 'Chấp Pháp'; // renamed from Nội Môn Đệ Tử
 const STAFF_ELDER = 'Trưởng Lão'; // senior advisor — supermod
 const STAFF_SECT_MASTER = 'Chưởng Môn'; // top admin — full manage
 const UNVERIFIED = 'Chưa Xác Minh';
+// Thiên Đạo (bot's flair role) is intentionally NOT referenced in channel
+// presets — the bot's effective permissions come from its managed role
+// (Administrator in dev). Phase 9 audit will move bot perms onto this role
+// and drop Administrator from the managed role.
 
 function allowFor(names: readonly string[], bits: bigint): Record<string, bigint> {
   const out: Record<string, bigint> = {};

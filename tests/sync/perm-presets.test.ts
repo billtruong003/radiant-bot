@@ -45,7 +45,7 @@ const STANDARD_ROLES = {
   'Đại Thừa': 'rank-dai-thua',
   'Độ Kiếp': 'rank-do-kiep',
   'Tiên Nhân': 'rank-tien-nhan',
-  'Nội Môn Đệ Tử': 'staff-mod',
+  'Chấp Pháp': 'staff-mod',
   'Trưởng Lão': 'staff-elder',
   'Chưởng Môn': 'staff-master',
   'Chưa Xác Minh': 'role-unverified',
