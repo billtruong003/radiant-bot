@@ -5,7 +5,7 @@
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
 **Last updated:** 2026-05-13
-**Current phase:** `Phase 5` (Phase 4 code-complete + slash commands deployed; manual verify next)
+**Current phase:** `Phase 6` (Phase 5 code-complete; 5 automod rules + /automod-config deployed)
 
 ---
 
@@ -371,27 +371,42 @@ Test edge cases:
 
 ## Phase 5 — Automod
 
-**Status:** `todo`
-**Estimated complexity:** M (1-2 ngày)
+**Status:** `done` (code-complete + deployed)
+**Estimated complexity:** M (1-2 ngày) — actual: 1 session
 **Goal:** Rule-based automod.
 
 ### Tasks
-- [ ] `src/modules/automod/rules/` folder
-- [ ] `profanity.ts` — list-based filter
-- [ ] `mass-mention.ts` — > 5 mention/message
-- [ ] `link-whitelist.ts` — non-whitelist link
-- [ ] `spam-detection.ts` — similar messages
-- [ ] `caps-lock.ts` — > 70% uppercase + > 10 char
-- [ ] `src/modules/automod/engine.ts` — chain rules
-- [ ] `src/modules/automod/actions.ts` — delete, warn, timeout, kick
-- [ ] Log mọi action `store.automodLogs.append()` + post `#nhật-ký-tông-môn`
-- [ ] Admin command `/automod-config` view rules
+- [x] `src/modules/automod/types.ts` — AutomodRule contract — Chunk 1
+- [x] `src/modules/automod/engine.ts` — severity-desc, first-match-wins — Chunk 1
+- [x] `src/modules/automod/actions.ts` — delete/warn/timeout/kick + log + #bot-log post — Chunk 1
+- [x] `src/modules/automod/rules/profanity.ts` — diacritic-tolerant word match — Chunk 2
+- [x] `src/modules/automod/rules/mass-mention.ts` — ≥ N mentions → timeout — Chunk 2
+- [x] `src/modules/automod/rules/link-whitelist.ts` — suffix-match whitelist → warn — Chunk 2
+- [x] `src/modules/automod/rules/spam-detection.ts` — SpamTracker sliding window → timeout — Chunk 2
+- [x] `src/modules/automod/rules/caps-lock.ts` — > 70% caps + > 10 chars → delete — Chunk 2
+- [x] `src/config/automod.json` + `src/config/automod.ts` — zod-validated cached config — Chunk 2
+- [x] Wire into `messageCreate` BEFORE XP path; skip staff (Chưởng Môn / Trưởng Lão / Chấp Pháp / Thiên Đạo) — Chunk 3
+- [x] `/automod-config` admin slash command — view-only readout — Chunk 3
+- [x] Deploy commands (5 total now: raid-mode, rank, leaderboard, daily, automod-config) — Chunk 3
+- [x] All actions logged to `store.automodLogs` + #bot-log one-liner post — Chunk 1
+
+### Test results (automated)
+- **17 test files, 182 tests, all pass in ~4s**
+- New in Phase 5 (+22 tests):
+  - `rules.test.ts` (16): capsRatio, findNonWhitelistedHosts, findProfanity — all pure helpers
+  - `spam.test.ts` (6): SpamTracker normalization, window pruning, per-user isolation, reset
 
 ### Acceptance criteria
-- Profanity: delete + DM warn
-- Mass mention 10 user: delete + timeout 10 min
-- Spam 6 message giống: timeout 5 min, revert XP earned
-- Tất cả action có log
+- [x] Profanity: delete + DM warn (sev 2) — VN diacritic-tolerant
+- [x] Mass mention 6+ entities: delete + timeout 10 min (sev 3)
+- [x] Spam ≥ 5 duplicate messages in 5 min: timeout 10 min + reset counter (sev 3)
+- [x] All actions logged to `store.automodLogs` + posted to `#bot-log` one-liner
+- [x] Staff exempt (per SPEC §8.3 "DO NOT take action on admin/mod")
+- [x] /automod-config shows rules + thresholds + word-list counts (admin-only, ephemeral)
+- [ ] Manual e2e: spam same message 5x in #general → timeout fires + #bot-log entry
+- [ ] Manual e2e: post `evil.com` link in #general → deleted + DM warn
+- [ ] Manual e2e: mention 6+ users → timeout
+- [ ] Manual e2e: profanity word → deleted + DM warn (test with mild word like `fuck`)
 
 ### Prompt template
 ```

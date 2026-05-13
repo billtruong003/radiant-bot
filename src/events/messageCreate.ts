@@ -1,13 +1,28 @@
-import { type Client, Events, type Message } from 'discord.js';
+import { type Client, Events, type GuildMember, type Message } from 'discord.js';
 import { NO_XP_CHANNEL_NAMES } from '../config/channels.js';
 import { env } from '../config/env.js';
 import { loadVerificationConfig } from '../config/verification.js';
+import { applyDecision, automodEngine } from '../modules/automod/index.js';
 import { messageXpCooldown } from '../modules/leveling/cooldown.js';
 import { isXpEligibleMessage } from '../modules/leveling/eligibility.js';
 import { maybePromoteRank, postLevelUpEmbed } from '../modules/leveling/rank-promoter.js';
 import { awardXp, randomXpAmount } from '../modules/leveling/tracker.js';
 import { handleDmReply } from '../modules/verification/flow.js';
 import { logger } from '../utils/logger.js';
+
+const STAFF_ROLE_NAMES: ReadonlySet<string> = new Set([
+  'Chưởng Môn',
+  'Trưởng Lão',
+  'Chấp Pháp',
+  'Thiên Đạo', // bot's flair role — also exempt
+]);
+
+function isStaff(member: GuildMember): boolean {
+  for (const role of member.roles.cache.values()) {
+    if (STAFF_ROLE_NAMES.has(role.name)) return true;
+  }
+  return false;
+}
 
 /**
  * `messageCreate` routes:
@@ -58,6 +73,17 @@ async function handleGuildMessage(message: Message): Promise<void> {
   if (!message.inGuild()) return; // narrows channel to GuildBasedChannel
   if (message.author.bot) return;
   if (!message.member) return;
+
+  // Automod first — runs in ALL channels (including no-XP ones like
+  // #bot-commands) but skips staff (Chưởng Môn / Trưởng Lão / Chấp Pháp).
+  if (!isStaff(message.member)) {
+    const decision = await automodEngine.evaluate(message);
+    if (decision) {
+      await applyDecision(message, decision);
+      return; // violating message earns no XP
+    }
+  }
+
   if (NO_XP_CHANNEL_NAMES.has(message.channel.name)) return;
   if (!isXpEligibleMessage(message.content)) return;
 
