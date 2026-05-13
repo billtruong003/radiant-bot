@@ -6,21 +6,29 @@ import { logger } from '../../utils/logger.js';
 import { runVoiceTick } from '../leveling/voice-xp.js';
 import { cleanupExpiredVerifications } from '../verification/flow.js';
 import { maybeAutoDisableRaid } from '../verification/raid.js';
+import { backupToGitHub } from './backup.js';
+import { postWeeklyLeaderboard } from './weekly-leaderboard.js';
 
 /**
- * Scheduler registry. Phase 3 owns two jobs:
+ * Scheduler registry. Cron jobs:
  *
- *   - verification cleanup (every minute): kick members whose pending
- *     verification crossed the timeout threshold and mark the record.
- *   - raid auto-disable (every minute): turn raid mode off after a quiet
- *     window (30 min by default).
+ *   Per-minute (`* * * * *`):
+ *     - verification cleanup (kick expired pending verifications)
+ *     - raid auto-disable (after 30min quiet window)
+ *     - voice XP tick (per-channel scan)
  *
- * Phase 6+ will add daily check-in reset, weekly leaderboard, backup
- * push, etc. — same `cron.schedule(...)` + `tasks.push(handle)` pattern
- * so `stopScheduler()` cleans all of them up.
+ *   Sunday 20:00 VN (`0 20 * * 0`, Asia/Ho_Chi_Minh):
+ *     - weekly leaderboard post to #leaderboard
+ *
+ *   Daily 00:00 VN (`0 0 * * *`, Asia/Ho_Chi_Minh):
+ *     - GitHub backup (snapshot + WAL push)
+ *
+ * `stopScheduler()` stops all jobs uniformly. Each job catches errors
+ * internally so a transient failure doesn't poison the next tick.
  */
 
 const tasks: ScheduledTask[] = [];
+const VN_TZ = 'Asia/Ho_Chi_Minh';
 
 async function runVerificationCleanup(client: Client): Promise<void> {
   const guild = client.guilds.cache.get(env.DISCORD_GUILD_ID);
@@ -48,9 +56,8 @@ export function startScheduler(client: Client): void {
     return;
   }
 
-  // Every minute: verification cleanup + raid auto-disable + voice XP tick.
-  // node-cron doesn't await the callback so we manually catch and log.
-  const tick = cron.schedule('* * * * *', () => {
+  // Per-minute aggregate tick.
+  const minuteTick = cron.schedule('* * * * *', () => {
     runVerificationCleanup(client).catch((err) => {
       logger.error({ err }, 'scheduler: verification cleanup failed');
     });
@@ -61,9 +68,36 @@ export function startScheduler(client: Client): void {
       logger.error({ err }, 'scheduler: voice XP tick failed');
     });
   });
-  tasks.push(tick);
+  tasks.push(minuteTick);
 
-  logger.info({ jobs: tasks.length }, 'scheduler: started');
+  // Sunday 20:00 VN — weekly leaderboard.
+  const weekly = cron.schedule(
+    '0 20 * * 0',
+    () => {
+      postWeeklyLeaderboard(client).catch((err) => {
+        logger.error({ err }, 'scheduler: weekly leaderboard failed');
+      });
+    },
+    { timezone: VN_TZ },
+  );
+  tasks.push(weekly);
+
+  // Daily 00:00 VN — GitHub backup.
+  const nightly = cron.schedule(
+    '0 0 * * *',
+    () => {
+      backupToGitHub().catch((err) => {
+        logger.error({ err }, 'scheduler: backup failed');
+      });
+    },
+    { timezone: VN_TZ },
+  );
+  tasks.push(nightly);
+
+  logger.info(
+    { jobs: tasks.length, tz: VN_TZ },
+    'scheduler: started (1 per-min + 1 weekly + 1 daily)',
+  );
 }
 
 export function stopScheduler(): void {
