@@ -1,12 +1,20 @@
 import { connectBot } from './connect.js';
 import { type BotCliService, offlineContext } from './service.js';
+import { bulkOnboard } from './services/bulk-onboard.js';
 import { listChannels } from './services/list-channels.js';
 import { notify } from './services/notify.js';
 import { permissions } from './services/permissions.js';
 import { send } from './services/send.js';
 import { whoami } from './services/whoami.js';
 
-const SERVICES: readonly BotCliService[] = [whoami, permissions, listChannels, send, notify];
+const SERVICES: readonly BotCliService[] = [
+  whoami,
+  permissions,
+  listChannels,
+  send,
+  notify,
+  bulkOnboard,
+];
 
 function printHelp(): void {
   const lines: string[] = [
