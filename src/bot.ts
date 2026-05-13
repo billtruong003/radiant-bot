@@ -1,5 +1,10 @@
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
 import { env } from './config/env.js';
+import { register as registerGuildMemberAdd } from './events/guildMemberAdd.js';
+import { register as registerInteractionCreate } from './events/interactionCreate.js';
+import { register as registerMessageCreate } from './events/messageCreate.js';
+import { clearBotLogClient, setBotLogClient } from './modules/bot-log.js';
+import { startScheduler, stopScheduler } from './modules/scheduler/index.js';
 import { logger } from './utils/logger.js';
 
 export async function startBot(): Promise<Client> {
@@ -16,8 +21,16 @@ export async function startBot(): Promise<Client> {
     partials: [Partials.Channel, Partials.Message, Partials.Reaction],
   });
 
+  // Wire feature handlers BEFORE login so no event can fire un-handled
+  // during the brief READY → handler-register window.
+  registerGuildMemberAdd(client);
+  registerMessageCreate(client);
+  registerInteractionCreate(client);
+
   client.once(Events.ClientReady, (c) => {
     logger.info({ tag: c.user.tag, id: c.user.id, guilds: c.guilds.cache.size }, 'logged in');
+    setBotLogClient(c);
+    startScheduler(c);
   });
 
   client.on(Events.Error, (err) => {
@@ -33,5 +46,7 @@ export async function startBot(): Promise<Client> {
 }
 
 export async function stopBot(client: Client): Promise<void> {
+  stopScheduler();
+  clearBotLogClient();
   await client.destroy();
 }

@@ -18,6 +18,7 @@ import type { VerificationConfig } from '../../config/verification.js';
 import { getStore } from '../../db/index.js';
 import type { Verification } from '../../db/types.js';
 import { logger } from '../../utils/logger.js';
+import { postBotLog } from '../bot-log.js';
 import type { AuditResult } from './audit.js';
 import { generateImageCaptcha, parseHardReply, verifyImageReply } from './captcha-image.js';
 import { generateMathChallenge, renderMathChallenge, verifyMathReply } from './captcha-math.js';
@@ -185,6 +186,7 @@ export async function kickWithReason(
     );
   }
   await logModAction(member.id, 'spam', 'kick', { phase: 'verify', reason, ...context });
+  await postBotLog(`❌ Kick **${member.user.tag}** (\`${member.id}\`) — lý do: \`${reason}\``);
 }
 
 /**
@@ -403,6 +405,9 @@ async function passVerification(
     member
       .send('✅ Xác minh thành công! Chào mừng gia nhập Radiant Tech Sect.')
       .catch(() => undefined);
+    await postBotLog(
+      `✅ **${member.user.tag}** xác minh thành công (\`${verification.challenge_type}\`)`,
+    );
   }
   return { outcome: 'pass' };
 }

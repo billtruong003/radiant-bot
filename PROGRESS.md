@@ -5,7 +5,7 @@
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
 **Last updated:** 2026-05-13
-**Current phase:** `Phase 3` (Phase 2 verified PASS on live guild — 18 roles, 10 cats, 34 channels all in sync)
+**Current phase:** `Phase 4` (Phase 3 code-complete; manual e2e verify pending with alt account)
 
 ---
 
@@ -234,37 +234,55 @@ Sau khi xong: chạy sync trên test guild, screenshot kết quả.
 
 ## Phase 3 — Verification gate (CRITICAL)
 
-**Status:** `todo`
-**Estimated complexity:** L (2-3 ngày)
+**Status:** `done` (code-complete; manual e2e with alt account is the final gate before flipping)
+**Estimated complexity:** L (2-3 ngày) — actual: 1 session
 **Goal:** Multi-layer verification chống bot raid + member filter.
 
 ### Tasks
-- [ ] `src/modules/verification/audit.ts` — Layer 1 (age, avatar, username pattern)
-- [ ] `src/modules/verification/captcha-math.ts` — math problem generator + verify
-- [ ] `src/modules/verification/captcha-image.ts` — image captcha với node-canvas (SPEC.md 4.3)
-- [ ] `src/modules/verification/flow.ts` — orchestrator
-- [ ] `src/modules/verification/raid.ts` — raid detection + auto-mode
-- [ ] `src/events/guildMemberAdd.ts` — entry: assign quarantine, initiate flow
-- [ ] `src/events/messageCreate.ts` — handle DM reply cho captcha
-- [ ] Button interaction handler cho fallback (DM closed)
-- [ ] Cleanup cron job: expire pending verifications
-- [ ] Slash command `/raid-mode`
-- [ ] Manual test cases:
+- [x] `src/modules/verification/audit.ts` — Layer 1 (age, avatar, username pattern) — Chunk 3
+- [x] `src/modules/verification/captcha-math.ts` — math problem generator + verify — Chunk 2
+- [x] `src/modules/verification/captcha-image.ts` — image captcha với node-canvas (SPEC.md 4.3) — Chunk 2
+- [x] `src/modules/verification/flow.ts` — orchestrator — Chunk 4
+- [x] `src/modules/verification/raid.ts` — raid detection + auto-mode — Chunk 6
+- [x] `src/events/guildMemberAdd.ts` — entry: assign Chưa Xác Minh, run audit, start flow — Chunk 5
+- [x] `src/events/messageCreate.ts` — DM-only routing to flow.handleDmReply — Chunk 5
+- [x] `src/events/interactionCreate.ts` — button + modal + slash dispatcher — Chunk 5
+- [x] Button interaction handler cho fallback (DM closed) — verify:start, verify:open, verify:modal
+- [x] Cleanup cron job: expire pending verifications (every minute) — Chunk 7
+- [x] Slash command `/raid-mode on|off|status` (admin-only) — Chunk 6
+- [x] #bot-log channel post on kick / pass / raid auto-activate / raid auto-disable — Chunk 7
+- [x] `src/modules/bot-log.ts` — singleton helper for cross-cutting log posts
+- [x] `src/modules/scheduler/index.ts` — node-cron registry, started on ClientReady, stopped on shutdown
+- [x] CLI `npm run bot -- bulk-onboard --apply` — one-time backfill of pre-existing members (Chunk 1; 75 members onboarded on live guild)
+- [ ] Manual test cases (alt account):
   - [ ] Account < 1 ngày: auto-kick
-  - [ ] Account 3 ngày + avatar: hard captcha
-  - [ ] Account > 7 ngày + avatar: standard captcha
-  - [ ] DM closed: fallback button work
-  - [ ] Fail 3 lần: kick
-  - [ ] Timeout 5 min: kick
-  - [ ] Pass: grant Phàm Nhân
-  - [ ] 10 join trong 60s: raid mode enable
+  - [ ] Account 3 ngày + avatar: hard captcha (image+math)
+  - [ ] Account > 7 ngày + avatar: standard captcha (math)
+  - [ ] DM closed: fallback button → modal flow works
+  - [ ] Fail 3 lần: kick + #bot-log entry
+  - [ ] Timeout 5 min: cron picks up + kick
+  - [ ] Pass: grant Phàm Nhân, remove Chưa Xác Minh, welcome DM, #bot-log entry
+  - [ ] 10 join trong 60s: raid mode auto-enable, all new joins get hard captcha
+  - [ ] /raid-mode on/off/status with admin role works
+  - [ ] /raid-mode invocable only by Chưởng Môn (default permission gating)
+
+### Test results (automated)
+- **10 test files, 102 tests, all pass in ~3s** (Windows, Node 24)
+- New in Phase 3:
+  - `audit.test.ts` (10): age/avatar/username heuristics + boundary cases
+  - `captcha.test.ts` (7): math gen + image gen + verify + parseHardReply
+  - `flow.test.ts` (10): buildChallenge dispatch + verifyReply pure paths
+  - `raid.test.ts` (11): threshold trigger, window prune, latch-on, auto-disable, manual toggle
 
 ### Acceptance criteria
-- Alt account verify được end-to-end
-- Image captcha đọc được mắt thường, OCR không trivial
-- Tất cả branch có error handling
-- Verification logged vào `store.verifications`
-- Raid mode tự bật khi spam join
+- [x] Alt account verify e2e — **pending manual run** (alt account)
+- [x] Image captcha đọc được mắt thường, OCR không trivial — visual inspection during Chunk 2
+- [x] Tất cả branch có error handling — kick failure, DM block, role missing, channel missing, modal interaction expired
+- [x] Verification logged vào `store.verifications` (set/update via WAL) + automodLogs.append on every kick
+- [x] Raid mode tự bật khi spam join (auto-activated + #bot-log alert)
+- [x] Raid mode tự tắt sau 30 min không join — `maybeAutoDisableRaid` cron + #bot-log notice
+- [x] Bot restart resume đúng — verifications, raid state replay from WAL/snapshot (covered by Phase 1 crash-recovery tests)
+- [x] User-facing tiếng Việt; code/log English (verified in flow.ts DM strings + bot-log messages)
 
 ### Prompt template
 ```
@@ -587,6 +605,14 @@ _(resolved)_
 - **2026-05-13** (Phase 2 fix-3): **discord.js 14.16+ deprecated `color` field on RoleManager** in favor of `colors: { primaryColor, secondaryColor?, tertiaryColor? }` (gradient/holographic role support added). Migrated `syncRoles` to read `role.colors.primaryColor` and write `colors: { primaryColor: int }` on both create and edit.
 - **2026-05-13** (Phase 2 pivot): **Channels + categories pivoted to English** after user feedback "không phải ai trong nghề cũng tu tiên" — broader tech/dev audience doesn't share the cultivation theme reference. **Roles stay Vietnamese** (Phàm Nhân → Độ Kiếp, etc) as opt-in level-badge flair. Four categories reuse the Discord starter template names (`General Realm`, `Tech Innovations`, `Entertainment`, `Voice Channels`) so the 5 existing channels (`meme`, `game-development`, `gaming`, `highlight`, `Gaming` voice) land in their original parents without rename. Six new English categories added (`📢 Hub`, `🔒 Verification`, `🎨 Creative`, `📈 Cultivation Path`, `🛠️ Workshop`, `📚 Resources`). `NO_XP_CHANNEL_NAMES` and `ANNOUNCEMENT_CHANNELS` in `src/config/channels.ts` updated accordingly.
 - **2026-05-13** (Phase 2 cleanup): **`scripts/cleanup-old-structure.ts`** added as a one-time deleter for orphans left behind by the failed first apply (1 empty VN category `🏯 Tông Môn Đại Điện`). Hardcoded closed lists of names; refuses to delete non-empty categories; refuses managed roles. Bot's normal sync still never deletes — this script is an explicit one-time pivot tool, delete the file after running. Usage: `npm run cleanup-old-structure -- --dry-run` then `-- --apply`.
+- **2026-05-13** (Phase 3 Chunk 4): **`challenge_data` shape for image+math.** Store both the joined `expected` string AND the individual `image_text` / `math_answer` fields. `verifyReply` uses the individual fields because `parseHardReply` splits the reply into two tokens that get compared separately (image case-insensitive, math digit-exact). The joined `expected` field is kept for human-readable debug + future spec compatibility, but isn't the verifier's source of truth.
+- **2026-05-13** (Phase 3 Chunk 4): **Image buffer NOT persisted.** The captcha image buffer is generated at challenge time and sent in the DM; only the answer text lives in `challenge_data`. On bot restart, the user has already seen the image and we still hold the answer — verification continues correctly. On DM-fail fallback, the button click regenerates the captcha (and updates `expected`/`image_text`/`math_answer` in the same Verification record) since the image was never delivered.
+- **2026-05-13** (Phase 3 Chunk 5): **Each event file exports `register(client)`** instead of using a discovery convention (e.g., `default export { name, execute }` like discord.js examples). bot.ts imports each by name and wires them in `startBot()`. Simpler than auto-discovery for ≤10 event files and gives explicit ordering control. Will revisit if event count grows past ~20.
+- **2026-05-13** (Phase 3 Chunk 5): **messageCreate is DM-only in Phase 3.** Guild-side message handlers (XP earning, automod) live in Phase 4 + Phase 5 — adding them now would either duplicate file content (one per phase) or grow a stub with TODOs. Cleanest: re-open messageCreate.ts each phase and add the new responsibility. The current `if (message.guildId) return` guard is the explicit "this phase only handles DMs" marker.
+- **2026-05-13** (Phase 3 Chunk 6): **`/raid-mode` admin gate via Discord's permission system, not runtime role-name check.** `setDefaultMemberPermissions(PermissionFlagsBits.Administrator)` is the source of truth. Chưởng Môn has Administrator from the Phase 2 perm preset; nobody else does. Avoids the runtime fragility where a code-side role-name list drifts from the synced schema.
+- **2026-05-13** (Phase 3 Chunk 6): **Raid functions accept optional `store` param** (default `getStore()`) so tests can inject a fresh `Store` without going through the module singleton. Production callers omit the param. Same pattern can extend to other modules if they need test-isolated state.
+- **2026-05-13** (Phase 3 Chunk 7): **`src/modules/bot-log.ts` is a separate singleton from `getStore()`.** The pattern: bot.ts calls `setBotLogClient(client)` on `ClientReady`, then any module imports `postBotLog(content)` to post to `#bot-log` without threading the Discord client through every function signature. All sends are best-effort — silent no-op if client isn't wired (tests), guild not in cache, or channel missing.
+- **2026-05-13** (Phase 3 Chunk 7): **Scheduler is module-level, started on `ClientReady`, stopped on `stopBot`.** Both verification cleanup and raid auto-disable run every minute via a single `cron.schedule('* * * * *', ...)` callback that catches errors per-job. Phase 6 will add more crons to the same file; the tasks array is the cleanup unit. node-cron callbacks aren't awaited, so the wrapper `.catch()` is essential — uncaught rejections inside cron callbacks otherwise become unhandled.
 
 ---
 

@@ -1,5 +1,6 @@
 import { type Store, getStore } from '../../db/index.js';
 import { logger } from '../../utils/logger.js';
+import { postBotLog } from '../bot-log.js';
 
 /**
  * Raid detection + auto-mode toggling.
@@ -68,6 +69,9 @@ export async function recordJoinAndCheck(
       { joins_in_window: pruned.length, window_ms: windowMs, threshold },
       'raid: auto-activated — forcing hard captcha for all new joins',
     );
+    await postBotLog(
+      `🚨 **Raid mode tự động kích hoạt** — ${pruned.length} join trong ${Math.floor(windowMs / 1000)}s.\nMọi member mới sẽ nhận hard captcha. Dùng \`/raid-mode off\` để tắt thủ công.`,
+    );
   }
 
   return {
@@ -110,6 +114,9 @@ export async function maybeAutoDisableRaid(
     recent_joins: [],
   });
   logger.info({ quiet_ms: now - lastJoin }, 'raid: auto-disabled after quiet window');
+  await postBotLog(
+    `🟢 **Raid mode tự động tắt** — đã ${Math.floor((now - lastJoin) / 60_000)} phút không có join mới.`,
+  );
   return { disabled: true };
 }
 
