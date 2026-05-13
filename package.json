@@ -20,6 +20,7 @@
     "sync-server": "tsx scripts/sync-server.ts",
     "sync-server:dry": "tsx scripts/sync-server.ts -- --dry-run",
     "check-server": "tsx scripts/check-server.ts",
+    "bot": "tsx scripts/bot.ts",
     "deploy-commands": "tsx scripts/deploy-commands.ts",
     "deploy-commands:global": "tsx scripts/deploy-commands.ts -- --global",
     "cleanup-old-structure": "tsx scripts/cleanup-old-structure.ts"
