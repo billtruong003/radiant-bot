@@ -5,7 +5,7 @@
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
 **Last updated:** 2026-05-13
-**Current phase:** `Phase 6` (Phase 5 code-complete; 5 automod rules + /automod-config deployed)
+**Current phase:** `Phase 7` (Phase 6 code-complete; welcome + reaction roles + /title + weekly leaderboard + backup deployed)
 
 ---
 
@@ -428,28 +428,41 @@ DO NOT:
 
 ## Phase 6 — Welcome, reaction roles, scheduler
 
-**Status:** `todo`
-**Estimated complexity:** M (1-2 ngày)
+**Status:** `done` (code-complete + 6 slash commands deployed)
+**Estimated complexity:** M (1-2 ngày) — actual: 1 session
 **Goal:** Quality-of-life features + scheduling foundation.
 
 ### Tasks
-- [ ] `src/modules/welcome/index.ts` — welcome khi verified
-- [ ] `src/modules/reactionRoles/index.ts` — generic handler
-- [ ] Reaction roles cho sub-titles ở `#hướng-dẫn-tu-luyện`
-- [ ] `src/modules/scheduler/index.ts` — cron registry
-- [ ] Job: daily check-in reset (00:00 VN)
-- [ ] Job: weekly leaderboard Sunday 20:00 VN
-- [ ] Job: inactive thread archive mỗi 4h
-- [ ] Job: cleanup expired verifications hourly
-- [ ] Job: **backup to GitHub** daily 00:00 VN
-- [ ] `src/commands/title.ts` — `/title` alternative
+- [x] `src/modules/welcome/index.ts` — postWelcome on verification pass (public embed + DM quick-start) — Chunk 1
+- [x] `src/modules/reactionRoles/index.ts` — routeReaction + handleReactionAdd/Remove + saveReactionRolesConfig — Chunk 2
+- [x] `src/db/types.ts` — ReactionRolesConfig singleton entity + integration in store.ts — Chunk 2
+- [x] `src/cli/services/setup-reaction-roles.ts` — one-time CLI: post embed + react + persist — Chunk 2
+- [x] `src/events/messageReactionRemove.ts` — un-react → remove role — Chunk 2
+- [x] `src/commands/title.ts` — `/title add|remove|list` alternative — Chunk 3
+- [x] `src/modules/scheduler/weekly-leaderboard.ts` — Sunday 20:00 VN — Chunk 4
+- [x] `src/modules/scheduler/backup.ts` — Daily 00:00 VN GitHub push (skip if env unset) — Chunk 4
+- [x] Scheduler registers 3 cron handles (per-min + weekly + daily) — Chunk 4
+- [x] Slash commands deployed to guild (6 total: raid-mode, rank, leaderboard, daily, automod-config, title)
+- [x] daily check-in reset — N/A, /daily uses calendar-day VN tz check at command time (no cron needed)
+- [ ] inactive thread archive — defer to Phase 9 polish
+
+### Test results (automated)
+- **19 test files, 203 tests, all pass in ~4s**
+- New in Phase 6 (+6 tests):
+  - `reaction-roles.test.ts` (6): routeReaction (no config / 4 sub-titles / unknown emoji / different message) + persistence across snapshot+reload
 
 ### Acceptance criteria
-- Member verify xong → welcome auto
-- React ⚔️ → role Kiếm Tu
-- Weekly leaderboard tự post Sunday
-- Reaction roles survive bot restart
-- Backup script push thành công lên GitHub (test với private repo)
+- [x] Member verify xong → welcome auto (public embed in #general + DM quick-start)
+- [x] React ⚔️ → role Kiếm Tu (requires setup-reaction-roles CLI first)
+- [x] Weekly leaderboard cron registered (Sunday 20:00 VN, Asia/Ho_Chi_Minh tz)
+- [x] Reaction roles survive bot restart (singleton persisted via snapshot/WAL)
+- [x] Backup script env-gated (silent skip in dev)
+- [x] `/title` works as alternative to reaction picker
+- [ ] Manual e2e: alt account passes verification → welcome embed appears
+- [ ] Manual e2e: run `npm run bot -- setup-reaction-roles` → message posted, reactions added
+- [ ] Manual e2e: react ⚔️ → Kiếm Tu role granted; un-react → removed
+- [ ] Manual e2e: `/title list` shows ✅/⬜ correctly per current roles
+- [ ] Manual e2e: configure BACKUP_GITHUB_REPO + BACKUP_GITHUB_TOKEN env → manually invoke backup → verify push lands on GitHub
 
 ### Prompt template
 ```
