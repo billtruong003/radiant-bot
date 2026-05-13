@@ -5,6 +5,7 @@ import { listChannels } from './services/list-channels.js';
 import { notify } from './services/notify.js';
 import { permissions } from './services/permissions.js';
 import { pinChannelGuides } from './services/pin-channel-guides.js';
+import { postLaunchAnnouncement } from './services/post-launch-announcement.js';
 import { send } from './services/send.js';
 import { setupReactionRoles } from './services/setup-reaction-roles.js';
 import { simulateAutomod } from './services/simulate-automod.js';
@@ -30,6 +31,7 @@ const SERVICES: readonly BotCliService[] = [
   simulateTribulation,
   pinChannelGuides,
   uploadRoleIcons,
+  postLaunchAnnouncement,
 ];
 
 function printHelp(): void {
