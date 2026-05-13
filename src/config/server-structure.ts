@@ -213,10 +213,20 @@ export const CATEGORIES: readonly CategoryDef[] = [
   },
 ] as const;
 
+/**
+ * Schema type → Discord channel type for create/lookup.
+ *
+ * NOTE: `announcement` maps to `GuildText` for create. Discord rejects
+ * direct creation of GuildAnnouncement (type 5) — that type only exists
+ * via upgrading a text channel through the Community feature. We keep
+ * the schema flag so Phase 5+ can branch on intent (announcement-style
+ * channels get bot-only post permissions via `public_read` preset, which
+ * already covers the read-only semantic).
+ */
 export const CHANNEL_TYPE_TO_DISCORD = {
   text: ChannelType.GuildText,
   voice: ChannelType.GuildVoice,
-  announcement: ChannelType.GuildAnnouncement,
+  announcement: ChannelType.GuildText,
 } as const;
 
 /**

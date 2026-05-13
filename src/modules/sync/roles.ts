@@ -11,7 +11,7 @@ function hexToInt(hex: string): number {
 
 function rolePropsMatch(role: Role, def: RoleDef): boolean {
   return (
-    role.color === hexToInt(def.colorHex) &&
+    role.colors.primaryColor === hexToInt(def.colorHex) &&
     role.hoist === def.hoist &&
     role.mentionable === def.mentionable
   );
@@ -46,7 +46,10 @@ export async function syncRoles(
         logger.info(
           {
             role: def.name,
-            color: { from: existing.color.toString(16), to: def.colorHex },
+            color: {
+              from: existing.colors.primaryColor.toString(16),
+              to: def.colorHex,
+            },
             hoist: { from: existing.hoist, to: def.hoist },
             mentionable: { from: existing.mentionable, to: def.mentionable },
           },
@@ -55,7 +58,7 @@ export async function syncRoles(
         counters.rolesUpdated++;
         if (!opts.dryRun) {
           await existing.edit({
-            color: hexToInt(def.colorHex),
+            colors: { primaryColor: hexToInt(def.colorHex) },
             hoist: def.hoist,
             mentionable: def.mentionable,
             reason: 'sync-server: align role props with server-structure.ts',
@@ -79,7 +82,7 @@ export async function syncRoles(
     }
     const created = await guild.roles.create({
       name: def.name,
-      color: hexToInt(def.colorHex),
+      colors: { primaryColor: hexToInt(def.colorHex) },
       hoist: def.hoist,
       mentionable: def.mentionable,
       reason: 'sync-server: create role per server-structure.ts',
