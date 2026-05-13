@@ -2,7 +2,7 @@ import { ulid } from 'ulid';
 import { getStore } from '../../db/index.js';
 import type { User, XpSource } from '../../db/types.js';
 import { logger } from '../../utils/logger.js';
-import { levelFromXp } from './engine.js';
+import { cumulativeXpForLevel, levelFromXp } from './engine.js';
 
 /**
  * Source-agnostic XP awarder. The caller decides the amount (e.g.
@@ -129,4 +129,42 @@ export async function awardXp(input: AwardXpInput): Promise<XpAwardResult> {
  */
 export function randomXpAmount(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * Apply an XP penalty (e.g. tribulation fail). Per SPEC §3:
+ *   - `xp` floors at `cumulativeXpForLevel(currentLevel)` — penalty
+ *     never demotes the member.
+ *   - Logs to `xpLogs` with negative amount, source `tribulation_fail`.
+ *
+ * Returns the actual delta applied (≤ requested amount, possibly 0
+ * if already at the floor).
+ */
+export async function applyXpPenalty(
+  discordId: string,
+  amount: number,
+): Promise<{ applied: number; newXp: number }> {
+  if (amount <= 0) {
+    const u = getStore().users.get(discordId);
+    return { applied: 0, newXp: u?.xp ?? 0 };
+  }
+  const store = getStore();
+  const user = store.users.get(discordId);
+  if (!user) return { applied: 0, newXp: 0 };
+
+  const floor = cumulativeXpForLevel(user.level);
+  const targetXp = Math.max(user.xp - amount, floor);
+  const applied = user.xp - targetXp;
+  if (applied <= 0) return { applied: 0, newXp: user.xp };
+
+  await store.users.set({ ...user, xp: targetXp });
+  await store.xpLogs.append({
+    id: ulid(),
+    discord_id: discordId,
+    amount: -applied,
+    source: 'tribulation_fail',
+    metadata: { requested: amount, floored_at: floor },
+    created_at: Date.now(),
+  });
+  return { applied, newXp: targetXp };
 }
