@@ -5,7 +5,7 @@
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
 **Last updated:** 2026-05-13
-**Current phase:** `Phase 3` (Phase 2 code done, awaiting user to run sync on real guild)
+**Current phase:** `Phase 3` (Phase 2 verified PASS on live guild — 18 roles, 10 cats, 34 channels all in sync)
 
 ---
 
@@ -157,7 +157,7 @@ Sau khi xong: update PROGRESS.md với test results, performance numbers (memory
 
 ## Phase 2 — Server sync (idempotent setup)
 
-**Status:** `code-done` (waiting for user manual test on real guild)
+**Status:** `done` (verified PASS on live guild 2026-05-13)
 **Estimated complexity:** M (1 ngày) — actual code: 1 session
 **Goal:** Script tạo/sync channel + role + permission từ config.
 
@@ -171,16 +171,17 @@ Sau khi xong: update PROGRESS.md với test results, performance numbers (memory
 - [x] `--dry-run` flag — logs intended changes, skips mutating API calls
 - [x] NPM scripts: `npm run sync-server`, `npm run sync-server:dry`, `npm run deploy-commands`, `npm run deploy-commands:global`
 - [x] Unit tests for perm-preset resolver (9 cases — every preset, missing-role tolerance, no-duplicate-id guarantee)
-- [ ] **User: manual test on dev guild** (xem "Manual test steps" dưới)
+- [x] **User: manual test on dev guild** — `npm run check-server` returns PASS, all 62 items match schema. Idempotency verified (sync re-run = 0 changes).
+- [x] `scripts/check-server.ts` + `npm run check-server` — read-only audit, compact PASS/FAIL summary, exit code 1 on drift (CI-friendly)
 
 ### Acceptance criteria
 - [x] Code idempotent by construction (compare-before-mutate; deleted nothing)
 - [x] Unit-tested perm matrix matches SPEC §5.3 (`tests/sync/perm-presets.test.ts`, 9/9 pass)
 - [x] Rate-limit aware: 500ms default delay between mutating calls (`--rate-delay=N` to override)
 - [x] Bot never deletes pre-existing channels/roles (only create + update)
-- [ ] Chạy lần 1 trên empty server → structure xuất hiện đúng (manual)
-- [ ] Chạy lần 2 → no duplicate, all "unchanged" counters (manual)
-- [ ] Permission overwrites khớp matrix SPEC §5.3 (manual visual check sau khi sync)
+- [x] Chạy lần 1 trên empty server → structure xuất hiện đúng (verified)
+- [x] Chạy lần 2 → no duplicate, all "unchanged" counters (verified via `check-server`)
+- [x] Permission overwrites khớp matrix SPEC §5.3 (live audit PASS)
 
 ### Manual test steps (user)
 1. **Dry run first** to preview without changes:

@@ -1,10 +1,10 @@
 import type { Guild } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { syncCategoriesAndChannels } from './channels.js';
-import { type SyncOptions, makeCounters } from './common.js';
+import { type SyncCounters, type SyncOptions, makeCounters } from './common.js';
 import { syncRoles } from './roles.js';
 
-export type { SyncOptions } from './common.js';
+export type { SyncOptions, SyncCounters } from './common.js';
 
 const DEFAULT_OPTIONS: SyncOptions = {
   dryRun: false,
@@ -21,11 +21,13 @@ const DEFAULT_OPTIONS: SyncOptions = {
  *   - Each mutating API call is followed by `rateDelayMs` to avoid bursting
  *     past Discord's gateway rate limit on bulk first-time setup.
  *   - dry-run mode logs intended changes without calling mutating APIs.
+ *
+ * Returns the counters so audit/check scripts can render their own summary.
  */
 export async function syncServer(
   guild: Guild,
   overrides: Partial<SyncOptions> = {},
-): Promise<void> {
+): Promise<SyncCounters> {
   const opts: SyncOptions = { ...DEFAULT_OPTIONS, ...overrides };
   const counters = makeCounters();
 
@@ -35,4 +37,5 @@ export async function syncServer(
   await syncCategoriesAndChannels(guild, roleMap, opts, counters);
 
   logger.info({ ...counters, dry_run: opts.dryRun }, 'sync: complete');
+  return counters;
 }
