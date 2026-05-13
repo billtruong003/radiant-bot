@@ -18,7 +18,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "sync-server": "tsx scripts/sync-server.ts",
-    "deploy-commands": "tsx scripts/deploy-commands.ts"
+    "sync-server:dry": "tsx scripts/sync-server.ts -- --dry-run",
+    "deploy-commands": "tsx scripts/deploy-commands.ts",
+    "deploy-commands:global": "tsx scripts/deploy-commands.ts -- --global"
   },
   "dependencies": {
     "async-mutex": "^0.5.0",

@@ -5,7 +5,7 @@
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
 **Last updated:** 2026-05-13
-**Current phase:** `Phase 2` (Phase 1 done, awaiting review)
+**Current phase:** `Phase 3` (Phase 2 code done, awaiting user to run sync on real guild)
 
 ---
 
@@ -157,26 +157,63 @@ Sau khi xong: update PROGRESS.md với test results, performance numbers (memory
 
 ## Phase 2 — Server sync (idempotent setup)
 
-**Status:** `todo`
-**Estimated complexity:** M (1 ngày)
+**Status:** `code-done` (waiting for user manual test on real guild)
+**Estimated complexity:** M (1 ngày) — actual code: 1 session
 **Goal:** Script tạo/sync channel + role + permission từ config.
 
 ### Tasks
-- [ ] `scripts/sync-server.ts` — main sync logic
-- [ ] Sync roles: create nếu chưa có, update color/perm nếu khác
-- [ ] Sync categories
-- [ ] Sync channels under category
-- [ ] Sync permission overwrites (SPEC.md 5.3)
-- [ ] `scripts/deploy-commands.ts` — register slash commands
-- [ ] `--dry-run` flag
-- [ ] NPM script: `npm run sync-server`, `npm run deploy-commands`
-- [ ] Test trên dev guild
+- [x] `scripts/sync-server.ts` — entry script, parses `--dry-run` + `--rate-delay=N`, connects, fetches guild, calls `syncServer()`
+- [x] Sync roles: create if missing, edit if color/hoist/mentionable drift (`src/modules/sync/roles.ts`)
+- [x] Sync categories: create if missing (`src/modules/sync/channels.ts:syncCategory`)
+- [x] Sync channels under category: create if missing, set overwrites if drift, idempotent
+- [x] Sync permission overwrites — full preset resolver in `src/modules/sync/perm-presets.ts` covering 8 presets (`public_read`, `public_full`, `verified_full`, `verified_read`, `unverified_only`, `mod_only`, `admin_only`, `bot_log`) per SPEC §5.3 matrix
+- [x] `scripts/deploy-commands.ts` — auto-discovers command modules in `src/commands/` + supports `--global` flag. Empty registration in Phase 2 (no commands yet); Phase 4+ drops files and re-runs.
+- [x] `--dry-run` flag — logs intended changes, skips mutating API calls
+- [x] NPM scripts: `npm run sync-server`, `npm run sync-server:dry`, `npm run deploy-commands`, `npm run deploy-commands:global`
+- [x] Unit tests for perm-preset resolver (9 cases — every preset, missing-role tolerance, no-duplicate-id guarantee)
+- [ ] **User: manual test on dev guild** (xem "Manual test steps" dưới)
 
 ### Acceptance criteria
-- Chạy lần 1 trên empty server → structure xuất hiện đúng
-- Chạy lần 2 → không duplicate, no error
-- Permission overwrites khớp matrix SPEC.md 5.3
-- Bot không tự xóa channel/role có sẵn
+- [x] Code idempotent by construction (compare-before-mutate; deleted nothing)
+- [x] Unit-tested perm matrix matches SPEC §5.3 (`tests/sync/perm-presets.test.ts`, 9/9 pass)
+- [x] Rate-limit aware: 500ms default delay between mutating calls (`--rate-delay=N` to override)
+- [x] Bot never deletes pre-existing channels/roles (only create + update)
+- [ ] Chạy lần 1 trên empty server → structure xuất hiện đúng (manual)
+- [ ] Chạy lần 2 → no duplicate, all "unchanged" counters (manual)
+- [ ] Permission overwrites khớp matrix SPEC §5.3 (manual visual check sau khi sync)
+
+### Manual test steps (user)
+1. **Dry run first** to preview without changes:
+   ```powershell
+   npm run sync-server:dry
+   ```
+   Output sẽ log:
+   - `sync: creating role <name>` cho mỗi role chưa có (17 roles)
+   - `sync: creating category <name>` cho mỗi category (10)
+   - `sync: creating channel <name>` cho mỗi channel (~30)
+   - Counters cuối: `rolesCreated`, `channelsCreated`, etc
+
+2. **Apply** (real sync):
+   ```powershell
+   npm run sync-server
+   ```
+   Server sẽ có toàn bộ structure sau khoảng ~30s (rate-limit delay 500ms × ~60 ops).
+
+3. **Verify idempotency** — chạy lại:
+   ```powershell
+   npm run sync-server
+   ```
+   Output kỳ vọng: counters toàn `Unchanged`, no `Created`/`Updated`.
+
+4. **Drag bot role lên cao** (đã làm Phase 0 nhưng nếu chưa, làm lại): Server Settings → Roles → kéo `Radiant Tech Sect Bot` lên trên tất cả 10 role cảnh giới + sub-titles để bot có thể assign/remove sau này.
+
+5. **(Optional)** screenshot kết quả gửi tao để confirm matrix đúng visually.
+
+### Known limitations (defer to later phases)
+- Role positions NOT synced — admin drag manually. Phase 9 audit có thể revisit nếu cần.
+- Channel description (topic) NOT synced — defer.
+- Voice channel bitrate/limits NOT synced — defer.
+- If user manually renames a channel/role in Discord UI, sync sẽ tạo MỚI cái có tên đúng. Cũ giữ nguyên. (Acceptable for MVP.)
 
 ### Prompt template
 ```
@@ -529,6 +566,12 @@ _(resolved)_
 - **2026-05-13** (Phase 1): **JSONL chosen for WAL** (one op per line) — trivially streamable, partial-write at tail = one invalid line skipped, no parser state machine needed.
 - **2026-05-13** (Phase 1): **Pulled `src/modules/leveling/engine.ts` forward from Phase 4** to enable the formula reference-point test in Phase 1. Pure-function module; no Discord dependency.
 - **2026-05-13** (Phase 1): **Test setup hack**: `tests/setup.ts` injects fake `DISCORD_*` env vars before any prod module loads so the top-level `parseEnv()` in `src/config/env.ts` doesn't process.exit during vitest.
+- **2026-05-13** (Phase 1 followup): **`tsx watch` swallows SIGINT** on Windows PowerShell → graceful shutdown not triggered in dev mode. Verified: `npx tsx src/index.ts` (no watch) shuts down cleanly with snapshot. **Decision: don't fix.** Dev with watch = "simulated crash" semantics, and WAL recovery handles it. Production `npm start` (built JS, no tsx) propagates signals correctly. Documented for user.
+- **2026-05-13** (Phase 2): **Channel-level overwrites only, not category-level.** Categories are pure organizational; permission inheritance left to Discord's defaults (no overwrites on category). Each channel sets its own explicit overwrites per its preset. Simpler to reason about + every channel is idempotently described in `server-structure.ts`.
+- **2026-05-13** (Phase 2): **Role positions NOT synced.** Discord position is a flat int relative to other roles; trying to manage it programmatically fights with admin's manual ordering. Roles get created with correct color/hoist/mentionable; admin drags into hierarchy slot once. Phase 9 audit can revisit.
+- **2026-05-13** (Phase 2): **Missing role names are silently skipped** in `resolveOverwrites` rather than throwing. Reason: dry-run first pass on an empty guild has roleMap = empty → preset resolver would otherwise crash. With skip, dry-run logs "creating X" without any noisy errors. Real apply does roles-first so the map is populated for channel sync.
+- **2026-05-13** (Phase 2): **Same role merged in single overwrite.** A preset that puts both allow + deny on the same role (e.g. mod_only: cultivators get `deny` view but never `allow` anything) emits a single OverwriteData with merged bits. Discord API returns 50035 if a role appears twice in the overwrites list.
+- **2026-05-13** (Phase 2): **`scripts/deploy-commands.ts` defaults to guild-scoped** registration for instant propagation in dev. Use `--global` flag for production (≤1h propagate). Phase 4+ will produce actual command modules.
 
 ---
 
