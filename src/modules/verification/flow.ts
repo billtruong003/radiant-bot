@@ -19,6 +19,7 @@ import { getStore } from '../../db/index.js';
 import type { Verification } from '../../db/types.js';
 import { logger } from '../../utils/logger.js';
 import { postBotLog } from '../bot-log.js';
+import { postWelcome } from '../welcome/index.js';
 import type { AuditResult } from './audit.js';
 import { generateImageCaptcha, parseHardReply, verifyImageReply } from './captcha-image.js';
 import { generateMathChallenge, renderMathChallenge, verifyMathReply } from './captcha-math.js';
@@ -401,12 +402,12 @@ async function passVerification(
       is_suspect: false,
       notes: null,
     });
-    // Best-effort confirmation DM (silent fail).
-    member
-      .send('✅ Xác minh thành công! Chào mừng gia nhập Radiant Tech Sect.')
-      .catch(() => undefined);
     await postBotLog(
       `✅ **${member.user.tag}** xác minh thành công (\`${verification.challenge_type}\`)`,
+    );
+    // Welcome post + quick-start DM. Best-effort — doesn't throw out of pass.
+    postWelcome(member).catch((err) =>
+      logger.warn({ err, discord_id: member.id }, 'verify: welcome post failed'),
     );
   }
   return { outcome: 'pass' };
