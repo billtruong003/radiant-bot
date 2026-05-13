@@ -53,7 +53,9 @@ export function auditMember(
   if (ageDays < config.thresholds.accountAgeKickDays) {
     return {
       decision: 'kick',
-      reasons: [`account age ${ageDays.toFixed(2)}d < kick threshold ${config.thresholds.accountAgeKickDays}d`],
+      reasons: [
+        `account age ${ageDays.toFixed(2)}d < kick threshold ${config.thresholds.accountAgeKickDays}d`,
+      ],
       isSuspect: true,
     };
   }
