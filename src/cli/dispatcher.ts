@@ -5,6 +5,7 @@ import { listChannels } from './services/list-channels.js';
 import { notify } from './services/notify.js';
 import { permissions } from './services/permissions.js';
 import { send } from './services/send.js';
+import { simulateVerify } from './services/simulate-verify.js';
 import { whoami } from './services/whoami.js';
 
 const SERVICES: readonly BotCliService[] = [
@@ -14,6 +15,7 @@ const SERVICES: readonly BotCliService[] = [
   send,
   notify,
   bulkOnboard,
+  simulateVerify,
 ];
 
 function printHelp(): void {

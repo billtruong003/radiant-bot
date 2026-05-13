@@ -31,6 +31,16 @@ export async function shutdownStore(): Promise<void> {
   _store = null;
 }
 
+/**
+ * Test-only escape hatch. Lets a vitest file inject a pre-constructed
+ * Store into the singleton slot so module-level `getStore()` callers
+ * (`flow.ts`, `raid.ts`, etc.) see a tmp-dir Store instead of throwing.
+ * Pass `null` to reset. NEVER call from production code paths.
+ */
+export function __setStoreForTesting(store: Store | null): void {
+  _store = store;
+}
+
 // Re-exports so consumers can `import { store, User } from '@/db'`-style.
 export { Store } from './store.js';
 export { Collection } from './collection.js';
