@@ -128,7 +128,7 @@ export const CHANNEL_GUIDES: readonly ChannelGuide[] = [
       '🔵 **Trúc Cơ** (Level 10-19) — dùng external emoji, embed links',
       '🟡 **Kim Đan** (Level 20-34) — tạo public threads',
       '🟣 **Nguyên Anh** (Level 35-49) — tạo private threads, attach files',
-      '🔴 **Hoá Thần** (Level 50-69) — priority speaker, external stickers',
+      '🔴 **Hóa Thần** (Level 50-69) — priority speaker, external stickers',
       '🟢 **Luyện Hư** (Level 70-89) — quản lý tin nhắn của chính mình',
       '🟠 **Hợp Thể** (Level 90-119) — trusted, có thể được đề cử Trưởng Lão',
       '⚪ **Đại Thừa** (Level 120-159) — custom title flair, custom emoji',

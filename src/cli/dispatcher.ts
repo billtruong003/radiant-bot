@@ -12,6 +12,7 @@ import { simulateTribulation } from './services/simulate-tribulation.js';
 import { simulateVerify } from './services/simulate-verify.js';
 import { simulateWeeklyLeaderboard } from './services/simulate-weekly-leaderboard.js';
 import { simulateWelcome } from './services/simulate-welcome.js';
+import { uploadRoleIcons } from './services/upload-role-icons.js';
 import { whoami } from './services/whoami.js';
 
 const SERVICES: readonly BotCliService[] = [
@@ -28,6 +29,7 @@ const SERVICES: readonly BotCliService[] = [
   simulateWeeklyLeaderboard,
   simulateTribulation,
   pinChannelGuides,
+  uploadRoleIcons,
 ];
 
 function printHelp(): void {
