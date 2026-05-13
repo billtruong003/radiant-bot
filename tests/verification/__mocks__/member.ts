@@ -87,6 +87,10 @@ export function makeMockMember(opts: MockMemberOpts = {}): MockMember {
   // member.guild — only the fields flow.ts actually reads.
   const member = {
     id,
+    // Real Discord.js GuildMember serializes to `<@id>` mention via toString.
+    // Reproducing here so template-literal mentions in flow/rank-promoter
+    // render the expected `<@u1>` string instead of `[object Object]`.
+    toString: () => `<@${id}>`,
     user: {
       bot: isBot,
       tag: `${username}#0001`,
