@@ -1,14 +1,22 @@
 import { type Client, Events, type Message } from 'discord.js';
+import { NO_XP_CHANNEL_NAMES } from '../config/channels.js';
 import { env } from '../config/env.js';
 import { loadVerificationConfig } from '../config/verification.js';
+import { messageXpCooldown } from '../modules/leveling/cooldown.js';
+import { isXpEligibleMessage } from '../modules/leveling/eligibility.js';
+import { maybePromoteRank, postLevelUpEmbed } from '../modules/leveling/rank-promoter.js';
+import { awardXp, randomXpAmount } from '../modules/leveling/tracker.js';
 import { handleDmReply } from '../modules/verification/flow.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * `messageCreate` event: today this only routes DMs to the verification
- * flow. XP / automod handlers will live in this file or sibling files
- * in Phase 4 / 5; for Phase 3 we hard-scope to DM channels so guild
- * traffic is untouched.
+ * `messageCreate` routes:
+ *   - DM channels  → verification flow.handleDmReply (Phase 3)
+ *   - Guild text   → XP earn + maybe rank promotion (Phase 4)
+ *
+ * The DM and guild paths are mutually exclusive (`message.guildId` is
+ * the discriminator). Both are best-effort: errors log + continue, never
+ * crash the client.
  */
 
 async function handleDirectMessage(message: Message): Promise<void> {
@@ -17,7 +25,6 @@ async function handleDirectMessage(message: Message): Promise<void> {
 
   const config = await loadVerificationConfig();
 
-  // Bot operates on a single guild — resolve via env, then route to flow.
   const guild = message.client.guilds.cache.get(env.DISCORD_GUILD_ID);
   if (!guild) {
     logger.error(
@@ -31,10 +38,8 @@ async function handleDirectMessage(message: Message): Promise<void> {
 
   switch (result.outcome) {
     case 'no-pending':
-      // Likely a non-verification DM; ignore silently.
       return;
     case 'pass':
-      // Confirmation DM already sent inside flow.ts; no-op here.
       return;
     case 'fail-retry':
       await message
@@ -49,11 +54,49 @@ async function handleDirectMessage(message: Message): Promise<void> {
   }
 }
 
+async function handleGuildMessage(message: Message): Promise<void> {
+  if (!message.inGuild()) return; // narrows channel to GuildBasedChannel
+  if (message.author.bot) return;
+  if (!message.member) return;
+  if (NO_XP_CHANNEL_NAMES.has(message.channel.name)) return;
+  if (!isXpEligibleMessage(message.content)) return;
+
+  // 60s/user cooldown (SPEC §3 sacred constant).
+  if (!messageXpCooldown.tryConsume(message.author.id)) return;
+
+  const amount = randomXpAmount(15, 25);
+  const result = await awardXp({
+    discordId: message.author.id,
+    username: message.author.username,
+    displayName: message.member.displayName,
+    amount,
+    source: 'message',
+    metadata: {
+      channel_id: message.channelId,
+      message_length: message.content.length,
+    },
+    touchLastMessage: true,
+  });
+
+  if (!result.leveledUp) return;
+
+  const promotion = await maybePromoteRank(message.member, result.newLevel);
+  await postLevelUpEmbed(message.member, result.newLevel, promotion);
+}
+
 export function register(client: Client): void {
   client.on(Events.MessageCreate, (message) => {
-    if (message.guildId) return; // only DMs are handled in Phase 3
+    if (message.guildId) {
+      handleGuildMessage(message).catch((err) => {
+        logger.error(
+          { err, author: message.author?.id, channel: message.channelId },
+          'messageCreate: guild XP handler error',
+        );
+      });
+      return;
+    }
     handleDirectMessage(message).catch((err) => {
-      logger.error({ err, author: message.author?.id }, 'messageCreate: unhandled error');
+      logger.error({ err, author: message.author?.id }, 'messageCreate: DM handler error');
     });
   });
 }
