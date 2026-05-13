@@ -4,6 +4,7 @@ import { command as daily } from './daily.js';
 import { command as leaderboard } from './leaderboard.js';
 import { command as raidMode } from './raid-mode.js';
 import { command as rank } from './rank.js';
+import { command as title } from './title.js';
 
 /**
  * Slash command registry. Each command lives in its own file and is
@@ -24,6 +25,7 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [leaderboard.data.name, leaderboard as SlashCommand],
   [daily.data.name, daily as SlashCommand],
   [automodConfig.data.name, automodConfig as SlashCommand],
+  [title.data.name, title as SlashCommand],
 ]);
 
 export function findCommand(name: string): SlashCommand | undefined {
