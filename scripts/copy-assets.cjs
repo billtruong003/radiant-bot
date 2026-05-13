@@ -32,13 +32,11 @@ function walk(dir, callback) {
   }
 }
 
-let copied = 0;
+let _copied = 0;
 walk(SRC_ROOT, (srcPath) => {
   const relative = path.relative(SRC_ROOT, srcPath);
   const destPath = path.join(DIST_ROOT, relative);
   fs.mkdirSync(path.dirname(destPath), { recursive: true });
   fs.copyFileSync(srcPath, destPath);
-  copied++;
+  _copied++;
 });
-
-console.log(`copy-assets: copied ${copied} non-TS file(s) from src/ → dist/src/`);

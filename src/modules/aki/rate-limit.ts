@@ -1,52 +1,75 @@
-import { RateLimiter } from '../../utils/rate-limiter.js';
+import { getStore } from '../../db/index.js';
 
 /**
- * Per-user rate limits for /ask:
- *   - 5 calls / minute      (burst protection)
- *   - 50 calls / day        (daily quota)
+ * Per-user quota for /ask, enforced by counting non-refusal calls in
+ * `akiLogs` over a sliding window. Two limits:
  *
- * Both are in-memory and reset on bot restart — acceptable since the
- * windows are short and a restart is rare. Counts are also indirectly
- * visible via AkiCallLog queries if we ever need exact persistence.
+ *   - 5 calls / 1 minute (burst protection)
+ *   - 50 calls / 24 hours (daily quota)
+ *
+ * Why count-based instead of `RateLimiter` (spacing-based):
+ *   RateLimiter enforces MIN SPACING between calls. For a "50/day"
+ *   quota that translated to "60s/50 = ~28.8min between calls",
+ *   which incorrectly rejected after the FIRST call. Count-based
+ *   over the akiLogs history is the right semantic for "max N per
+ *   window".
+ *
+ * Refusals are excluded from the count so a rate-limited user doesn't
+ * keep digging deeper into their own quota — only successful calls
+ * (and budget-exhausted refusals) count.
  */
 
 const MINUTE_MS = 60_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_PER_MINUTE = 5;
+const MAX_PER_DAY = 50;
 
-export const askMinuteLimit = new RateLimiter(MINUTE_MS / 5); // ~12s spacing → ~5/min average
-export const askDayLimit = new RateLimiter(DAY_MS / 50); // ~28.8min spacing → ~50/day average
-
-/**
- * Check both limits + consume on success. Returns:
- *   - { ok: true } on allow
- *   - { ok: false, reason } on refusal, where reason is one of:
- *       'minute' — too fast (≥ 5 in last minute)
- *       'day'    — exhausted today's 50
- */
-export function tryAcquireAskQuota(
-  userId: string,
-): { ok: true } | { ok: false; reason: 'minute' | 'day' } {
-  if (!askMinuteLimit.tryConsume(userId)) {
-    return { ok: false, reason: 'minute' };
-  }
-  if (!askDayLimit.tryConsume(userId)) {
-    return { ok: false, reason: 'day' };
-  }
-  return { ok: true };
+export interface QuotaCheckResult {
+  ok: boolean;
+  reason?: 'minute' | 'day';
+  callsThisMinute: number;
+  callsThisDay: number;
 }
 
 /**
- * Note: the simple RateLimiter only enforces SPACING between calls, not
- * burst windows. For /ask the effective semantics are "min spacing of
- * 12s and 28.8min" — sufficient for anti-spam without a full sliding-
- * window implementation. Upgrade to a token bucket if usage scales.
+ * Returns whether the user can make another /ask call right now.
+ * Does NOT mutate state — counting is over the AkiCallLog history,
+ * which gets appended inside `askAki` itself. Caller checks this
+ * BEFORE invoking askAki.
+ */
+export function tryAcquireAskQuota(userId: string, now: number = Date.now()): QuotaCheckResult {
+  const minuteAgo = now - MINUTE_MS;
+  const dayAgo = now - DAY_MS;
+
+  const logsLast24h = getStore().akiLogs.query(
+    (l) => l.discord_id === userId && !l.refusal && l.created_at >= dayAgo,
+  );
+  const callsThisDay = logsLast24h.length;
+  const callsThisMinute = logsLast24h.filter((l) => l.created_at >= minuteAgo).length;
+
+  if (callsThisDay >= MAX_PER_DAY) {
+    return { ok: false, reason: 'day', callsThisMinute, callsThisDay };
+  }
+  if (callsThisMinute >= MAX_PER_MINUTE) {
+    return { ok: false, reason: 'minute', callsThisMinute, callsThisDay };
+  }
+  return { ok: true, callsThisMinute, callsThisDay };
+}
+
+/**
+ * Lifecycle hooks kept as no-ops for compatibility with bot.ts.
+ * Previous RateLimiter-based impl needed sweep timers; the count-
+ * based approach reads akiLogs directly so there's nothing to sweep.
  */
 export function startAkiCooldownSweeps(): void {
-  askMinuteLimit.startAutoSweep();
-  askDayLimit.startAutoSweep();
+  /* no-op (count-based, no in-memory state) */
 }
 
 export function stopAkiCooldownSweeps(): void {
-  askMinuteLimit.stopAutoSweep();
-  askDayLimit.stopAutoSweep();
+  /* no-op */
 }
+
+export const AKI_QUOTA_LIMITS = {
+  MAX_PER_MINUTE,
+  MAX_PER_DAY,
+} as const;
