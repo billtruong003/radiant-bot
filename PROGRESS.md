@@ -550,8 +550,8 @@ Critical:
 ## Phase 9 — Polish & launch
 
 **Status:** `todo`
-**Estimated complexity:** S (1 ngày)
-**Goal:** Final polish.
+**Estimated complexity:** M (2 ngày — bigger than originally planned per UX feedback)
+**Goal:** Final polish — UX richness + onboarding.
 
 ### Tasks
 - [ ] Review user-facing text (Việt tự nhiên)
@@ -563,6 +563,25 @@ Critical:
 - [ ] Soft launch 10-20 trusted user
 - [ ] Collect feedback, fix bug
 - [ ] Open public
+
+### UX polish (Bill feedback 2026-05-13)
+- [ ] **Pinned message per channel** — VN-language onboarding card in every channel explaining:
+  - What the channel is for (vd: `#leaderboard` = top XP, post weekly)
+  - Available commands relevant to that channel
+  - Examples of correct/incorrect usage
+  - Build via a `scripts/pin-channel-guides.ts` that reads a JSON manifest → posts/edits the pinned message (idempotent like sync-server)
+- [ ] **Colorful progress bar in /rank** — replace ASCII `█████░░░░░` with:
+  - Option A: emoji blocks (`🟦🟦🟦⬜⬜⬜⬜⬜⬜⬜`) with color matching cultivation rank
+  - Option B: custom-uploaded server emoji (`<:bar_fill:id> <:bar_empty:id>`) so the gradient matches rank color exactly
+  - Decision: try Option A first (no asset upload), fall back to B if rendering looks bad
+- [ ] **Custom role icons for cultivation ranks** — Bill's spec: "quả cầu năng lượng" (energy orb) as base motif.
+  - Requires server Boost Level 2 (≥ 7 boosts) to enable role icons via Discord API.
+  - Design 10 icons (one per cảnh giới) — same shape, different color/glow matching `colorHex` in `src/config/cultivation.ts`.
+  - Phàm Nhân = dim grey orb, Luyện Khí = light blue, ... Độ Kiếp = gold, Tiên Nhân = white luminous.
+  - Sub-titles (Kiếm Tu, Đan Sư, Trận Pháp Sư, Tán Tu) also get their themed icons.
+  - Upload via Discord UI (one-time) OR write `scripts/upload-role-icons.ts` reading PNGs from `assets/role-icons/`.
+- [ ] **Custom rank-up animation/sticker** in `#level-up` embed — maybe an animated GIF of the orb glowing brighter for đột phá cảnh giới
+- [ ] **Server-emoji upload script** — `scripts/upload-emojis.ts` reading `assets/emojis/` for any custom emojis the bot relies on (progress bar fills, ⚔️🧪🔮🌀 sub-title icons if we go custom there)
 
 ### Acceptance criteria
 - Soft launch không complain bug critical
