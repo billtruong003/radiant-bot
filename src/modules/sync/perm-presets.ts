@@ -49,7 +49,8 @@ const CULTIVATION_ROLE_NAMES = [
 ] as const;
 
 const STAFF_MOD = 'Nội Môn Đệ Tử';
-const STAFF_ADMIN = 'Trưởng Lão';
+const STAFF_ELDER = 'Trưởng Lão'; // senior advisor — supermod
+const STAFF_SECT_MASTER = 'Chưởng Môn'; // top admin — full manage
 const UNVERIFIED = 'Chưa Xác Minh';
 
 function allowFor(names: readonly string[], bits: bigint): Record<string, bigint> {
@@ -64,7 +65,8 @@ const PRESETS: Record<PermPreset, PresetBundle> = {
     everyoneAllow: READ,
     allow: {
       [STAFF_MOD]: FULL_TEXT | MANAGE_TEXT,
-      [STAFF_ADMIN]: ADMIN_TEXT,
+      [STAFF_ELDER]: FULL_TEXT | MANAGE_TEXT,
+      [STAFF_SECT_MASTER]: ADMIN_TEXT,
     },
     deny: {},
   },
@@ -74,7 +76,8 @@ const PRESETS: Record<PermPreset, PresetBundle> = {
     everyoneAllow: FULL_TEXT,
     allow: {
       [STAFF_MOD]: FULL_TEXT | MANAGE_TEXT,
-      [STAFF_ADMIN]: ADMIN_TEXT,
+      [STAFF_ELDER]: FULL_TEXT | MANAGE_TEXT,
+      [STAFF_SECT_MASTER]: ADMIN_TEXT,
     },
     deny: {},
   },
@@ -85,7 +88,8 @@ const PRESETS: Record<PermPreset, PresetBundle> = {
     allow: {
       ...allowFor(CULTIVATION_ROLE_NAMES, FULL_TEXT | VOICE_CONNECT),
       [STAFF_MOD]: FULL_TEXT | MANAGE_TEXT | VOICE_CONNECT,
-      [STAFF_ADMIN]: ADMIN_TEXT | VOICE_CONNECT,
+      [STAFF_ELDER]: MOD_TEXT | VOICE_CONNECT,
+      [STAFF_SECT_MASTER]: ADMIN_TEXT | VOICE_CONNECT,
     },
     deny: {
       [UNVERIFIED]: READ,
@@ -98,7 +102,8 @@ const PRESETS: Record<PermPreset, PresetBundle> = {
     allow: {
       ...allowFor(CULTIVATION_ROLE_NAMES, READ),
       [STAFF_MOD]: FULL_TEXT | MANAGE_TEXT,
-      [STAFF_ADMIN]: ADMIN_TEXT,
+      [STAFF_ELDER]: FULL_TEXT | MANAGE_TEXT,
+      [STAFF_SECT_MASTER]: ADMIN_TEXT,
     },
     deny: {
       [UNVERIFIED]: READ,
@@ -111,7 +116,8 @@ const PRESETS: Record<PermPreset, PresetBundle> = {
     allow: {
       [UNVERIFIED]: FULL_TEXT,
       [STAFF_MOD]: READ | MANAGE_TEXT,
-      [STAFF_ADMIN]: ADMIN_TEXT,
+      [STAFF_ELDER]: READ | MANAGE_TEXT,
+      [STAFF_SECT_MASTER]: ADMIN_TEXT,
     },
     deny: {
       // Cultivators explicitly denied so they never see the captcha channel.
@@ -119,12 +125,13 @@ const PRESETS: Record<PermPreset, PresetBundle> = {
     },
   },
 
-  // Mod-only channels (bot-dev etc).
+  // Mod-only channels (bot-dev etc). Elder is supermod → access too.
   mod_only: {
     everyoneDeny: READ,
     allow: {
       [STAFF_MOD]: FULL_TEXT | MANAGE_TEXT,
-      [STAFF_ADMIN]: ADMIN_TEXT,
+      [STAFF_ELDER]: FULL_TEXT | MANAGE_TEXT,
+      [STAFF_SECT_MASTER]: ADMIN_TEXT,
     },
     deny: {
       [UNVERIFIED]: READ,
@@ -132,11 +139,13 @@ const PRESETS: Record<PermPreset, PresetBundle> = {
     },
   },
 
-  // Admin-only (phòng-trưởng-lão).
+  // Admin-only (elder-lounge). Both Trưởng Lão (elder) + Chưởng Môn read+post;
+  // Chưởng Môn additionally has manage perms. Mod is denied.
   admin_only: {
     everyoneDeny: READ,
     allow: {
-      [STAFF_ADMIN]: ADMIN_TEXT,
+      [STAFF_ELDER]: FULL_TEXT | MANAGE_TEXT,
+      [STAFF_SECT_MASTER]: ADMIN_TEXT,
     },
     deny: {
       [UNVERIFIED]: READ,
@@ -144,12 +153,14 @@ const PRESETS: Record<PermPreset, PresetBundle> = {
     },
   },
 
-  // Bot-only post channel (sect log). Staff can read.
+  // Bot-only post channel (sect log). Staff can read; Elder + Master can
+  // manage entries (pin / delete spam) but the channel is bot-write only.
   bot_log: {
     everyoneDeny: READ,
     allow: {
       [STAFF_MOD]: READ,
-      [STAFF_ADMIN]: READ | MANAGE_TEXT,
+      [STAFF_ELDER]: READ | MANAGE_TEXT,
+      [STAFF_SECT_MASTER]: READ | MANAGE_TEXT,
     },
     deny: {
       [UNVERIFIED]: READ,

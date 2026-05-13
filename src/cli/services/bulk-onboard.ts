@@ -10,6 +10,7 @@ const CULTIVATION_ROLE_NAMES: ReadonlySet<string> = new Set(CULTIVATION_RANKS.ma
 const PROTECTED_ROLE_NAMES: ReadonlySet<string> = new Set([
   ...CULTIVATION_ROLE_NAMES,
   'Tiên Nhân',
+  'Chưởng Môn',
   'Trưởng Lão',
   'Nội Môn Đệ Tử',
 ]);
@@ -37,7 +38,8 @@ function classifyMember(
   // Has any protected role (already a cultivator or staff) → skip.
   for (const role of member.roles.cache.values()) {
     if (PROTECTED_ROLE_NAMES.has(role.name)) {
-      const isStaff = role.name === 'Trưởng Lão' || role.name === 'Nội Môn Đệ Tử';
+      const isStaff =
+        role.name === 'Chưởng Môn' || role.name === 'Trưởng Lão' || role.name === 'Nội Môn Đệ Tử';
       return {
         member,
         reason: isStaff ? 'is-staff' : 'has-rank',

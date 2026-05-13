@@ -46,7 +46,8 @@ const STANDARD_ROLES = {
   'Độ Kiếp': 'rank-do-kiep',
   'Tiên Nhân': 'rank-tien-nhan',
   'Nội Môn Đệ Tử': 'staff-mod',
-  'Trưởng Lão': 'staff-admin',
+  'Trưởng Lão': 'staff-elder',
+  'Chưởng Môn': 'staff-master',
   'Chưa Xác Minh': 'role-unverified',
 };
 
@@ -106,26 +107,52 @@ describe('resolveOverwrites', () => {
     expect(phamnhan.deny & F.ViewChannel).toBe(F.ViewChannel);
   });
 
-  it('admin_only: only Trưởng Lão allowed; mod and cultivators denied', () => {
+  it('admin_only: Chưởng Môn + Trưởng Lão allowed; mod and cultivators denied', () => {
     const ows = resolveOverwrites('admin_only', ctxFromRoles(STANDARD_ROLES));
-    const admin = getOverwrite(ows, 'staff-admin');
-    expect(admin.allow & F.ViewChannel).toBe(F.ViewChannel);
-    expect(admin.allow & F.SendMessages).toBe(F.SendMessages);
+    const master = getOverwrite(ows, 'staff-master');
+    expect(master.allow & F.ViewChannel).toBe(F.ViewChannel);
+    expect(master.allow & F.SendMessages).toBe(F.SendMessages);
+    const elder = getOverwrite(ows, 'staff-elder');
+    expect(elder.allow & F.ViewChannel).toBe(F.ViewChannel);
+    expect(elder.allow & F.SendMessages).toBe(F.SendMessages);
+    // Only master gets ManageChannels (Trưởng Lão is supermod, not server admin).
+    expect(master.allow & F.ManageChannels).toBe(F.ManageChannels);
+    expect(elder.allow & F.ManageChannels).toBe(0n);
+
     const mod = getOverwrite(ows, 'staff-mod');
     expect(mod.deny & F.ViewChannel).toBe(F.ViewChannel);
     expect(mod.allow & F.SendMessages).toBe(0n);
   });
 
-  it('bot_log: nobody can post (deny send for everyone), mod/admin can view', () => {
+  it('bot_log: nobody posts; mod views; elder+master view+manage', () => {
     const ows = resolveOverwrites('bot_log', ctxFromRoles(STANDARD_ROLES));
     const everyone = getOverwrite(ows, '0');
     expect(everyone.deny & F.ViewChannel).toBe(F.ViewChannel);
+
     const mod = getOverwrite(ows, 'staff-mod');
     expect(mod.allow & F.ViewChannel).toBe(F.ViewChannel);
     expect(mod.allow & F.SendMessages).toBe(0n);
-    const admin = getOverwrite(ows, 'staff-admin');
-    expect(admin.allow & F.ViewChannel).toBe(F.ViewChannel);
-    expect(admin.allow & F.SendMessages).toBe(0n);
+    expect(mod.allow & F.ManageMessages).toBe(0n);
+
+    const elder = getOverwrite(ows, 'staff-elder');
+    expect(elder.allow & F.ViewChannel).toBe(F.ViewChannel);
+    expect(elder.allow & F.SendMessages).toBe(0n);
+    expect(elder.allow & F.ManageMessages).toBe(F.ManageMessages);
+
+    const master = getOverwrite(ows, 'staff-master');
+    expect(master.allow & F.ViewChannel).toBe(F.ViewChannel);
+    expect(master.allow & F.SendMessages).toBe(0n);
+    expect(master.allow & F.ManageMessages).toBe(F.ManageMessages);
+  });
+
+  it('verified_full: Master gets ManageRoles (can promote); Elder does NOT', () => {
+    const ows = resolveOverwrites('verified_full', ctxFromRoles(STANDARD_ROLES));
+    const master = getOverwrite(ows, 'staff-master');
+    expect(master.allow & F.ManageRoles).toBe(F.ManageRoles);
+    const elder = getOverwrite(ows, 'staff-elder');
+    expect(elder.allow & F.ManageRoles).toBe(0n);
+    // But Elder still gets mod-tier message powers.
+    expect(elder.allow & F.ManageMessages).toBe(F.ManageMessages);
   });
 
   it('missing role names are silently skipped (no exception)', () => {

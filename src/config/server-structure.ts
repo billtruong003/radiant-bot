@@ -42,8 +42,14 @@ export interface RoleDef {
 }
 
 export const ROLES: readonly RoleDef[] = [
-  { name: 'Trưởng Lão', colorHex: '#d4af37', hoist: true, mentionable: true, isStaff: true },
+  // Top admin — sect master. Gets gold + full manage perms in channel
+  // overwrites. Bot operator / server owner usually holds this.
+  { name: 'Chưởng Môn', colorHex: '#d4af37', hoist: true, mentionable: true, isStaff: true },
   { name: 'Tiên Nhân', colorHex: '#ffffff', hoist: true, mentionable: true },
+  // Senior advisor — supermod tier, manually granted to trusted seniors by
+  // Chưởng Môn. Same channel visibility as admin, mod-level message powers,
+  // CANNOT manage channels/roles (that stays with Chưởng Môn alone).
+  { name: 'Trưởng Lão', colorHex: '#a569bd', hoist: true, mentionable: true, isStaff: true },
   { name: 'Nội Môn Đệ Tử', colorHex: '#5dade2', hoist: true, mentionable: true, isStaff: true },
   {
     name: 'Độ Kiếp',

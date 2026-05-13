@@ -16,7 +16,8 @@ interface PresetAccess {
   unverified: Access;
   cultivators: Access;
   mod: Access;
-  admin: Access;
+  elder: Access;
+  master: Access;
 }
 
 const PRESET_ACCESS: Record<PermPreset, PresetAccess> = {
@@ -24,57 +25,65 @@ const PRESET_ACCESS: Record<PermPreset, PresetAccess> = {
     everyone: 'view',
     unverified: 'view',
     cultivators: 'view',
-    mod: 'post',
-    admin: 'manage',
+    mod: 'manage',
+    elder: 'manage',
+    master: 'manage',
   },
   public_full: {
     everyone: 'post',
     unverified: 'post',
     cultivators: 'post',
     mod: 'manage',
-    admin: 'manage',
+    elder: 'manage',
+    master: 'manage',
   },
   verified_full: {
     everyone: 'hidden',
     unverified: 'hidden',
     cultivators: 'post',
     mod: 'manage',
-    admin: 'manage',
+    elder: 'manage',
+    master: 'manage',
   },
   verified_read: {
     everyone: 'hidden',
     unverified: 'hidden',
     cultivators: 'view',
-    mod: 'post',
-    admin: 'manage',
+    mod: 'manage',
+    elder: 'manage',
+    master: 'manage',
   },
   unverified_only: {
     everyone: 'hidden',
     unverified: 'post',
     cultivators: 'hidden',
     mod: 'view',
-    admin: 'manage',
+    elder: 'view',
+    master: 'manage',
   },
   mod_only: {
     everyone: 'hidden',
     unverified: 'hidden',
     cultivators: 'hidden',
-    mod: 'post',
-    admin: 'manage',
+    mod: 'manage',
+    elder: 'manage',
+    master: 'manage',
   },
   admin_only: {
     everyone: 'hidden',
     unverified: 'hidden',
     cultivators: 'hidden',
     mod: 'hidden',
-    admin: 'manage',
+    elder: 'manage',
+    master: 'manage',
   },
   bot_log: {
     everyone: 'hidden',
     unverified: 'hidden',
     cultivators: 'hidden',
     mod: 'view',
-    admin: 'readmanage',
+    elder: 'readmanage',
+    master: 'readmanage',
   },
 };
 
@@ -100,7 +109,8 @@ export const permissions: BotCliService = {
       pad('Unverif', COL_WIDTH_ACCESS),
       pad('Cultiv', COL_WIDTH_ACCESS),
       pad('Mod', COL_WIDTH_ACCESS),
-      pad('Admin', COL_WIDTH_ACCESS),
+      pad('Elder', COL_WIDTH_ACCESS),
+      pad('Master', COL_WIDTH_ACCESS),
       'PRESET',
     ].join(' │ ');
     lines.push(header);
@@ -116,7 +126,8 @@ export const permissions: BotCliService = {
           pad(ACCESS_LABEL[access.unverified], COL_WIDTH_ACCESS),
           pad(ACCESS_LABEL[access.cultivators], COL_WIDTH_ACCESS),
           pad(ACCESS_LABEL[access.mod], COL_WIDTH_ACCESS),
-          pad(ACCESS_LABEL[access.admin], COL_WIDTH_ACCESS),
+          pad(ACCESS_LABEL[access.elder], COL_WIDTH_ACCESS),
+          pad(ACCESS_LABEL[access.master], COL_WIDTH_ACCESS),
           ch.perm,
         ].join(' │ ');
         lines.push(row);
@@ -131,14 +142,15 @@ export const permissions: BotCliService = {
     lines.push('  view+M = view + manage (NO send — bot-only-post channels)');
     lines.push('  -      = hidden (cannot see)');
     lines.push('');
-    lines.push('Role groups:');
+    lines.push('Role groups (low → high authority):');
     lines.push('  @everyone   = before joining (incl. raid bots, lurkers)');
     lines.push('  Unverif     = "Chưa Xác Minh" — joined but not verified yet');
     lines.push(
       '  Cultiv      = Phàm Nhân, Luyện Khí, ..., Độ Kiếp, Tiên Nhân (11 cultivation roles)',
     );
-    lines.push('  Mod         = Nội Môn Đệ Tử (moderator)');
-    lines.push('  Admin       = Trưởng Lão (administrator)');
+    lines.push('  Mod         = Nội Môn Đệ Tử — moderator');
+    lines.push('  Elder       = Trưởng Lão — senior advisor (supermod, manual assign)');
+    lines.push('  Master      = Chưởng Môn — sect master (top admin, manage channels/roles)');
     lines.push('');
 
     process.stdout.write(lines.join('\n'));
