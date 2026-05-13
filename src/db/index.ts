@@ -56,6 +56,8 @@ export type {
   AutomodLog,
   SectEvent,
   RaidState,
+  ReactionRolesConfig,
+  ReactionRoleMapping,
   CultivationRankId,
 } from './types.js';
 export type { StoreOp } from './operations.js';

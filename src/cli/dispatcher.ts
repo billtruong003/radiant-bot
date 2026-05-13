@@ -5,6 +5,7 @@ import { listChannels } from './services/list-channels.js';
 import { notify } from './services/notify.js';
 import { permissions } from './services/permissions.js';
 import { send } from './services/send.js';
+import { setupReactionRoles } from './services/setup-reaction-roles.js';
 import { simulateAutomod } from './services/simulate-automod.js';
 import { simulateVerify } from './services/simulate-verify.js';
 import { whoami } from './services/whoami.js';
@@ -18,6 +19,7 @@ const SERVICES: readonly BotCliService[] = [
   bulkOnboard,
   simulateVerify,
   simulateAutomod,
+  setupReactionRoles,
 ];
 
 function printHelp(): void {

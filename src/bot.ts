@@ -4,6 +4,7 @@ import { register as registerGuildMemberAdd } from './events/guildMemberAdd.js';
 import { register as registerInteractionCreate } from './events/interactionCreate.js';
 import { register as registerMessageCreate } from './events/messageCreate.js';
 import { register as registerMessageReactionAdd } from './events/messageReactionAdd.js';
+import { register as registerMessageReactionRemove } from './events/messageReactionRemove.js';
 import { clearBotLogClient, setBotLogClient } from './modules/bot-log.js';
 import { startCooldownSweeps, stopCooldownSweeps } from './modules/leveling/cooldown.js';
 import { startScheduler, stopScheduler } from './modules/scheduler/index.js';
@@ -28,6 +29,7 @@ export async function startBot(): Promise<Client> {
   registerGuildMemberAdd(client);
   registerMessageCreate(client);
   registerMessageReactionAdd(client);
+  registerMessageReactionRemove(client);
   registerInteractionCreate(client);
 
   client.once(Events.ClientReady, (c) => {

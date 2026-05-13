@@ -93,3 +93,15 @@ export interface RaidState extends Record<string, unknown> {
   last_join_at: number | null;
   recent_joins: number[];
 }
+
+export interface ReactionRoleMapping {
+  emoji: string;
+  role_name: string;
+  [k: string]: unknown;
+}
+
+export interface ReactionRolesConfig extends Record<string, unknown> {
+  message_id: string | null;
+  channel_id: string | null;
+  mappings: ReactionRoleMapping[];
+}

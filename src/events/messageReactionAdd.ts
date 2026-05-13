@@ -10,6 +10,7 @@ import { NO_XP_CHANNEL_NAMES } from '../config/channels.js';
 import { reactionXpCooldown } from '../modules/leveling/cooldown.js';
 import { maybePromoteRank, postLevelUpEmbed } from '../modules/leveling/rank-promoter.js';
 import { awardXp } from '../modules/leveling/tracker.js';
+import { handleReactionAdd as handleReactionRole } from '../modules/reactionRoles/index.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -45,7 +46,14 @@ async function handle(
 
   if (reactor.bot) return;
   const message = r.message;
-  if (!message.guildId) return; // skip DMs
+  if (!message.guildId || !message.guild) return; // skip DMs
+
+  // Reaction-roles routing first: if this is the configured RR message,
+  // assign the role and SKIP XP path (don't double-reward).
+  const emojiKey = r.emoji.id ?? r.emoji.name ?? '';
+  const isReactionRole = await handleReactionRole(message.guild, reactor.id, message.id, emojiKey);
+  if (isReactionRole) return;
+
   if (message.author?.bot) return;
   if (message.author?.id === reactor.id) return; // no self-XP
 

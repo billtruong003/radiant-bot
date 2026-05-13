@@ -9,6 +9,7 @@ import { SingletonCollection } from './singleton-collection.js';
 import type {
   AutomodLog,
   RaidState,
+  ReactionRolesConfig,
   SectEvent,
   User,
   Verification,
@@ -30,6 +31,7 @@ interface SnapshotShape {
   xp_logs: XpLog[];
   automod_logs: AutomodLog[];
   raid_state: RaidState;
+  reaction_roles_config?: ReactionRolesConfig;
 }
 
 const DEFAULT_RAID_STATE: RaidState = {
@@ -37,6 +39,12 @@ const DEFAULT_RAID_STATE: RaidState = {
   activated_at: null,
   last_join_at: null,
   recent_joins: [],
+};
+
+const DEFAULT_REACTION_ROLES: ReactionRolesConfig = {
+  message_id: null,
+  channel_id: null,
+  mappings: [],
 };
 
 export interface StoreOptions {
@@ -65,6 +73,7 @@ export class Store {
   readonly xpLogs: AppendOnlyCollection<XpLog>;
   readonly automodLogs: AppendOnlyCollection<AutomodLog>;
   readonly raidState: SingletonCollection<RaidState>;
+  readonly reactionRolesConfig: SingletonCollection<ReactionRolesConfig>;
 
   private readonly log: AppendOnlyLog;
   private readonly walPath: string;
@@ -99,6 +108,11 @@ export class Store {
     this.raidState = new SingletonCollection<RaidState>('raid_state', this.log, {
       ...DEFAULT_RAID_STATE,
     });
+    this.reactionRolesConfig = new SingletonCollection<ReactionRolesConfig>(
+      'reaction_roles_config',
+      this.log,
+      { ...DEFAULT_REACTION_ROLES, mappings: [] },
+    );
 
     const map = new Map<string, WalApplicable>();
     for (const c of [
@@ -109,6 +123,7 @@ export class Store {
       this.xpLogs,
       this.automodLogs,
       this.raidState,
+      this.reactionRolesConfig,
     ]) {
       map.set(c.name, c);
     }
@@ -132,6 +147,9 @@ export class Store {
       this.automodLogs._bulkLoad(snapshot.automod_logs ?? []);
       if (snapshot.raid_state) {
         this.raidState._bulkLoad(snapshot.raid_state);
+      }
+      if (snapshot.reaction_roles_config) {
+        this.reactionRolesConfig._bulkLoad(snapshot.reaction_roles_config);
       }
       logger.info(
         {
@@ -243,6 +261,7 @@ export class Store {
         xp_logs: this.xpLogs._serialize(),
         automod_logs: this.automodLogs._serialize(),
         raid_state: this.raidState._serialize(),
+        reaction_roles_config: this.reactionRolesConfig._serialize(),
       };
 
       const tmpPath = `${this.snapshotPath}.tmp`;
