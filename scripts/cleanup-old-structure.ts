@@ -22,7 +22,15 @@ import { env } from '../src/config/env.js';
 import { logger } from '../src/utils/logger.js';
 
 const CATEGORIES_TO_DELETE: readonly string[] = [
-  '🏯 Tông Môn Đại Điện', // empty after first failed apply
+  '🏯 Tông Môn Đại Điện', // from first failed apply
+  // The 5 below become empty AFTER `npm run sync-server` moves their
+  // channels into the new English categories. Cleanup refuses non-empty
+  // categories, so the order is: sync first → cleanup last.
+  '📜 Đại Hội',
+  '🔬 Công Nghệ',
+  '🎮 Giải Trí',
+  '🛠️ Phòng Luyện Khí',
+  '🔊 Voice',
 ];
 
 const CHANNELS_TO_DELETE: readonly string[] = [
