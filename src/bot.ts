@@ -8,6 +8,7 @@ import { register as registerMessageReactionRemove } from './events/messageReact
 import { clearBotLogClient, setBotLogClient } from './modules/bot-log.js';
 import { startCooldownSweeps, stopCooldownSweeps } from './modules/leveling/cooldown.js';
 import { startScheduler, stopScheduler } from './modules/scheduler/index.js';
+import { startHealthServer, stopHealthServer } from './utils/health.js';
 import { logger } from './utils/logger.js';
 
 export async function startBot(): Promise<Client> {
@@ -37,6 +38,7 @@ export async function startBot(): Promise<Client> {
     setBotLogClient(c);
     startScheduler(c);
     startCooldownSweeps();
+    startHealthServer(env.HEALTH_PORT, c);
   });
 
   client.on(Events.Error, (err) => {
@@ -54,6 +56,7 @@ export async function startBot(): Promise<Client> {
 export async function stopBot(client: Client): Promise<void> {
   stopScheduler();
   stopCooldownSweeps();
+  stopHealthServer();
   clearBotLogClient();
   await client.destroy();
 }

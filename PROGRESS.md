@@ -5,7 +5,7 @@
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
 **Last updated:** 2026-05-13
-**Current phase:** `Phase 8` (Phase 9 polish done + 2 source cleanups landed; ready for cloud deploy)
+**Current phase:** `Launch-ready` (Phase 8 code+docs complete; manual VM provision is the gate)
 
 ---
 
@@ -544,25 +544,40 @@ Don't:
 
 ## Phase 8 — Deployment & monitoring
 
-**Status:** `todo`
-**Estimated complexity:** M (1 ngày)
+**Status:** `code-complete` (code + docs done; VM provision is manual operator work)
+**Estimated complexity:** M (1 ngày code, +0.5 ngày manual VM setup)
 **Goal:** Production deploy trên Oracle Cloud.
 
-### Tasks
-- [ ] `ecosystem.config.cjs` — PM2 config
-- [ ] `scripts/health-check.ts` — `/health` HTTP endpoint cho UptimeRobot
-- [ ] Setup Oracle Cloud VM (SPEC.md 9.1)
-- [ ] Install deps + clone repo + deploy
-- [ ] PM2 startup script enable
-- [ ] UptimeRobot account + monitor
-- [ ] Error webhook → `#nhật-ký-tông-môn` khi error spike
-- [ ] Document deploy + recovery steps trong README.md
-- [ ] Test recovery: nuke VM, spin mới, restore từ GitHub backup → verify state
+### Tasks (code-side)
+- [x] `ecosystem.config.cjs` — PM2 config (single-instance, fork mode, 500M memory ceiling, log rotation)
+- [x] `src/utils/health.ts` — `/health` HTTP endpoint (200 ok / 503 degraded)
+- [x] `HEALTH_PORT` env var added, wired into `bot.ts` ClientReady / stopBot
+- [x] `.env.example` updated with `HEALTH_PORT`
+- [x] `DEPLOY.md` — comprehensive deployment guide:
+  - VM provision (Oracle Cloud A1 Flex)
+  - System deps (Node 20, canvas native libs, PM2)
+  - Clone + build + PM2 launch
+  - Health endpoint config + UptimeRobot setup
+  - Update / rollback procedures
+  - **Recovery scenario** (VM lost → spin fresh, restore from GitHub backup)
+  - Initial public-launch checklist (8-step ordered runbook)
+  - Troubleshooting matrix (8 common symptoms → fix)
+
+### Manual tasks (operator)
+- [ ] Provision Oracle Cloud Always Free Tier ARM Ampere A1 Flex VM
+- [ ] SSH setup + system update + Node 20 install
+- [ ] Clone repo, configure `.env` with prod values
+- [ ] Restore data from GitHub backup if migrating from dev
+- [ ] `pm2 start ecosystem.config.cjs && pm2 save && pm2 startup`
+- [ ] Configure UptimeRobot monitor on `<PUBLIC_IP>:3030/health`
+- [ ] Run initial public-launch checklist (DEPLOY.md §9)
+- [ ] Stress test 100 msg/min — verify XP tracking integrity
+- [ ] Recovery drill: nuke VM, restore from backup, verify state
 
 ### Acceptance criteria
 - Bot 24/7 trên VM, no crash
 - VM restart → PM2 auto-resume
-- Backup file ở GitHub daily
+- Backup file ở GitHub daily (cron registered)
 - UptimeRobot ping success
 - Stress: 100 message/min không drop XP tracking
 - Recovery: delete data dir → start bot với backup → state khôi phục

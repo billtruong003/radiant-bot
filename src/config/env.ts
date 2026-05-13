@@ -29,6 +29,9 @@ const envSchema = z.object({
 
   BACKUP_GITHUB_REPO: z.string().default(''),
   BACKUP_GITHUB_TOKEN: z.string().default(''),
+
+  /** Health-check HTTP port. 0 disables. Default 3030 for prod, 0 for dev. */
+  HEALTH_PORT: z.coerce.number().int().nonnegative().default(0),
 });
 
 export type Env = z.infer<typeof envSchema>;
