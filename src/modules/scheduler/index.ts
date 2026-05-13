@@ -3,6 +3,7 @@ import cron, { type ScheduledTask } from 'node-cron';
 import { env } from '../../config/env.js';
 import { loadVerificationConfig } from '../../config/verification.js';
 import { logger } from '../../utils/logger.js';
+import { runVoiceTick } from '../leveling/voice-xp.js';
 import { cleanupExpiredVerifications } from '../verification/flow.js';
 import { maybeAutoDisableRaid } from '../verification/raid.js';
 
@@ -35,20 +36,29 @@ async function runRaidAutoDisable(): Promise<void> {
   await maybeAutoDisableRaid();
 }
 
+async function runVoiceXpTick(client: Client): Promise<void> {
+  const guild = client.guilds.cache.get(env.DISCORD_GUILD_ID);
+  if (!guild) return;
+  await runVoiceTick(guild);
+}
+
 export function startScheduler(client: Client): void {
   if (tasks.length > 0) {
     logger.warn('scheduler: already started, skipping');
     return;
   }
 
-  // Every minute: verification cleanup + raid auto-disable. node-cron
-  // doesn't await the callback so we manually catch and log.
+  // Every minute: verification cleanup + raid auto-disable + voice XP tick.
+  // node-cron doesn't await the callback so we manually catch and log.
   const tick = cron.schedule('* * * * *', () => {
     runVerificationCleanup(client).catch((err) => {
       logger.error({ err }, 'scheduler: verification cleanup failed');
     });
     runRaidAutoDisable().catch((err) => {
       logger.error({ err }, 'scheduler: raid auto-disable failed');
+    });
+    runVoiceXpTick(client).catch((err) => {
+      logger.error({ err }, 'scheduler: voice XP tick failed');
     });
   });
   tasks.push(tick);

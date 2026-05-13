@@ -46,3 +46,12 @@ export const ANNOUNCEMENT_CHANNELS = {
   tribulation: 'tribulation',
   verification: 'verify',
 } as const;
+
+/**
+ * Voice channels that earn the "Working" XP bonus (pomodoro / deep-focus
+ * intent). Members in these channels get 15 XP/min instead of 10.
+ */
+export const WORKING_VOICE_CHANNEL_NAMES: ReadonlySet<string> = new Set([
+  'Focus Room',
+  'Quiet Study',
+]);
