@@ -5,7 +5,7 @@
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
 **Last updated:** 2026-05-13
-**Current phase:** `Phase 8` (Phase 7 code-complete; tribulation events + /breakthrough deployed)
+**Current phase:** `Phase 8` (Phase 9 polish done + 2 source cleanups landed; ready for cloud deploy)
 
 ---
 
@@ -591,12 +591,28 @@ Critical:
 
 ## Phase 9 — Polish & launch
 
-**Status:** `todo`
-**Estimated complexity:** M (2 ngày — bigger than originally planned per UX feedback)
+**Status:** `done` (code/asset prep complete; live polish applied for #1+#2; #3 gated on Boost L2)
+**Estimated complexity:** M (2 ngày) — actual: 1 session
 **Goal:** Final polish — UX richness + onboarding.
 
-### Tasks
-- [ ] Review user-facing text (Việt tự nhiên)
+### Source cleanups (done 2026-05-13, before Phase 9 polish)
+- [x] `src/config/roles.ts` — centralized role name constants (ROLE_PHAM_NHAN, ROLE_UNVERIFIED, etc + STAFF_ROLE_NAMES Set)
+- [x] `src/config/leveling.ts` — centralized XP/timing balance dials (message XP min/max, cooldowns, voice rates, reaction XP, daily, tribulation rewards)
+- [x] Refactored consumers: flow.ts, messageCreate.ts, bulk-onboard.ts, cooldown.ts, eligibility.ts, voice-xp.ts, daily.ts, tribulation.ts, tribulation-trigger.ts
+
+### UX polish (Bill feedback 2026-05-13) — IMPLEMENTED
+- [x] **Pinned channel guides** — 10 VN-language pinned embeds, idempotent CLI `npm run bot -- pin-channel-guides`. Applied live: 10 channels (#rules, #verify, #general, #introductions, #daily-checkin, #leveling-guide, #leaderboard, #tribulation, #bot-commands, #help-me).
+- [x] **Colorful progress bar in /rank** — replaced ASCII `█████░░░░░` with 12-emoji block bar tinted by cảnh giới color (🟦🟨🟪🟥 etc + ▫️ empty), + percentage label.
+- [x] **Role icons CLI scaffold** — `npm run bot -- upload-role-icons [--use=unicode|png]`. Supports both unicode-emoji + PNG paths; checks `guild.premiumTier ≥ 2` and aborts with clear message if not met. Live guild currently at Boost Level 0 → blocked.
+- [x] **Asset spec** — `assets/role-icons/README.md` with 256×256 PNG energy-orb spec + colorHex palette for all 11 ranks + 4 sub-titles.
+- [x] **Launch announcement CLI** — `npm run bot -- post-launch-announcement` with idempotent pin/edit on #announcements. Dry-run smoked, NOT yet posted live (Phase 8 deploy-day artifact).
+
+### Remaining (run-time tasks, not code)
+- [ ] Boost server to Level 2 (≥ 7 boosts) → run `upload-role-icons` for cultivation + sub-title roles
+- [ ] Design + drop 10 PNG orb icons in `assets/role-icons/` → re-run with `--use=png`
+- [ ] After Phase 8 deploy: `npm run bot -- post-launch-announcement` to officially open
+
+### Original Phase 9 (deferred to launch-day)
 - [ ] Test verification e2e với 3 alt accounts khác profile
 - [ ] Stress test: 50 member join trong 5 min
 - [ ] Tune anti-raid threshold theo test
@@ -605,31 +621,6 @@ Critical:
 - [ ] Soft launch 10-20 trusted user
 - [ ] Collect feedback, fix bug
 - [ ] Open public
-
-### UX polish (Bill feedback 2026-05-13)
-- [ ] **Pinned message per channel** — VN-language onboarding card in every channel explaining:
-  - What the channel is for (vd: `#leaderboard` = top XP, post weekly)
-  - Available commands relevant to that channel
-  - Examples of correct/incorrect usage
-  - Build via a `scripts/pin-channel-guides.ts` that reads a JSON manifest → posts/edits the pinned message (idempotent like sync-server)
-- [ ] **Colorful progress bar in /rank** — replace ASCII `█████░░░░░` with:
-  - Option A: emoji blocks (`🟦🟦🟦⬜⬜⬜⬜⬜⬜⬜`) with color matching cultivation rank
-  - Option B: custom-uploaded server emoji (`<:bar_fill:id> <:bar_empty:id>`) so the gradient matches rank color exactly
-  - Decision: try Option A first (no asset upload), fall back to B if rendering looks bad
-- [ ] **Custom role icons for cultivation ranks** — Bill's spec: "quả cầu năng lượng" (energy orb) as base motif.
-  - Requires server Boost Level 2 (≥ 7 boosts) to enable role icons via Discord API.
-  - Design 10 icons (one per cảnh giới) — same shape, different color/glow matching `colorHex` in `src/config/cultivation.ts`.
-  - Phàm Nhân = dim grey orb, Luyện Khí = light blue, ... Độ Kiếp = gold, Tiên Nhân = white luminous.
-  - Sub-titles (Kiếm Tu, Đan Sư, Trận Pháp Sư, Tán Tu) also get their themed icons.
-  - Upload via Discord UI (one-time) OR write `scripts/upload-role-icons.ts` reading PNGs from `assets/role-icons/`.
-- [ ] **Custom rank-up animation/sticker** in `#level-up` embed — maybe an animated GIF of the orb glowing brighter for đột phá cảnh giới
-- [ ] **Server-emoji upload script** — `scripts/upload-emojis.ts` reading `assets/emojis/` for any custom emojis the bot relies on (progress bar fills, ⚔️🧪🔮🌀 sub-title icons if we go custom there)
-- [ ] **Public launch announcement** — when Phase 9 closes, post to `#announcements`:
-  - VN-language welcome embed with cultivation theme
-  - Feature roll-call: verification, XP/leveling, cảnh giới ranks, daily check-in, leaderboard, raid protection, tribulation events
-  - Quick-start: "Bắt đầu bằng `/daily` để nhận 100 XP đầu tiên" + link to pinned guides
-  - Bot version + changelog mention
-  - Build via `scripts/post-launch-announcement.ts` so the embed content lives in version control
 
 ### Acceptance criteria
 - Soft launch không complain bug critical
