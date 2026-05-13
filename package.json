@@ -1,0 +1,43 @@
+{
+  "name": "radiant-tech-sect-bot",
+  "version": "0.1.0",
+  "description": "Discord bot for Radiant Tech Sect server — cultivation-themed leveling, verification, automod with custom WAL+Snapshot storage.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node --enable-source-maps dist/index.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src",
+    "lint:fix": "biome check --write src",
+    "format": "biome format --write src",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "sync-server": "tsx scripts/sync-server.ts",
+    "deploy-commands": "tsx scripts/deploy-commands.ts"
+  },
+  "dependencies": {
+    "async-mutex": "^0.5.0",
+    "canvas": "^3.1.0",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "node-cron": "^3.0.3",
+    "pino": "^9.5.0",
+    "simple-git": "^3.27.0",
+    "ulid": "^2.3.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.9.0",
+    "@types/node-cron": "^3.0.11",
+    "pino-pretty": "^11.3.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.5"
+  }
+}
