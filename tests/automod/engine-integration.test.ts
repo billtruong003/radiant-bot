@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type AutomodConfig, __setAutomodConfigForTesting } from '../../src/config/automod.js';
 import { __setStoreForTesting } from '../../src/db/index.js';
 import { Store } from '../../src/db/store.js';
+import { __for_testing as actionsForTesting } from '../../src/modules/automod/actions.js';
 import { applyDecision, automodEngine } from '../../src/modules/automod/index.js';
+import * as profanityCounter from '../../src/modules/automod/profanity-counter.js';
 import { spamTracker } from '../../src/modules/automod/rules/spam-detection.js';
 import { mkTmpDir } from '../helpers/tmp-dir.js';
 import { makeMockMessage } from './__mocks__/message.js';
@@ -35,6 +37,8 @@ describe('automod engine integration', () => {
     __setAutomodConfigForTesting(TEST_CONFIG);
     spamTracker.reset('u1');
     spamTracker.reset('u-author');
+    profanityCounter.reset();
+    actionsForTesting.lastNudgeAt.clear();
   });
 
   afterEach(async () => {
@@ -42,6 +46,8 @@ describe('automod engine integration', () => {
     __setAutomodConfigForTesting(null);
     spamTracker.reset('u1');
     spamTracker.reset('u-author');
+    profanityCounter.reset();
+    actionsForTesting.lastNudgeAt.clear();
     await store.shutdown();
     await cleanup();
   });
@@ -160,10 +166,14 @@ describe('automod engine integration', () => {
       expect(log?.action).toBe('delete');
     });
 
-    it('action=warn: msg.delete + DM warn sent', async () => {
-      const { message, spies } = makeMockMessage({ content: 'this is fuck off' });
+    it('action=warn: msg.delete + DM warn sent (link rule)', async () => {
+      // Link-whitelist rule is also action=warn but skips the Phase 11.2
+      // graduated profanity branch, so it cleanly exercises the warn
+      // side effects without needing 15 prior hits in the counter.
+      const { message, spies } = makeMockMessage({ content: 'check out evil.com/free' });
       const d = await automodEngine.evaluate(message);
       if (!d) throw new Error('expected decision');
+      expect(d.rule.id).toBe('link');
       await applyDecision(message, d);
 
       expect(spies.delete).toHaveBeenCalledTimes(1);

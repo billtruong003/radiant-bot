@@ -6,6 +6,7 @@ import { getStore } from '../../db/index.js';
 import type { CultivationRankId } from '../../db/types.js';
 import { themedEmbed } from '../../utils/embed.js';
 import { logger } from '../../utils/logger.js';
+import { narrateRankPromotion } from './narration.js';
 
 /**
  * Cultivation rank promoter. Reads `leveledUp` from awardXp result and:
@@ -170,7 +171,16 @@ export async function postLevelUpEmbed(
 
       const heroLine = `${ICONS.tribulation} **${member}** đã đột phá cảnh giới!`;
       const transition = `${oldIcon} **${oldRank.name}**  ${ICONS.arrow_right}  ${newIcon} **${newRank.name}**`;
-      const flavor = `_${newRank.description}_`;
+
+      // Phase 11.2 / A8 — chronicler narration replaces the static rank
+      // description. narrateRankPromotion always returns a string (static
+      // fallback on any LLM error) so the embed never has an empty slot.
+      const chronicle = await narrateRankPromotion({
+        userDisplayName: member.displayName,
+        oldRank: promotion.oldRank,
+        newRank: promotion.newRank,
+      });
+      const flavor = `_${chronicle}_`;
 
       const description = [
         DIVIDER_DOUBLE,

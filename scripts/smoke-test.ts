@@ -166,6 +166,11 @@ async function main(): Promise<void> {
   await smokeVerifyThreadName();
   await smokeFirstMessageGreet();
   await smokeSchedulerWired();
+  // --- Phase 11.2 (Commit 2) checks ---
+  await smokeProfanityCounter();
+  await smokeAkiNudgePersona();
+  await smokeAutomodNarration();
+  await smokeLevelingNarration();
 
   // Summary
   const pass = results.filter((r) => r.ok).length;
@@ -862,6 +867,116 @@ async function smokeSchedulerWired(): Promise<void> {
     'cleanupExpiredVerifications still exported (unchanged)',
     typeof flow.cleanupExpiredVerifications === 'function',
   );
+}
+
+// --- Phase 11.2 / A6: profanity sliding-window counter -----------------
+
+async function smokeProfanityCounter(): Promise<void> {
+  group('Phase 11.2 · profanity-counter (60s sliding window)');
+  const counter = await import('../src/modules/automod/profanity-counter.js');
+  counter.reset();
+
+  expectEq(counter.recordHit('smoke-u', 1_000), 1, '1st hit → count=1 (gentle tier)');
+  expectEq(counter.recordHit('smoke-u', 1_500), 2, '2nd hit in window → count=2');
+  expectEq(counter.recordHit('smoke-u', 2_000), 3, '3rd hit → count=3');
+  for (let i = 4; i <= 5; i++) counter.recordHit('smoke-u', 2_000 + i);
+  expectEq(counter.getCount('smoke-u', 2_500), 5, 'count=5 → STERN tier boundary');
+  for (let i = 6; i <= 15; i++) counter.recordHit('smoke-u', 2_000 + i);
+  expectEq(counter.getCount('smoke-u', 2_500), 15, 'count=15 → DELETE tier boundary');
+
+  // Window pruning
+  counter.reset('smoke-u');
+  counter.recordHit('smoke-u', 1_000);
+  const afterWindow = 1_000 + counter.WINDOW_MS_FOR_TESTING + 1;
+  expectEq(counter.getCount('smoke-u', afterWindow), 0, 'hit pruned after 60s window');
+
+  // Per-user isolation
+  counter.reset();
+  counter.recordHit('smoke-a', 1_000);
+  counter.recordHit('smoke-a', 1_500);
+  counter.recordHit('smoke-b', 1_500);
+  expectEq(counter.getCount('smoke-a', 1_500), 2, 'user A independent of user B');
+  expectEq(counter.getCount('smoke-b', 1_500), 1, 'user B independent of user A');
+  counter.reset();
+}
+
+// --- Phase 11.2 / A6: Aki nudge persona builder ------------------------
+
+async function smokeAkiNudgePersona(): Promise<void> {
+  group('Phase 11.2 · persona-nudge prompt builder');
+  const { buildNudgePrompt } = await import('../src/modules/aki/persona-nudge.js');
+
+  const gentleSass = buildNudgePrompt({
+    severity: 'gentle',
+    respectfulTone: false,
+    userDisplayName: 'SmokeUser',
+  });
+  check('gentle+sass: system contains GENTLE', gentleSass.systemPrompt.includes('GENTLE'));
+  check('gentle+sass: system contains SASS', gentleSass.systemPrompt.includes('SASS'));
+  check(
+    'gentle+sass: user prompt embeds display name',
+    gentleSass.userPrompt.includes('SmokeUser'),
+  );
+
+  const sternStaff = buildNudgePrompt({
+    severity: 'stern',
+    respectfulTone: true,
+    userDisplayName: 'TôngChủBill',
+  });
+  check('stern+respectful: system contains STERN', sternStaff.systemPrompt.includes('STERN'));
+  check(
+    'stern+respectful: system swaps to RESPECTFUL tone',
+    sternStaff.systemPrompt.includes('RESPECTFUL'),
+  );
+  check(
+    'stern+respectful: addresses staff with Tông Chủ honorific',
+    sternStaff.systemPrompt.includes('Tông Chủ'),
+  );
+  check(
+    'system prompt forbids JSON output (free text reminder)',
+    gentleSass.systemPrompt.toLowerCase().includes('không json'),
+  );
+}
+
+// --- Phase 11.2 / A6b: Thiên Đạo automod narration ---------------------
+
+async function smokeAutomodNarration(): Promise<void> {
+  group('Phase 11.2 · automod narration (Thiên Đạo persona)');
+  const mod = await import('../src/modules/automod/narration.js');
+  const { RULE_LABEL, ACTION_LABEL, staticFallback } = mod.__for_testing;
+
+  // Static fallback covers every (rule, action) pair encountered in production
+  for (const r of ['profanity', 'mass_mention', 'link', 'spam', 'caps'] as const) {
+    check(`narration RULE_LABEL[${r}] non-empty`, !!RULE_LABEL[r]);
+  }
+  for (const a of ['delete', 'warn', 'timeout', 'kick'] as const) {
+    check(`narration ACTION_LABEL[${a}] non-empty`, !!ACTION_LABEL[a]);
+  }
+
+  const fb = staticFallback({ userDisplayName: 'Bach', ruleId: 'profanity', action: 'warn' });
+  check('static fallback embeds **<user>**', fb.includes('**Bach**'));
+  check('static fallback mentions Thiên Đạo', fb.includes('Thiên Đạo'));
+  check('static fallback uses VN rule label, not raw id', fb.includes('ngôn từ ô uế'));
+}
+
+// --- Phase 11.2 / A8: chronicler level-up narration --------------------
+
+async function smokeLevelingNarration(): Promise<void> {
+  group('Phase 11.2 · leveling narration (chronicler cache)');
+  const mod = await import('../src/modules/leveling/narration.js');
+  const { cacheKey, staticFallback, CACHE_TTL_MS } = mod.__for_testing;
+
+  expectEq(cacheKey('luyen_khi', 'truc_co'), 'luyen_khi:truc_co', 'cache key format = old:new');
+  expectEq(CACHE_TTL_MS, 5 * 60 * 1000, 'cache TTL = 5 minutes');
+
+  const fb = staticFallback('luyen_khi', 'truc_co');
+  check('static fallback has __USER__ placeholder', fb.includes('__USER__'));
+  check(
+    'static fallback mentions both rank names',
+    fb.includes('Luyện Khí') && fb.includes('Trúc Cơ'),
+  );
+
+  mod.clearCacheForTesting();
 }
 
 main().catch((err) => {

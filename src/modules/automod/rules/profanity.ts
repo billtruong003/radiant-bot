@@ -1,5 +1,6 @@
 import type { Message } from 'discord.js';
 import { loadAutomodConfig } from '../../../config/automod.js';
+import { recordHit } from '../profanity-counter.js';
 import type { AutomodRule, RuleHit } from '../types.js';
 
 /**
@@ -9,6 +10,11 @@ import type { AutomodRule, RuleHit } from '../types.js';
  * Match is case-insensitive + diacritic-tolerant for Vietnamese (so
  * `địt` matches `DIT` and `Địt`). Word list is JSON-config; lookup is
  * O(words) per message which is fine for ~50 word lists.
+ *
+ * On a hit we also record into the graduated-response sliding-window
+ * counter (`profanity-counter.ts`) and pass the running 60s-window
+ * count back via `RuleHit.context.profanityCount`. `actions.ts` reads
+ * that to branch between nudge (1–14) and delete-warn-log (15+) tiers.
  */
 
 function normalizeForMatch(text: string): string {
@@ -54,9 +60,10 @@ export const profanityRule: AutomodRule = {
     const config = await loadAutomodConfig();
     const hit = findProfanity(message.content, config.profanityWords);
     if (!hit) return null;
+    const profanityCount = recordHit(message.author.id);
     return {
       reason: `profanity match: ${hit}`,
-      context: { word: hit },
+      context: { word: hit, profanityCount },
     };
   },
 };

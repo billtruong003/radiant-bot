@@ -1,15 +1,20 @@
-import type { Message } from 'discord.js';
+import type { GuildMember, Message } from 'discord.js';
 import { ulid } from 'ulid';
+import { STAFF_ROLE_NAMES } from '../../config/roles.js';
 import { getStore } from '../../db/index.js';
 import { logger } from '../../utils/logger.js';
+import { buildNudgePrompt } from '../aki/persona-nudge.js';
 import { postBotLog } from '../bot-log.js';
+import { llm } from '../llm/index.js';
+import { narratePunishment } from './narration.js';
 import type { AutomodDecision } from './types.js';
 
 /**
  * Applies the decision: deletes the message, optionally warns/timeouts/
  * kicks the author, logs to `store.automodLogs` (append-only), and
- * posts a one-liner to `#bot-log`. All Discord ops are best-effort —
- * we never throw out of automod.
+ * posts a Thiên Đạo narration (Phase 11.2 / A6b) to `#bot-log` in place
+ * of the legacy one-liner. All Discord ops are best-effort — we never
+ * throw out of automod.
  *
  * Action semantics:
  *   - delete   : delete message
@@ -17,11 +22,19 @@ import type { AutomodDecision } from './types.js';
  *   - timeout  : delete + member.timeout(ms)
  *   - kick     : kick member (message left intact per Discord convention)
  *
- * The mod-log #bot-log post is a single line so it doesn't drown out
- * other mod actions (verification kicks etc).
+ * Graduated profanity (Phase 11.2 / A6) — if the firing rule is
+ * `profanity` and the user's 60s-window count is below 15, we BYPASS
+ * the destructive action and send a brief Aki nudge (gentle 1–4, stern
+ * 5–14). No delete, no log, no narration on the nudge path. The 30s
+ * per-user nudge cooldown prevents LLM hammering.
  */
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
+const NUDGE_COOLDOWN_MS = 30_000;
+const STERN_THRESHOLD = 5;
+const DELETE_THRESHOLD = 15;
+
+const lastNudgeAt: Map<string, number> = new Map();
 
 async function tryDelete(msg: Message): Promise<void> {
   try {
@@ -61,9 +74,96 @@ async function tryKick(msg: Message, reason: string): Promise<void> {
   }
 }
 
+function resolveDisplayName(msg: Message): string {
+  return msg.member?.displayName ?? msg.author?.username ?? msg.author?.tag ?? 'đệ tử';
+}
+
+function isStaff(member: GuildMember | null): boolean {
+  if (!member) return false;
+  const cache = member.roles?.cache;
+  if (!cache || typeof cache.values !== 'function') return false;
+  for (const role of cache.values()) {
+    if (STAFF_ROLE_NAMES.has(role.name)) return true;
+  }
+  return false;
+}
+
+async function trySendNudge(
+  message: Message,
+  severity: 'gentle' | 'stern',
+  respectfulTone: boolean,
+): Promise<void> {
+  const displayName = resolveDisplayName(message);
+  const { systemPrompt, userPrompt } = buildNudgePrompt({
+    severity,
+    respectfulTone,
+    userDisplayName: displayName,
+  });
+
+  const result = await llm.complete('aki-nudge', {
+    systemPrompt,
+    userPrompt,
+    maxOutputTokens: 120,
+    temperature: 0.8,
+    responseFormat: 'text',
+  });
+  if (!result) {
+    logger.debug(
+      { discord_id: message.author.id, severity },
+      'automod: nudge skipped — LLM router returned null',
+    );
+    return; // Spec: silent skip on LLM failure.
+  }
+  const text = result.text
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .replace(/\s*\n+\s*/g, ' ');
+  if (!text) return;
+  try {
+    await message.reply({ content: text, allowedMentions: { repliedUser: false } });
+  } catch (err) {
+    logger.warn({ err, discord_id: message.author.id }, 'automod: nudge reply failed');
+  }
+}
+
+async function handleProfanityNudge(message: Message, count: number): Promise<void> {
+  const now = Date.now();
+  const last = lastNudgeAt.get(message.author.id) ?? 0;
+  if (now - last < NUDGE_COOLDOWN_MS) {
+    return; // Per-user 30s cooldown to avoid LLM spam.
+  }
+  lastNudgeAt.set(message.author.id, now);
+
+  const severity: 'gentle' | 'stern' = count >= STERN_THRESHOLD ? 'stern' : 'gentle';
+  const respectfulTone = isStaff(message.member);
+  await trySendNudge(message, severity, respectfulTone);
+
+  logger.info(
+    {
+      discord_id: message.author.id,
+      tag: message.author.tag,
+      profanity_count: count,
+      severity,
+      respectful: respectfulTone,
+    },
+    'automod: profanity nudge sent (graduated tier)',
+  );
+}
+
 export async function applyDecision(message: Message, decision: AutomodDecision): Promise<void> {
   const { rule, hit } = decision;
   const reason = `automod:${rule.id} — ${hit.reason}`;
+
+  // Phase 11.2 / A6 — graduated profanity branch. Sub-15 counts in the
+  // 60s window get a nudge instead of a destructive action. Counter is
+  // already incremented inside the profanity rule.
+  if (rule.id === 'profanity') {
+    const count = typeof hit.context?.profanityCount === 'number' ? hit.context.profanityCount : 0;
+    if (count < DELETE_THRESHOLD) {
+      await handleProfanityNudge(message, count);
+      return;
+    }
+  }
 
   // Side-effects per action type. Delete is implicit for all except 'kick'.
   switch (rule.action) {
@@ -110,7 +210,20 @@ export async function applyDecision(message: Message, decision: AutomodDecision)
     'automod: action applied',
   );
 
-  await postBotLog(
-    `🛡️ Automod **${rule.action}** ${message.author.tag} (\`${rule.id}\`) — ${hit.reason}`,
-  );
+  // Phase 11.2 / A6b — Thiên Đạo narration replaces the legacy bot-log
+  // one-liner. narratePunishment always returns a string (graceful
+  // static fallback) so postBotLog never gets an empty payload.
+  const narration = await narratePunishment({
+    userDisplayName: resolveDisplayName(message),
+    ruleId: rule.id,
+    action: rule.action,
+  });
+  await postBotLog(`${narration}\n_(\`${rule.id}\` · ${rule.action} · ${message.author.tag})_`);
 }
+
+export const __for_testing = {
+  lastNudgeAt,
+  NUDGE_COOLDOWN_MS,
+  STERN_THRESHOLD,
+  DELETE_THRESHOLD,
+};

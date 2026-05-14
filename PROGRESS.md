@@ -5,7 +5,7 @@
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
 **Last updated:** 2026-05-14
-**Current phase:** `Phase 11 1B` (1A foundation done + live sync applied; 1B verify-thread + first-msg react next)
+**Current phase:** `Phase 11 Commit 2 shipped` (A6 graduated profanity + A6b/A8 LLM narration) — awaiting Bill deploy + live verify. Next: Tier B backlog or Tier C game-mech planning.
 
 ---
 
@@ -749,22 +749,28 @@ sync-server output `channelsCreated: 1 · channelsUpdated: 33`.
 Tests: 298 unit (+8 threadNameFor) + 118 smoke (+14 1B coverage).
 Awaiting Bill live deploy → see `docs/PHASE_11.md` sanity checklist.
 
-### Commit 2 — Gemini narration (designed)
+### Commit 2 — LLM narration (shipped 2026-05-14)
 
-- [ ] **A6 · Graduated profanity rate-limiter** — count profanity hits
-      per user in 60s window. 1-4 → Aki nudge (gentle), 5-14 → Aki
-      nudge (stronger), 15+ → delete + warn (current behavior). Even
-      tông chủ gets nudged — but with `respectful_tone: true` flag
-      → sweeter prompt to Aki/Gemini ("Tông Chủ ơi đệ tử mạn phép
-      nhắc...").
-- [ ] **A6b · Thiên Đạo punishment narration** — when an automod
-      action lands (delete/timeout/kick), post a cultivation-themed
-      announce in #bot-log: "Thiên Đạo đã giáng thiên kiếp khiến
-      ABC...". Uses `narration` task (Llama 3.3 70B).
-- [ ] **A8 · Level-up cultivation narration** — replace the current
-      static "X đã đột phá lên Trúc Cơ" with Gemini/Groq prose: "A
-      đã tiến đến Trúc Cơ kỳ, vạn người kính ngưỡng…". Falls back
-      to static text on LLM error (graceful degradation).
+- [x] **A6 · Graduated profanity rate-limiter** — sliding 60s window
+      per user. 1-4 → Aki gentle nudge, 5-14 → stern nudge, 15+ →
+      delete + warn (existing). Counter in `profanity-counter.ts`,
+      branch in `actions.ts:applyDecision`. Staff exemption removed
+      per Bill — `respectfulTone=true` swaps Aki tone to honorific.
+      Per-user 30s LLM cooldown, silent skip on LLM down.
+- [x] **A6b · Thiên Đạo punishment narration** — every landed automod
+      action now posts a VN-xianxia "Thiên Đạo" line to #bot-log in
+      place of the plain `🛡️ Automod` text. Static fallback always
+      returns a usable string. Calls `llm.complete('narration', ...)`.
+- [x] **A8 · Level-up cultivation narration** — chronicler prose
+      replaces the static `rank.description` flavor inside the đột
+      phá embed. 5-min cache per (oldRank, newRank) pair; `__USER__`
+      placeholder lets cached prose stay correct for each disciple.
+      Graceful fallback on LLM error.
+
+Tests: 335 unit (+37 covering counter, nudge, narration, graduated
+flow) + 155 smoke (+37 covering all Commit 2 modules). No lint errs,
+build clean. Awaiting Bill deploy → live LLM smoke (real Groq/Gemini
+keys on VPS).
 
 ### Backlog (Phase 11+ future)
 

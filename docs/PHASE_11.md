@@ -8,7 +8,7 @@
 **Phase status:**
 - ✅ **Commit 1A** shipped + live sync applied (33 channels renamed)
 - ✅ **Commit 1B** shipped — awaiting Bill deploy + live sanity
-- 📐 **Commit 2** designed (A6 + A6b + A8 narration) — gated on 1B live ok
+- ✅ **Commit 2** shipped — A6 graduated profanity + A6b/A8 LLM narration. Awaiting deploy.
 
 ---
 
@@ -20,9 +20,9 @@
 | 1A-test | smoke + router + canonical tests | `d8c114d` | ✅ shipped |
 | 1B | verify thread + cleanup cron + first-msg greet | `df69f8d` | ✅ shipped, awaiting deploy |
 | 1B-test | thread + greet smoke coverage | `c80d7eb` | ✅ shipped |
-| 2 | A6 graduated profanity + A6b/A8 Gemini narration | — | 📐 designed |
+| 2 | A6 graduated profanity + A6b/A8 LLM narration | _next commit_ | ✅ shipped |
 
-Test status (current): **298 unit / 118 smoke / 0 lint err / build clean**
+Test status (current): **335 unit / 155 smoke / 0 lint err / build clean**
 
 ---
 
@@ -96,78 +96,61 @@ pm2 logs radiant-tech-sect-bot --lines 30 --nostream
 
 ---
 
-## Commit 2 — Narration (designed, awaiting 1B live ok)
+## Commit 2 — Narration (shipped 2026-05-14)
 
-### A6 · Graduated profanity rate-limiter
+### A6 · Graduated profanity rate-limiter — ✅ shipped
 
 **Thresholds (Bill confirmed):**
 | Profanity hits in 60s | Action |
 |---|---|
 | 1-4 | Aki nudge gentle (LLM-generated, "đạo hữu nhẹ tay tí ٩(◕‿◕)۶") |
 | 5-14 | Aki nudge stern ("kiềm chế nha, em đếm rồi đó (¬_¬)") |
-| 15+ | Delete + warn DM + log (= behavior cũ) |
+| 15+ | Delete + warn DM + log (= behavior cũ) + Thiên Đạo narration |
 
-**Implementation plan:**
-- [ ] `src/modules/automod/profanity-counter.ts` — sliding 60s window map per user
-- [ ] `src/modules/aki/persona-nudge.ts` — Aki nudge persona prompt builder. Flag `respectful_tone: true` cho staff (Tông Chủ / Trưởng Lão / Chấp Pháp) → sweeter tone
-- [ ] Hook in `automod/rules/profanity.ts` to check count + branch action
-- [ ] Per-user 30s cooldown giữa nudges (tránh spam LLM)
-- [ ] Cost cap: ~$0/day (Groq free) hoặc rất nhỏ (~$0.005/day worst case)
+**Implementation:**
+- [x] `src/modules/automod/profanity-counter.ts` — sliding 60s window Map<userId, ts[]>, lazy prune on touch
+- [x] `src/modules/aki/persona-nudge.ts` — `buildNudgePrompt({ severity, respectfulTone, userDisplayName })` builder with GENTLE/STERN + SASS/RESPECTFUL cells
+- [x] Hooked in `automod/rules/profanity.ts:detect` — records hit + emits `RuleHit.context.profanityCount`
+- [x] Branch in `automod/actions.ts:applyDecision` — count < 15 → nudge via Aki, no delete/log; count ≥ 15 → normal action chain
+- [x] Per-user 30s nudge cooldown (`lastNudgeAt` Map) to cap LLM spend
+- [x] Cost: ~$0/day on Groq Qwen 32B free tier (worst case ~$0.005/day if fallback to Gemini hits)
 
-**Edge cases:**
-- Window cleared if user goes 60s without profanity → reset to 0
-- Staff exemption REMOVED (per Bill: "kể cả role tông chủ cũng k ngoại lệ") — but tone softened
-- Nudge fails (LLM down) → silent skip (don't post nothing-message)
+**Edge cases handled:**
+- Window auto-prunes when user goes 60s without profanity → counter drops to 0
+- Staff exemption REMOVED (per Bill: "kể cả role tông chủ cũng k ngoại lệ") — `respectfulTone=true` swaps SASS to honorific
+- Nudge LLM down → silent skip (no message), counter still increments
 
-### A6b · Thiên Đạo punishment narration
+### A6b · Thiên Đạo punishment narration — ✅ shipped
 
-**Trigger:** Bất kỳ automod action nào landed (delete / warn / timeout / kick)
-**Where:** Post vào `📋-bot-log-📋` channel (đã có)
-**Tone:** "Thiên Đạo" voice — cultivation cosmic narration:
+**Trigger:** Any automod action that landed (count ≥ 15 for profanity, or any other rule)
+**Where:** Posts narrated line to `📋-bot-log-📋` via `postBotLog()`. Old plain `🛡️ Automod warn ...` line is REPLACED, with the `(rule · action · tag)` metadata appended on a second italic line.
+**Tone:** "Thiên Đạo" cosmic voice — VN xianxia, no Hán tự.
 
-Examples:
-```
-⚡ Thiên Đạo đã giáng thiên kiếp khiến **<user>** ngưng tu tâm —
-ngôn từ ô uế đã bị thiên đạo phong ấn.
+**Implementation:**
+- [x] `src/modules/automod/narration.ts` — `narratePunishment({ userDisplayName, ruleId, action })` via `llm.complete('narration', ...)`
+- [x] System prompt locked: VN-only, 1–2 sentences, `**<user>**` exactly once, no rule-ID leakage (uses VN labels like "ngôn từ ô uế")
+- [x] Caller: `automod/actions.ts:applyDecision` triggers narration AFTER action lands (after store log)
+- [x] Static fallback always returns a usable string: `⚡ Thiên Đạo đã <action label> **<user>** vì <rule label>.`
+- [x] Cost: ~$0/action on Groq Qwen 32B free tier
 
-🌩️ **<user>** vô tình kích hoạt cơ chế tự vệ của tông môn —
-Aki đã thu hồi vong ngôn về vực sâu.
-```
+### A8 · Level-up cultivation narration — ✅ shipped
 
-**Implementation plan:**
-- [ ] `src/modules/automod/narration.ts` — LLM call via `llm.complete('narration', ...)`
-- [ ] System prompt persona: Thiên Đạo cosmic voice
-- [ ] Caller: `automod/actions.ts:applyDecision` triggers narration AFTER action lands
-- [ ] Static fallback: nếu LLM lỗi → "**<user>** bị **<rule>**" plain text
-- [ ] Cost: ~$0/day on Groq free tier, ~$0.0003/punishment if fallback to Gemini
+**Trigger:** `postLevelUpEmbed` called with `promotion.promoted === true` (cảnh giới crossover)
+**Replace:** Embed `description` block — the `_${rank.description}_` flavor line is now the chronicler prose.
 
-### A8 · Level-up cultivation narration
+**Implementation:**
+- [x] `src/modules/leveling/narration.ts` — `narrateRankPromotion({ userDisplayName, oldRank, newRank })`
+- [x] System prompt: VN chronicler voice, 1–2 sentences, both rank name + user name `**bold**`
+- [x] Cache by `(oldRank, newRank)` pair for 5 minutes — same-pair promos reuse prose with `__USER__` placeholder swap so each user still sees their own name
+- [x] Fall back to static template on any LLM error
+- [x] Caller: `postLevelUpEmbed` in `src/modules/leveling/rank-promoter.ts:177` calls narration BEFORE building embed
 
-**Trigger:** Promotion to next cảnh giới (currently static text in `rank-promoter.ts`)
-**Replace:** Embed description block
-
-Examples:
-```
-"A đã tiến đến **Trúc Cơ kỳ**, vạn người kính ngưỡng. Đường tu
-hành dài rộng, mong đạo hữu giữ chí lớn."
-
-"B vừa đột phá **Kim Đan kỳ** — nội đan thành hình, từ đây
-phong vân chiêu sinh chỉ trong tay áo."
-```
-
-**Implementation plan:**
-- [ ] `src/modules/leveling/narration.ts` — generates prose per rank
-- [ ] System prompt persona: cultivation chronicler voice
-- [ ] Caller: `postLevelUpEmbed` calls narration BEFORE building embed
-- [ ] Fall back to current static template on LLM error (graceful)
-- [ ] Cache result for 5 minutes (rare event but defensive)
-
-### Commit 2 acceptance
-- [ ] All 3 features behind LLM router (Groq primary, Gemini fallback)
-- [ ] Graceful degradation: any LLM error → static text fallback
-- [ ] Cost cap: Groq 14.4K RPD (8B) + 1K RPD (70B) > expected load
-- [ ] Tests: smoke-test extends to verify schema + new task routes
-- [ ] No regression in existing 298 unit / 118 smoke
+### Commit 2 acceptance — DONE
+- [x] All 3 features behind LLM router (Qwen 3 32B primary, Gemini chain fallback)
+- [x] Graceful degradation: any LLM null → static text fallback
+- [x] Cost cap: well within Groq free-tier RPD across primary + 4 fallback Groq models + 3 Gemini models
+- [x] Tests: 5 new unit suites + 4 new smoke groups, 335 unit / 155 smoke green
+- [x] No regression in existing tests after retrofit (engine-integration warn test switched to link rule)
 
 ---
 
