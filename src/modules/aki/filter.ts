@@ -239,3 +239,10 @@ export async function runFilter(question: string): Promise<FilterResult> {
     source: 'gemini',
   };
 }
+
+/** Exposed for tests. */
+export const __for_testing = {
+  stripFences,
+  parseFilterJson,
+  computeCost,
+};
