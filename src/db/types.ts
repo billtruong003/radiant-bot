@@ -246,6 +246,13 @@ export interface DocContribution extends Record<string, unknown> {
   id: string;
   /** Discord thread id once created; null until publish step. */
   thread_id: string | null;
+  /**
+   * Optional image attached at submission. Stored as the Discord CDN URL
+   * from the slash-command attachment. Optional (undefined for old rows
+   * replayed from snapshot/WAL written before Phase 12.6/3 — preserved as
+   * undefined rather than backfilled).
+   */
+  image_url?: string | null;
   author_id: string;
   title: string;
   /** Full body — capped 4000 chars at submission time. */

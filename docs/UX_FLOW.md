@@ -131,9 +131,11 @@
 **Hoạt động chính**:
 
 1. **Contribute docs** ở `#📚-docs-📚`:
-   - `/contribute-doc title:... body:...` — Aki tự duyệt (approved → +50 contribution + 500 XP).
-   - Hoặc POST `/api/contribute` với HMAC.
+   - `/contribute-doc title:... body:... [image:<file>]` — Aki tự duyệt (approved → +50 contribution + 500 XP).
+   - Hoặc POST `/api/contribute` với HMAC (image qua REST: roadmap).
    - Aki tự phân loại: difficulty / section / tags.
+   - **Approved** → bot tự tạo **public thread** trong `#docs` với starter embed (body + score + classification + image). Mỗi doc là 1 thread riêng → reply / hỏi / debate ngay trong thread đó. Auto-archive sau 7 ngày inactive.
+   - **Rejected** → ephemeral phản hồi với lý do để sửa lại + submit lần nữa.
 
 2. **Mentor ở `#🆘-help-me-🆘`**: trả lời câu hỏi đệ tử mới → user hỏi react ✅ → +10 contribution points.
 

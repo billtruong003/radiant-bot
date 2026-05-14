@@ -81,6 +81,12 @@ export interface SubmitDocInput {
   title: string;
   body: string;
   source: DocSource;
+  /**
+   * Optional image attachment URL. When provided (and `source='slash'` with
+   * a real Discord attachment), the published thread starter embed will
+   * setImage() with this URL.
+   */
+  imageUrl?: string | null;
 }
 
 export interface SubmitDocResult {
@@ -142,6 +148,7 @@ export async function submitContribution(input: SubmitDocInput): Promise<SubmitD
   const contribution: DocContribution = {
     id: ulid(),
     thread_id: null,
+    image_url: input.imageUrl ?? null,
     author_id: safeAuthor,
     title: safeTitle,
     body: safeBody,
@@ -201,6 +208,10 @@ export async function submitContribution(input: SubmitDocInput): Promise<SubmitD
   };
   await store.docContributions.set(decided);
 
+  // Caller is responsible for publishing (needs Guild reference). After
+  // calling publishApprovedDoc, write the thread_id back via
+  // `markContributionPublished(contribution.id, threadId)` below.
+
   const reviewLog: DocReviewLog = {
     id: ulid(),
     contribution_id: contribution.id,
@@ -230,6 +241,24 @@ export async function submitContribution(input: SubmitDocInput): Promise<SubmitD
   );
 
   return { contribution: decided, decision: approved ? 'approved' : 'rejected', reviewLog };
+}
+
+/**
+ * Update an approved contribution with its published thread id. Idempotent
+ * — safe to call multiple times; subsequent calls overwrite the thread_id
+ * (useful if a republish is needed after the first thread is archived).
+ */
+export async function markContributionPublished(
+  contributionId: string,
+  threadId: string,
+): Promise<void> {
+  const store = getStore();
+  const existing = store.docContributions.get(contributionId);
+  if (!existing) {
+    logger.warn({ contribution_id: contributionId }, 'docs: markPublished — contribution not found');
+    return;
+  }
+  await store.docContributions.set({ ...existing, thread_id: threadId });
 }
 
 export const __for_testing = {

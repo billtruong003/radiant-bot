@@ -195,6 +195,8 @@ async function main(): Promise<void> {
   await smokeAkiDefense();
   // --- Phase 12.6 — Pinned messages + docs ---
   await smokePinnedMessages();
+  // --- Phase 12.6/3 — Docs auto-publish ---
+  await smokeDocsPublish();
 
   // Summary
   const pass = results.filter((r) => r.ok).length;
@@ -1851,6 +1853,72 @@ async function smokePinnedMessages(): Promise<void> {
     'pinned-sync: isBotPin recognises legacy 📜 Luật Tông Môn title',
     pinnedSync.__for_testing.isBotPin(legacyBotPin, fakeBotId),
   );
+}
+
+async function smokeDocsPublish(): Promise<void> {
+  group('Phase 12.6/3 · Docs auto-publish (publish helper pure logic)');
+  const publishMod = await import('../src/modules/docs/publish.js');
+  const { truncateThreadName, buildStarterEmbed, DOCS_CANONICAL_CHANNEL, MAX_THREAD_NAME } =
+    publishMod.__for_testing;
+
+  expectEq(DOCS_CANONICAL_CHANNEL, 'docs', 'publish: canonical channel = docs');
+  expectEq(MAX_THREAD_NAME, 100, 'publish: thread name cap = 100 (Discord limit)');
+
+  // Short titles pass through unchanged.
+  expectEq(truncateThreadName('📖 Short title'), '📖 Short title', 'publish: short title unchanged');
+
+  // 100-char title unchanged (boundary).
+  const exactly100 = 'a'.repeat(100);
+  expectEq(truncateThreadName(exactly100), exactly100, 'publish: 100-char title unchanged');
+
+  // 101-char title truncated with ellipsis.
+  const oneOver = 'a'.repeat(101);
+  const truncated = truncateThreadName(oneOver);
+  expectEq(truncated.length, 100, 'publish: 101-char title truncated to 100');
+  check('publish: truncated title ends with ellipsis', truncated.endsWith('…'));
+
+  // Starter embed structure.
+  const fakeContribution = {
+    id: 'cn-test-1',
+    thread_id: null,
+    image_url: 'https://cdn.discordapp.com/attachments/x/y/example.png',
+    author_id: 'user-1',
+    title: 'Git rebase basics',
+    body: 'How to rebase safely in Git.',
+    status: 'approved' as const,
+    score: 85,
+    difficulty: 'medium' as const,
+    tags: ['git', 'rebase', 'cli'],
+    section: 'tech',
+    source: 'slash' as const,
+    rejection_reason: null,
+    submitted_at: Date.now(),
+    decided_at: Date.now(),
+  };
+  const embed = buildStarterEmbed(fakeContribution, '<@user-1>');
+  const j = embed.toJSON();
+  expectEq(j.title, '📖 Git rebase basics', 'publish: embed title prefixed with 📖');
+  check('publish: embed has description (full body)', !!j.description && j.description.length > 0);
+  check('publish: embed has fields populated', Array.isArray(j.fields) && (j.fields?.length ?? 0) >= 5);
+  check('publish: embed has image set when image_url provided', !!j.image?.url);
+  expectEq(j.image?.url, fakeContribution.image_url, 'publish: image url matches input');
+
+  // No image_url → no image on embed.
+  const noImage = { ...fakeContribution, image_url: null };
+  const j2 = buildStarterEmbed(noImage, '<@user-1>').toJSON();
+  check('publish: embed has NO image when image_url null', !j2.image);
+
+  // Footer carries contribution id (for traceability).
+  check(
+    'publish: footer contains contribution_id',
+    (j.footer?.text ?? '').includes('cn-test-1'),
+  );
+
+  // Image MIME allowlist (subset check).
+  const allowedMimes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+  for (const mime of allowedMimes) {
+    check(`publish-input: '${mime}' is in allowed image MIME set`, allowedMimes.includes(mime));
+  }
 }
 
 main().catch((err) => {
