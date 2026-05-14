@@ -672,21 +672,33 @@ async function smokeLlmRouter(): Promise<void> {
   const { __for_testing } = await import('../src/modules/llm/router.js');
   const routes = __for_testing.TASK_ROUTES;
 
-  // Primary (index 0) per task
+  // Primary (index 0) per task — 2026 best picks
   expectEq(routes['aki-filter'][0]?.provider, 'groq', 'aki-filter[0] = groq');
   expectEq(
     routes['aki-filter'][0]?.model,
-    'llama-3.3-70b-versatile',
-    'aki-filter[0] = 70B (quality classification, fix for 8B misclassifying VN)',
-  );
-  expectEq(
-    routes['aki-filter'][1]?.model,
-    'llama-3.1-8b-instant',
-    'aki-filter[1] = 8B (fast fallback when 70B exhausted)',
+    'qwen/qwen3-32b',
+    'aki-filter[0] = Qwen 3 32B (best VN classification)',
   );
   expectEq(routes['aki-nudge'][0]?.model, 'llama-3.1-8b-instant', 'aki-nudge[0] = 8B (short text)');
   expectEq(routes.narration[0]?.provider, 'groq', 'narration[0] = groq');
-  expectEq(routes.narration[0]?.model, 'llama-3.3-70b-versatile', 'narration[0] = 70B-versatile');
+  expectEq(routes.narration[0]?.model, 'qwen/qwen3-32b', 'narration[0] = Qwen 3 32B (VN xianxia)');
+
+  // Modern model coverage
+  const allFilterModels = routes['aki-filter'].map((r) => r.model);
+  check(
+    'aki-filter has llama-4-scout (newest Llama arch)',
+    allFilterModels.includes('meta-llama/llama-4-scout-17b-16e-instruct'),
+  );
+  const allNarrModels = routes.narration.map((r) => r.model);
+  check(
+    'narration has gpt-oss-120b (biggest open model)',
+    allNarrModels.includes('openai/gpt-oss-120b'),
+  );
+  // Gemini 2.0 Flash dropped (per Bill: "quá cũ")
+  check(
+    'no route uses gemini-2.0-flash (deprecated 2026-05)',
+    !allFilterModels.includes('gemini-2.0-flash') && !allNarrModels.includes('gemini-2.0-flash'),
+  );
 
   // Chain has multi-model gemini fallback
   check('aki-filter chain length ≥ 3 (multi-model rotation)', routes['aki-filter'].length >= 3);

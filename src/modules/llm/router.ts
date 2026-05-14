@@ -37,32 +37,41 @@ interface Route {
 }
 
 const TASK_ROUTES: Record<TaskId, readonly Route[]> = {
-  // Filter primary = 70B for classification nuance — 8B was misclassifying
-  // borderline VN questions ("Aki ở đâu?") as trash and improvising
-  // incoherent sass. 70B Versatile has 1K RPD on Groq free which still
-  // covers ~10 daily-maxed users at the 100/user/day quota. 8B falls
-  // through as a "fast path" if 70B is exhausted, then Gemini chain.
+  // FILTER — classification + VN sass. Live test (2026-05-14): Llama 3.1
+  // 8B misclassified "Aki ở đâu?" as trash → incoherent improvisation.
+  // 2026 best picks for VN classification on Groq free tier:
+  //   - Qwen 3 32B (Alibaba) — strongest multilingual for Asian langs,
+  //     60 RPM / 1K RPD — best primary
+  //   - Llama 3.3 70B Versatile — solid backup quality
+  //   - Llama 4 Scout 17B-16E (MoE) — newer arch, 30K TPM
+  //   - Llama 3.1 8B Instant — fast path (14.4K RPD) when above exhausted
+  // Then Gemini chain. Gemini 2.0 Flash dropped — superseded by 2.5/3.x.
   'aki-filter': [
+    { provider: 'groq', model: 'qwen/qwen3-32b' },
     { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+    { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
     { provider: 'groq', model: 'llama-3.1-8b-instant' },
-    { provider: 'gemini', model: 'gemini-2.0-flash' },
     { provider: 'gemini', model: 'gemini-2.5-flash' },
+    { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
     { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
   ],
-  // Nudge is short, simple "kiềm chế lời" reminders — 8B is fine here
-  // (no nuanced classification, just persona-flavored text).
+  // NUDGE — short "kiềm chế lời" reminders. 8B is fine (no classification),
+  // Llama 4 Scout as quality bump if 8B throttled.
   'aki-nudge': [
     { provider: 'groq', model: 'llama-3.1-8b-instant' },
-    { provider: 'gemini', model: 'gemini-2.0-flash' },
+    { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
     { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
   ],
-  // Narration needs prose quality — keep the better models early in the
-  // chain. Groq 70B 1K RPD is the budget; Gemini 2.5 Flash (better prose
-  // than Lite) is the prose-priority fallback. Lite is last-resort.
+  // NARRATION — cultivation-themed prose. Qwen 3 first because Alibaba
+  // trained heavily on Chinese xianxia + VN; gpt-oss-120b biggest for
+  // heavy lifting; Llama 4 Scout newer arch.
   narration: [
+    { provider: 'groq', model: 'qwen/qwen3-32b' },
     { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+    { provider: 'groq', model: 'openai/gpt-oss-120b' },
+    { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
     { provider: 'gemini', model: 'gemini-2.5-flash' },
-    { provider: 'gemini', model: 'gemini-2.0-flash' },
+    { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
     { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
   ],
 };
