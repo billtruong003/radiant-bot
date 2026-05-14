@@ -2,6 +2,7 @@ import { ulid } from 'ulid';
 import { getStore } from '../../db/index.js';
 import type { DocContribution, DocDifficulty, DocReviewLog, DocSource } from '../../db/types.js';
 import { logger } from '../../utils/logger.js';
+import { sanitizeForLlmBody, sanitizeForLlmPrompt } from '../../utils/sanitize.js';
 import { llm } from '../llm/index.js';
 
 /**
@@ -131,12 +132,19 @@ function clamp(n: number, lo: number, hi: number): number {
 
 export async function submitContribution(input: SubmitDocInput): Promise<SubmitDocResult> {
   const store = getStore();
+  // Sanitize all user-provided strings before storage AND before LLM.
+  // Doc submissions are higher attack surface than chat — long-form,
+  // potentially copy-pasted, and Bill's website automation may not
+  // pre-clean payloads.
+  const safeTitle = sanitizeForLlmPrompt(input.title, { maxLen: 200 });
+  const safeBody = sanitizeForLlmBody(input.body, { maxLen: MAX_BODY_CHARS });
+  const safeAuthor = sanitizeForLlmPrompt(input.authorId, { maxLen: 32 });
   const contribution: DocContribution = {
     id: ulid(),
     thread_id: null,
-    author_id: input.authorId,
-    title: input.title.slice(0, 200),
-    body: input.body.slice(0, MAX_BODY_CHARS),
+    author_id: safeAuthor,
+    title: safeTitle,
+    body: safeBody,
     status: 'pending',
     score: null,
     difficulty: null,
@@ -150,7 +158,7 @@ export async function submitContribution(input: SubmitDocInput): Promise<SubmitD
   await store.docContributions.set(contribution);
 
   // LLM judgment.
-  const userPrompt = `Bài viết user submit:\n\n**Tiêu đề**: ${input.title}\n\n**Nội dung**:\n${input.body}`;
+  const userPrompt = `Bài viết user submit:\n\n**Tiêu đề**: ${safeTitle}\n\n**Nội dung**:\n${safeBody}`;
   const result = await llm.complete('doc-validate', {
     systemPrompt: SYSTEM_PROMPT,
     userPrompt,

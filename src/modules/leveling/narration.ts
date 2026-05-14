@@ -16,6 +16,7 @@
 
 import { rankById } from '../../config/cultivation.js';
 import type { CultivationRankId } from '../../db/types.js';
+import { sanitizeForLlmPrompt } from '../../utils/sanitize.js';
 import { llm } from '../llm/index.js';
 
 const SYSTEM_PROMPT = `BẠN LÀ "Chronicler" — sử quan của tông môn Radiant Tech Sect, người ghi chép từng lần đệ tử đột phá cảnh giới. Phong cách: tiểu thuyết tu tiên Việt, trầm hùng, đề cao đạo tâm.
@@ -77,12 +78,14 @@ export interface RankNarrationInput {
 export async function narrateRankPromotion(input: RankNarrationInput): Promise<string> {
   const now = Date.now();
   const key = cacheKey(input.oldRank, input.newRank);
+  // Sanitize once at the top — every caller path uses the same name.
+  const safeName = sanitizeForLlmPrompt(input.userDisplayName);
   const cached = cache.get(key);
   if (cached && cached.expiresAt > now) {
     // Swap the cached display name slot so a different user gets their
     // own name even from cached prose. We saved the template with the
     // first user's name; substitute it for this user.
-    return cached.text.replace(/__USER__/g, input.userDisplayName);
+    return cached.text.replace(/__USER__/g, safeName);
   }
 
   const oldRankName = rankById(input.oldRank).name;
@@ -115,7 +118,7 @@ export async function narrateRankPromotion(input: RankNarrationInput): Promise<s
   // Cache with the literal __USER__ marker so subsequent calls for the
   // same (oldRank, newRank) reuse the same prose with a different name.
   cache.set(key, { text, expiresAt: now + CACHE_TTL_MS });
-  return text.replace(/__USER__/g, input.userDisplayName);
+  return text.replace(/__USER__/g, safeName);
 }
 
 function staticFallback(oldRank: CultivationRankId, newRank: CultivationRankId): string {

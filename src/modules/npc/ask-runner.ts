@@ -168,9 +168,15 @@ export async function runAskFlow(input: RunAskInput): Promise<void> {
       systemPromptOverride,
     });
     const chunks = chunkForDiscord(result.reply);
-    await interaction.editReply({ content: chunks[0] });
+    // allowedMentions.parse=[] hard-blocks any @everyone / role / user
+    // ping the LLM might emit. Belt-and-suspenders alongside the
+    // persona system prompt that already says "no pings".
+    await interaction.editReply({ content: chunks[0], allowedMentions: { parse: [] } });
     for (let i = 1; i < chunks.length; i++) {
-      await interaction.followUp({ content: chunks[i], ephemeral: false });
+      await interaction.followUp({
+        content: chunks[i],
+        allowedMentions: { parse: [] },
+      });
     }
   } catch (err) {
     logger.error({ err, discord_id: userId, npc: npcName }, 'ask-runner: Grok call failed');

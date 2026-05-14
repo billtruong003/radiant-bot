@@ -192,9 +192,12 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       // Gemini (or pre-filter) wrote a mean Aki rejection. Use it.
       await logRefusal(userId, question.length, `filter: ${filter.source}`, filterMeta);
       const chunks = chunkForDiscord(filter.response);
-      await interaction.editReply({ content: chunks[0] });
+      await interaction.editReply({ content: chunks[0], allowedMentions: { parse: [] } });
       for (let i = 1; i < chunks.length; i++) {
-        await interaction.followUp({ content: chunks[i], ephemeral: false });
+        await interaction.followUp({
+          content: chunks[i],
+          allowedMentions: { parse: [] },
+        });
       }
       return;
     }
@@ -224,9 +227,12 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     });
 
     const chunks = chunkForDiscord(result.reply);
-    await interaction.editReply({ content: chunks[0] });
+    await interaction.editReply({ content: chunks[0], allowedMentions: { parse: [] } });
     for (let i = 1; i < chunks.length; i++) {
-      await interaction.followUp({ content: chunks[i], ephemeral: false });
+      await interaction.followUp({
+        content: chunks[i],
+        allowedMentions: { parse: [] },
+      });
     }
   } catch (err) {
     logger.error({ err, discord_id: userId }, 'ask: Grok call failed');

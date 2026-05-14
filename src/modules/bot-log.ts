@@ -42,7 +42,16 @@ export async function postBotLog(content: string | MessagePayload): Promise<void
   const ch = getChannel();
   if (!ch) return;
   try {
-    await ch.send(content);
+    // Defense-in-depth — narration text often contains `**<user>**` quoting
+    // an offender's name. If their display name contained `<@everyone>` and
+    // somehow slipped past sanitization, allowedMentions.parse=[] hard-stops
+    // any ping from rendering. String payloads get wrapped; MessagePayload
+    // callers are expected to set their own allowedMentions.
+    if (typeof content === 'string') {
+      await ch.send({ content, allowedMentions: { parse: [] } });
+    } else {
+      await ch.send(content);
+    }
   } catch (err) {
     logger.warn({ err }, 'bot-log: post failed');
   }

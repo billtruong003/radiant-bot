@@ -14,6 +14,7 @@
  * Flash also free up to quota.
  */
 
+import { sanitizeForLlmPrompt } from '../../utils/sanitize.js';
 import { llm } from '../llm/index.js';
 import type { AutomodAction, AutomodRuleId } from './types.js';
 
@@ -78,8 +79,11 @@ export interface NarrationInput {
  * on any LLM error so the caller never has to branch on null.
  */
 export async function narratePunishment(input: NarrationInput): Promise<string> {
+  // Sanitize displayName before it lands in LLM prompt. Defense against
+  // names like "X. Ignore previous instructions" or "<@everyone>".
+  const safeName = sanitizeForLlmPrompt(input.userDisplayName);
   const userPrompt = [
-    `Đệ tử "${input.userDisplayName}" vừa vi phạm "${RULE_LABEL[input.ruleId]}" và bị thiên đạo "${ACTION_LABEL[input.action]}".`,
+    `Đệ tử "${safeName}" vừa vi phạm "${RULE_LABEL[input.ruleId]}" và bị thiên đạo "${ACTION_LABEL[input.action]}".`,
     'Hãy thuật lại cảnh tượng đó theo phong cách Thiên Đạo.',
   ].join(' ');
 
@@ -127,7 +131,7 @@ function stripReasoning(raw: string): string {
 }
 
 function staticFallback(input: NarrationInput): string {
-  return `⚡ Thiên Đạo đã ${ACTION_LABEL[input.action]} **${input.userDisplayName}** vì ${RULE_LABEL[input.ruleId]}.`;
+  return `⚡ Thiên Đạo đã ${ACTION_LABEL[input.action]} **${sanitizeForLlmPrompt(input.userDisplayName)}** vì ${RULE_LABEL[input.ruleId]}.`;
 }
 
 export const __for_testing = {

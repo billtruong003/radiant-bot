@@ -77,8 +77,25 @@ export function buildNudgePrompt(input: NudgePromptInput): NudgePrompt {
   const severityBlock = input.severity === 'gentle' ? GENTLE_INSTRUCTION : STERN_INSTRUCTION;
   const toneBlock = input.respectfulTone ? RESPECTFUL_INSTRUCTION : SASS_INSTRUCTION;
   const systemPrompt = `${COMMON_RULES}\n\n${severityBlock}\n\n${toneBlock}\n\n# Output\n\nTRẢ VỀ DUY NHẤT 1 câu reminder (text, không JSON, không markdown).`;
-  const userPrompt = `Đệ tử "${input.userDisplayName}" vừa văng tục trong kênh. Nhắc họ kiềm chế.`;
+  // displayName already sanitized by resolveDisplayName in actions.ts;
+  // we re-apply defensively so direct callers (tests / future code) are
+  // safe too.
+  const safeName = sanitizeNameForPrompt(input.userDisplayName);
+  const userPrompt = `Đệ tử "${safeName}" vừa văng tục trong kênh. Nhắc họ kiềm chế.`;
   return { systemPrompt, userPrompt };
+}
+
+// Inline sanitize without importing utils to avoid a circular dep
+// (persona-nudge is used by automod/actions which already imports
+// sanitize). Keep it minimal — full guard lives in utils/sanitize.ts.
+function sanitizeNameForPrompt(name: string): string {
+  return (
+    name
+      .replace(/<@!?\d+>|<@&\d+>|<#\d+>|@(?:everyone|here)/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 40) || 'đệ tử'
+  );
 }
 
 /**
