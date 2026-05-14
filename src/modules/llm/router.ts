@@ -13,25 +13,22 @@ import {
 /**
  * Per-task routing table + provider failover.
  *
- * Each TaskId has a primary + fallback (provider, model) tuple. The
- * caller passes the task ID; router picks the best provider, handles
- * 429 throttle bookkeeping, and falls back automatically on error.
+ * Each TaskId maps to an ordered `Route[]` chain. The router tries
+ * entries left-to-right, skipping any (provider, model) pair currently
+ * throttled (429 cooldown active) or whose provider is disabled
+ * (missing API key). The first successful response wins.
  *
- * Why per-task: Groq's free RPD limits differ per model. The 8B model
- * has 14.4K RPD (great for filter on every /ask); the 70B has 1K RPD
- * (perfect for narration which fires once per level-up). Mapping the
- * right model to the right task keeps both rooms under quota.
+ * Throttle bookkeeping is per-(provider, model) pair — not per-provider —
+ * so when Gemini 2.5 Flash hits 429 we can still try Gemini 3.1 Flash
+ * Lite on the same API key. Each Gemini model has its own free-tier
+ * RPM/RPD quota: rotating across them multiplies effective headroom.
  *
  * Failover policy (per Bill's call):
- *   - Provider throws LlmRateLimitError → mark throttled for retryAfterMs,
- *     then try fallback. Next call to same task within window skips
- *     primary entirely.
- *   - Provider throws LlmProviderError → try fallback once without
- *     throttling primary (transient issue, retry next call).
- *   - All providers fail → throw to caller. Caller decides UX:
- *       filter   = fail-open (forward to Grok anyway)
- *       nudge    = silent skip
- *       narration = static fallback message
+ *   - LlmRateLimitError → throttle THAT (provider, model) for retryAfterMs,
+ *     then try next route.
+ *   - LlmProviderError  → try next route without throttling (transient).
+ *   - All routes exhausted → return null. Caller applies task-specific
+ *     degradation (filter = fail-open, narration = static fallback, etc).
  */
 
 interface Route {
@@ -39,24 +36,30 @@ interface Route {
   model: string;
 }
 
-interface TaskRoute {
-  primary: Route;
-  fallback: Route;
-}
-
-const TASK_ROUTES: Record<TaskId, TaskRoute> = {
-  'aki-filter': {
-    primary: { provider: 'groq', model: 'llama-3.1-8b-instant' },
-    fallback: { provider: 'gemini', model: 'gemini-2.0-flash' },
-  },
-  'aki-nudge': {
-    primary: { provider: 'groq', model: 'llama-3.1-8b-instant' },
-    fallback: { provider: 'gemini', model: 'gemini-2.0-flash' },
-  },
-  narration: {
-    primary: { provider: 'groq', model: 'llama-3.3-70b-versatile' },
-    fallback: { provider: 'gemini', model: 'gemini-2.0-flash' },
-  },
+const TASK_ROUTES: Record<TaskId, readonly Route[]> = {
+  // Filter is the hottest path. Groq 8B 14.4K RPD covers the steady
+  // state; Gemini Flash Lite (highest Gemini free RPD at 500) is the
+  // primary fallback; 2.5/3 Flash backstop when both are throttled.
+  'aki-filter': [
+    { provider: 'groq', model: 'llama-3.1-8b-instant' },
+    { provider: 'gemini', model: 'gemini-2.0-flash' },
+    { provider: 'gemini', model: 'gemini-2.5-flash' },
+    { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
+  ],
+  'aki-nudge': [
+    { provider: 'groq', model: 'llama-3.1-8b-instant' },
+    { provider: 'gemini', model: 'gemini-2.0-flash' },
+    { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
+  ],
+  // Narration needs prose quality — keep the better models early in the
+  // chain. Groq 70B 1K RPD is the budget; Gemini 2.5 Flash (better prose
+  // than Lite) is the prose-priority fallback. Lite is last-resort.
+  narration: [
+    { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+    { provider: 'gemini', model: 'gemini-2.5-flash' },
+    { provider: 'gemini', model: 'gemini-2.0-flash' },
+    { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
+  ],
 };
 
 const PROVIDERS: Record<ProviderName, LlmProvider> = {
@@ -64,18 +67,23 @@ const PROVIDERS: Record<ProviderName, LlmProvider> = {
   gemini: geminiProvider,
 };
 
-// In-memory throttle map. Key = provider name. Value = epoch ms when
-// it becomes usable again. Module-scoped because router state is
-// per-process and rate limits reset on restart anyway.
-const throttledUntil: Map<ProviderName, number> = new Map();
+/**
+ * Throttle map keyed by `${provider}:${model}` so each model has its
+ * own cooldown window. Value = epoch ms when usable again.
+ */
+const throttledUntil: Map<string, number> = new Map();
 
-function isThrottled(provider: ProviderName, now: number): boolean {
-  const until = throttledUntil.get(provider);
+function routeKey(route: Route): string {
+  return `${route.provider}:${route.model}`;
+}
+
+function isThrottled(route: Route, now: number): boolean {
+  const until = throttledUntil.get(routeKey(route));
   return until !== undefined && now < until;
 }
 
-function throttleFor(provider: ProviderName, ms: number, now: number): void {
-  throttledUntil.set(provider, now + ms);
+function throttleFor(route: Route, ms: number, now: number): void {
+  throttledUntil.set(routeKey(route), now + ms);
 }
 
 export interface RouterInput {
@@ -87,8 +95,8 @@ export interface RouterInput {
 }
 
 export interface RouterResult extends CompletionResult {
-  /** Which route was actually used. Useful for logs / analytics. */
-  routePosition: 'primary' | 'fallback';
+  /** 0 = primary, 1 = first fallback, etc. Useful for logs / analytics. */
+  routeIndex: number;
 }
 
 async function tryRoute(
@@ -98,7 +106,7 @@ async function tryRoute(
 ): Promise<CompletionResult | null> {
   const provider = PROVIDERS[route.provider];
   if (!provider.isEnabled()) return null;
-  if (isThrottled(route.provider, now)) return null;
+  if (isThrottled(route, now)) return null;
 
   try {
     return await provider.complete({
@@ -111,53 +119,56 @@ async function tryRoute(
     });
   } catch (err) {
     if (err instanceof LlmRateLimitError) {
-      throttleFor(route.provider, err.retryAfterMs ?? 30_000, now);
+      throttleFor(route, err.retryAfterMs ?? 30_000, now);
       logger.warn(
         {
           provider: route.provider,
           model: route.model,
           retryAfterMs: err.retryAfterMs,
         },
-        'llm: provider throttled',
+        'llm: route throttled (will skip until cooldown expires)',
       );
       return null;
     }
     if (err instanceof LlmProviderError) {
       logger.warn(
         { provider: route.provider, model: route.model, err: err.message },
-        'llm: provider error, will try fallback',
+        'llm: route errored, trying next',
       );
       return null;
     }
-    // Unexpected — let it bubble.
     throw err;
   }
 }
 
 /**
- * Run a completion through the configured route for `task`. Returns null
- * if both primary and fallback are unavailable (disabled, throttled, or
- * errored) so the caller can apply task-specific degradation.
+ * Run a completion through the configured chain for `task`. Returns null
+ * if every route is unavailable (disabled, throttled, or errored) so
+ * the caller can apply task-specific degradation.
  */
 export async function complete(task: TaskId, input: RouterInput): Promise<RouterResult | null> {
-  const route = TASK_ROUTES[task];
+  const routes = TASK_ROUTES[task];
   const now = Date.now();
 
-  const primaryResult = await tryRoute(route.primary, input, now);
-  if (primaryResult) {
-    return { ...primaryResult, routePosition: 'primary' };
+  for (let i = 0; i < routes.length; i++) {
+    const route = routes[i];
+    if (!route) continue;
+    const result = await tryRoute(route, input, now);
+    if (result) {
+      if (i > 0) {
+        logger.info(
+          { task, routeIndex: i, provider: route.provider, model: route.model },
+          'llm: routed to fallback',
+        );
+      }
+      return { ...result, routeIndex: i };
+    }
   }
 
-  const fallbackResult = await tryRoute(route.fallback, input, now);
-  if (fallbackResult) {
-    logger.info(
-      { task, primary: route.primary.provider, used: route.fallback.provider },
-      'llm: routed to fallback',
-    );
-    return { ...fallbackResult, routePosition: 'fallback' };
-  }
-
-  logger.error({ task }, 'llm: no provider available (primary + fallback both unavailable)');
+  logger.error(
+    { task, totalRoutes: routes.length },
+    'llm: no route succeeded (all disabled/throttled/errored)',
+  );
   return null;
 }
 
@@ -166,4 +177,5 @@ export const __for_testing = {
   TASK_ROUTES,
   throttledUntil,
   isThrottled,
+  routeKey,
 };

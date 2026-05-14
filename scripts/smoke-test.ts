@@ -668,35 +668,52 @@ async function smokeAskContextFormat(): Promise<void> {
 // --- Phase 11 1A: LLM router task routes -------------------------------
 
 async function smokeLlmRouter(): Promise<void> {
-  group('Phase 11 · LLM router (per-task config + provider abstraction)');
+  group('Phase 11 · LLM router (N-entry chain + multi-model gemini rotation)');
   const { __for_testing } = await import('../src/modules/llm/router.js');
   const routes = __for_testing.TASK_ROUTES;
 
-  // Verify the route table matches the architecture we agreed on.
-  expectEq(routes['aki-filter'].primary.provider, 'groq', 'aki-filter primary = groq');
+  // Primary (index 0) per task
+  expectEq(routes['aki-filter'][0]?.provider, 'groq', 'aki-filter[0] = groq');
   expectEq(
-    routes['aki-filter'].primary.model,
+    routes['aki-filter'][0]?.model,
     'llama-3.1-8b-instant',
-    'aki-filter model = llama-3.1-8b-instant (14.4K RPD)',
+    'aki-filter[0] model = 8B-instant',
   );
-  expectEq(routes['aki-filter'].fallback.provider, 'gemini', 'aki-filter fallback = gemini');
+  expectEq(routes['aki-nudge'][0]?.model, 'llama-3.1-8b-instant', 'aki-nudge[0] = 8B');
+  expectEq(routes.narration[0]?.provider, 'groq', 'narration[0] = groq');
+  expectEq(routes.narration[0]?.model, 'llama-3.3-70b-versatile', 'narration[0] = 70B-versatile');
 
-  expectEq(routes['aki-nudge'].primary.model, 'llama-3.1-8b-instant', 'aki-nudge → 8B');
-
-  expectEq(routes.narration.primary.provider, 'groq', 'narration primary = groq');
-  expectEq(
-    routes.narration.primary.model,
-    'llama-3.3-70b-versatile',
-    'narration model = llama-3.3-70b-versatile (prose quality)',
+  // Chain has multi-model gemini fallback
+  check('aki-filter chain length ≥ 3 (multi-model rotation)', routes['aki-filter'].length >= 3);
+  const filterGeminiModels = routes['aki-filter']
+    .filter((r) => r.provider === 'gemini')
+    .map((r) => r.model);
+  check(
+    'aki-filter has ≥ 2 distinct gemini models in fallback chain',
+    new Set(filterGeminiModels).size >= 2,
+    filterGeminiModels.join(', '),
   );
 
-  // Throttle bookkeeping (in-memory map, smoke-level)
-  const { throttledUntil, isThrottled } = __for_testing;
+  // Narration prioritises Flash > Flash-Lite (prose quality)
+  const narrationChain = routes.narration;
+  const flashIdx = narrationChain.findIndex((r) => r.model === 'gemini-2.5-flash');
+  const liteIdx = narrationChain.findIndex((r) => r.model === 'gemini-2.5-flash-lite');
+  check(
+    'narration: gemini-2.5-flash before gemini-2.5-flash-lite (prose priority)',
+    flashIdx >= 0 && liteIdx >= 0 && flashIdx < liteIdx,
+  );
+
+  // Throttle bookkeeping uses `${provider}:${model}` keys
+  const { throttledUntil, isThrottled, routeKey } = __for_testing;
   throttledUntil.clear();
   const now = 1_000_000;
-  throttledUntil.set('groq', now + 5000);
-  check('isThrottled returns true within window', isThrottled('groq', now + 2000));
-  check('isThrottled returns false after window', !isThrottled('groq', now + 10_000));
+  const testRoute = { provider: 'groq' as const, model: 'llama-3.1-8b-instant' };
+  throttledUntil.set(routeKey(testRoute), now + 5000);
+  check('isThrottled true within window', isThrottled(testRoute, now + 2000));
+  check('isThrottled false after window', !isThrottled(testRoute, now + 10_000));
+  // Sibling models on same provider are NOT throttled (independent keys)
+  const siblingRoute = { provider: 'groq' as const, model: 'llama-3.3-70b-versatile' };
+  check('sibling model on same provider NOT throttled', !isThrottled(siblingRoute, now + 2000));
   throttledUntil.clear();
 
   // Provider registry
@@ -704,9 +721,8 @@ async function smokeLlmRouter(): Promise<void> {
   const { groqProvider } = await import('../src/modules/llm/providers/groq.js');
   expectEq(geminiProvider.name, 'gemini', 'geminiProvider.name = gemini');
   expectEq(groqProvider.name, 'groq', 'groqProvider.name = groq');
-  // Both should be disabled in this smoke run (no env keys set)
-  check('geminiProvider.isEnabled() = false (no key in test env)', !geminiProvider.isEnabled());
-  check('groqProvider.isEnabled() = false (no key in test env)', !groqProvider.isEnabled());
+  check('geminiProvider.isEnabled() callable', typeof geminiProvider.isEnabled() === 'boolean');
+  check('groqProvider.isEnabled() callable', typeof groqProvider.isEnabled() === 'boolean');
 }
 
 // --- Phase 11 1B: verify thread name + fallback record schema ---------

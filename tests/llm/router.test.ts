@@ -78,7 +78,7 @@ describe('LLM router', () => {
 
       expect(result).not.toBeNull();
       expect(result?.provider).toBe('groq');
-      expect(result?.routePosition).toBe('primary');
+      expect(result?.routeIndex).toBe(0);
     });
 
     it('passes the correct model from TASK_ROUTES to primary provider', async () => {
@@ -113,10 +113,10 @@ describe('LLM router', () => {
 
       const result = await router.complete('aki-filter', { systemPrompt: 's', userPrompt: 'u' });
       expect(result?.provider).toBe('gemini');
-      expect(result?.routePosition).toBe('fallback');
+      expect(result?.routeIndex).toBeGreaterThan(0);
     });
 
-    it('throttles primary on 429 and uses fallback', async () => {
+    it('throttles route on 429 and uses fallback', async () => {
       const { router } = await loadRouterWith({
         groq: (types) => ({
           complete: vi.fn().mockRejectedValue(new types.LlmRateLimitError('429', 60_000)),
@@ -126,15 +126,23 @@ describe('LLM router', () => {
 
       const result = await router.complete('aki-filter', { systemPrompt: 's', userPrompt: 'u' });
       expect(result?.provider).toBe('gemini');
-      expect(router.__for_testing.throttledUntil.has('groq')).toBe(true);
+      // Throttle key is now `${provider}:${model}` — verify the route is marked.
+      const groqRoute = router.__for_testing.TASK_ROUTES['aki-filter'][0];
+      expect(
+        router.__for_testing.throttledUntil.has(`${groqRoute?.provider}:${groqRoute?.model}`),
+      ).toBe(true);
     });
 
-    it('skips throttled primary on subsequent calls until window expires', async () => {
+    it('skips throttled route on subsequent calls until window expires', async () => {
       const groqComplete = vi.fn();
       const { router } = await loadRouterWith({
         groq: () => ({ complete: groqComplete }),
       });
-      router.__for_testing.throttledUntil.set('groq', Date.now() + 60_000);
+      const groqRoute = router.__for_testing.TASK_ROUTES['aki-filter'][0];
+      router.__for_testing.throttledUntil.set(
+        `${groqRoute?.provider}:${groqRoute?.model}`,
+        Date.now() + 60_000,
+      );
 
       const result = await router.complete('aki-filter', { systemPrompt: 's', userPrompt: 'u' });
       expect(result?.provider).toBe('gemini');
@@ -169,32 +177,81 @@ describe('LLM router', () => {
   });
 
   describe('task routes', () => {
-    it('aki-filter uses llama-3.1-8b-instant (high RPD model)', async () => {
+    it('aki-filter primary (index 0) = groq llama-3.1-8b-instant', async () => {
       const { router } = await loadRouterWith({});
-      expect(router.__for_testing.TASK_ROUTES['aki-filter'].primary.model).toBe(
-        'llama-3.1-8b-instant',
-      );
+      const chain = router.__for_testing.TASK_ROUTES['aki-filter'];
+      expect(chain[0]?.provider).toBe('groq');
+      expect(chain[0]?.model).toBe('llama-3.1-8b-instant');
     });
 
-    it('narration uses llama-3.3-70b-versatile (prose model)', async () => {
+    it('narration primary (index 0) = groq llama-3.3-70b-versatile', async () => {
       const { router } = await loadRouterWith({});
-      expect(router.__for_testing.TASK_ROUTES.narration.primary.model).toBe(
-        'llama-3.3-70b-versatile',
-      );
+      const chain = router.__for_testing.TASK_ROUTES.narration;
+      expect(chain[0]?.provider).toBe('groq');
+      expect(chain[0]?.model).toBe('llama-3.3-70b-versatile');
     });
 
-    it('aki-nudge shares 8B model with filter (cost-light task)', async () => {
+    it('aki-nudge primary shares 8B model with filter (cost-light task)', async () => {
       const { router } = await loadRouterWith({});
-      expect(router.__for_testing.TASK_ROUTES['aki-nudge'].primary.model).toBe(
-        'llama-3.1-8b-instant',
-      );
+      const chain = router.__for_testing.TASK_ROUTES['aki-nudge'];
+      expect(chain[0]?.model).toBe('llama-3.1-8b-instant');
     });
 
-    it('all tasks use gemini as fallback', async () => {
+    it('all tasks have at least one gemini fallback', async () => {
       const { router } = await loadRouterWith({});
       for (const taskId of ['aki-filter', 'aki-nudge', 'narration'] as const) {
-        expect(router.__for_testing.TASK_ROUTES[taskId].fallback.provider).toBe('gemini');
+        const chain = router.__for_testing.TASK_ROUTES[taskId];
+        const hasGemini = chain.some((r) => r.provider === 'gemini');
+        expect(hasGemini).toBe(true);
       }
+    });
+
+    it('aki-filter has 4 routes (multi-model gemini rotation)', async () => {
+      const { router } = await loadRouterWith({});
+      expect(router.__for_testing.TASK_ROUTES['aki-filter'].length).toBe(4);
+    });
+
+    it('narration prioritises 2.5-flash over flash-lite for prose quality', async () => {
+      const { router } = await loadRouterWith({});
+      const chain = router.__for_testing.TASK_ROUTES.narration;
+      const flashIdx = chain.findIndex((r) => r.model === 'gemini-2.5-flash');
+      const liteIdx = chain.findIndex((r) => r.model === 'gemini-2.5-flash-lite');
+      expect(flashIdx).toBeGreaterThanOrEqual(0);
+      expect(liteIdx).toBeGreaterThanOrEqual(0);
+      expect(flashIdx).toBeLessThan(liteIdx);
+    });
+  });
+
+  describe('multi-model gemini rotation', () => {
+    it('skips throttled gemini model and tries next gemini model', async () => {
+      const geminiComplete = vi.fn().mockResolvedValue({
+        text: '{"legit": true}',
+        tokensIn: 50,
+        tokensOut: 5,
+        costUsd: 0,
+        provider: 'gemini',
+        model: 'gemini-2.5-flash', // returned model
+        durationMs: 100,
+      });
+      const { router } = await loadRouterWith({
+        groq: () => ({ isEnabled: vi.fn().mockReturnValue(false) }),
+        gemini: () => ({ complete: geminiComplete }),
+      });
+      // Pre-throttle index 1 (first gemini route — gemini-2.0-flash)
+      router.__for_testing.throttledUntil.clear();
+      const chain = router.__for_testing.TASK_ROUTES['aki-filter'];
+      router.__for_testing.throttledUntil.set(
+        `${chain[1]?.provider}:${chain[1]?.model}`,
+        Date.now() + 60_000,
+      );
+
+      const result = await router.complete('aki-filter', { systemPrompt: 's', userPrompt: 'u' });
+      // Index 0 disabled (groq), index 1 throttled → should land on index 2
+      expect(result?.provider).toBe('gemini');
+      expect(result?.routeIndex).toBeGreaterThanOrEqual(2);
+      expect(geminiComplete).toHaveBeenCalledWith(
+        expect.objectContaining({ model: chain[2]?.model }),
+      );
     });
   });
 });
