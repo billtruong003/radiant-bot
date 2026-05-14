@@ -186,6 +186,9 @@ async function main(): Promise<void> {
   // --- Phase 12.2 — edge cases + security ---
   await smokeSanitize();
   await smokeEdgeCases();
+  // --- Phase 12.3 — aura + elder lounge voice ---
+  await smokeAura();
+  await smokeElderLoungeVoice();
 
   // Summary
   const pass = results.filter((r) => r.ok).length;
@@ -1511,6 +1514,106 @@ async function smokeEdgeCases(): Promise<void> {
   const bigPills = 1_000_000;
   const after = bigPills + 5; // boost reward
   check('numeric: pills + 5 boost reward at 1M base safe', after === 1_000_005);
+}
+
+// --- Phase 12.3 — aura visual + elder-lounge voice --------------------
+
+async function smokeAura(): Promise<void> {
+  group('Phase 12.3 · level-up aura (tiered visual + rainbow cycle)');
+  const { auraFor, renderBreakthroughDescription, renderPlainLevelUpDescription } = await import(
+    '../src/modules/leveling/aura.js'
+  );
+
+  // Every rank has aura entry.
+  const ranks = [
+    'pham_nhan',
+    'luyen_khi',
+    'truc_co',
+    'kim_dan',
+    'nguyen_anh',
+    'hoa_than',
+    'luyen_hu',
+    'hop_the',
+    'dai_thua',
+    'do_kiep',
+    'tien_nhan',
+  ] as const;
+  for (const r of ranks) {
+    const a = auraFor(r);
+    check(
+      `aura: ${r} has topAura + bottomAura + effect`,
+      a.topAura.length > 0 && a.bottomAura.length > 0 && a.effect.length > 0,
+    );
+  }
+
+  // Tier escalation: legendary tiers get rainbow cycle.
+  check('aura: Đại Thừa has rainbow cycle', auraFor('dai_thua').rainbowCycle.length > 0);
+  check('aura: Độ Kiếp has rainbow cycle', auraFor('do_kiep').rainbowCycle.length > 0);
+  check('aura: Tiên Nhân has rainbow cycle', auraFor('tien_nhan').rainbowCycle.length > 0);
+  // Lower tiers do NOT animate.
+  check('aura: Phàm Nhân no rainbow', auraFor('pham_nhan').rainbowCycle.length === 0);
+  check('aura: Kim Đan no rainbow', auraFor('kim_dan').rainbowCycle.length === 0);
+  check('aura: Hợp Thể no rainbow', auraFor('hop_the').rainbowCycle.length === 0);
+
+  // Breakthrough description renderer wraps with aura lines.
+  const desc = renderBreakthroughDescription({
+    oldRankIcon: '🔵',
+    newRankIcon: '🟡',
+    oldRankName: 'Trúc Cơ',
+    newRankName: 'Kim Đan',
+    newRankId: 'kim_dan',
+    memberMention: '<@123>',
+    chronicle: 'test prose',
+  });
+  check(
+    'aura: breakthrough description includes topAura',
+    desc.includes(auraFor('kim_dan').topAura),
+  );
+  check(
+    'aura: breakthrough description includes bottomAura',
+    desc.includes(auraFor('kim_dan').bottomAura),
+  );
+  check(
+    'aura: breakthrough description mentions both ranks',
+    desc.includes('Trúc Cơ') && desc.includes('Kim Đan'),
+  );
+
+  // Plain level-up uses current rank aura.
+  const plain = renderPlainLevelUpDescription({
+    memberMention: '<@456>',
+    newLevel: 7,
+    currentRankId: 'luyen_khi',
+    rankIcon: '🌬️',
+  });
+  check(
+    'aura: plain level-up includes Level 7 + rank icon',
+    plain.includes('Level 7') && plain.includes('🌬️'),
+  );
+}
+
+async function smokeElderLoungeVoice(): Promise<void> {
+  group('Phase 12.3 · elder-lounge voice channel registered');
+  const { CATEGORIES } = await import('../src/config/server-structure.js');
+
+  let foundText = false;
+  let foundVoice = false;
+  for (const cat of CATEGORIES) {
+    for (const ch of cat.channels) {
+      if (ch.name.includes('elder-lounge') && ch.type === 'text') foundText = true;
+      if (ch.name.toLowerCase().includes('elder lounge') && ch.type === 'voice') foundVoice = true;
+    }
+  }
+  check('elder-lounge text channel exists', foundText);
+  check('elder-lounge VOICE channel exists', foundVoice);
+
+  // Voice channel must be admin_only (staff-only).
+  for (const cat of CATEGORIES) {
+    for (const ch of cat.channels) {
+      if (ch.type === 'voice' && ch.name.toLowerCase().includes('elder lounge')) {
+        expectEq(ch.perm, 'admin_only', 'elder-lounge voice uses admin_only preset');
+      }
+    }
+  }
 }
 
 main().catch((err) => {

@@ -249,6 +249,10 @@ export const CATEGORIES: readonly CategoryDef[] = [
       { name: '📚 Quiet Study 📚', type: 'voice', perm: 'verified_full' },
       { name: '🎬 Movie Room 🎬', type: 'voice', perm: 'verified_full' },
       { name: '🎮 Gaming 2 🎮', type: 'voice', perm: 'verified_full' },
+      // Phase 12.3 — staff voice retreat. Visible only to Chưởng Môn,
+      // Trưởng Lão, Chấp Pháp, Thiên Đạo via the `admin_only` preset
+      // (same as the #elder-lounge text channel).
+      { name: '🍵 Elder Lounge 🍵', type: 'voice', perm: 'admin_only' },
     ],
   },
 ] as const;

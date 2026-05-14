@@ -1,11 +1,13 @@
-import type { GuildMember, TextChannel } from 'discord.js';
+import type { GuildMember, Message, TextChannel } from 'discord.js';
 import { ANNOUNCEMENT_CHANNELS, matchesChannelName } from '../../config/channels.js';
 import { CULTIVATION_RANKS, rankById, rankForLevel } from '../../config/cultivation.js';
-import { DIVIDER_DOUBLE, ICONS, RANK_ICONS } from '../../config/ui.js';
+import { ICONS, RANK_ICONS } from '../../config/ui.js';
 import { getStore } from '../../db/index.js';
 import type { CultivationRankId } from '../../db/types.js';
 import { themedEmbed } from '../../utils/embed.js';
 import { logger } from '../../utils/logger.js';
+import { sanitizeForDisplay } from '../../utils/sanitize.js';
+import { auraFor, renderBreakthroughDescription, renderPlainLevelUpDescription } from './aura.js';
 import { narrateRankPromotion } from './narration.js';
 
 /**
@@ -169,29 +171,26 @@ export async function postLevelUpEmbed(
       const oldIcon = RANK_ICONS[promotion.oldRank] ?? '⭐';
       const newIcon = RANK_ICONS[promotion.newRank] ?? '⭐';
 
-      const heroLine = `${ICONS.tribulation} **${member}** đã đột phá cảnh giới!`;
-      const transition = `${oldIcon} **${oldRank.name}**  ${ICONS.arrow_right}  ${newIcon} **${newRank.name}**`;
-
-      // Phase 11.2 / A8 — chronicler narration replaces the static rank
-      // description. narrateRankPromotion always returns a string (static
-      // fallback on any LLM error) so the embed never has an empty slot.
+      // Phase 11.2 / A8 — chronicler narration (LLM-generated VN xianxia
+      // prose). Phase 12.3 — tiered aura visual (smoke + energy + rainbow
+      // animation for legendary tiers).
       const chronicle = await narrateRankPromotion({
         userDisplayName: member.displayName,
         oldRank: promotion.oldRank,
         newRank: promotion.newRank,
       });
-      const flavor = `_${chronicle}_`;
 
-      const description = [
-        DIVIDER_DOUBLE,
-        heroLine,
-        '',
-        transition,
-        '',
-        flavor,
-        DIVIDER_DOUBLE,
-      ].join('\n');
+      const description = renderBreakthroughDescription({
+        oldRankIcon: oldIcon,
+        newRankIcon: newIcon,
+        oldRankName: oldRank.name,
+        newRankName: newRank.name,
+        newRankId: promotion.newRank,
+        memberMention: member.toString(),
+        chronicle,
+      });
 
+      const safeName = sanitizeForDisplay(member.displayName);
       const embed = themedEmbed('cultivation', {
         color: hexToInt(newRank.colorHex),
         title: `${ICONS.cultivation} Đột phá cảnh giới ${ICONS.cultivation}`,
@@ -200,25 +199,43 @@ export async function postLevelUpEmbed(
       })
         .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
         .addFields(
-          { name: '👤 Đệ tử', value: member.toString(), inline: true },
+          { name: '👤 Đệ tử', value: safeName, inline: true },
           { name: '📈 Cấp độ', value: `**Level ${newLevel}**`, inline: true },
           { name: `${newIcon} Cảnh giới`, value: newRank.name, inline: true },
         );
 
-      await channel.send({
+      const sent = (await channel.send({
         content: `🎉 Chúc mừng ${member}!`,
         embeds: [embed],
         allowedMentions: { users: [member.id] },
-      });
+      })) as Message;
+
+      // Phase 12.3 — rainbow animation for Đại Thừa / Độ Kiếp / Tiên Nhân.
+      // We re-edit the embed 5 times with successive border colors over
+      // ~3s. Discord rate limit is generous (5/5s per message); we space
+      // edits at 500ms intervals. Best-effort: any edit failure is
+      // swallowed and the final color stays whatever sent first.
+      const aura = auraFor(promotion.newRank);
+      if (aura.rainbowCycle.length > 0) {
+        void animateRainbow(sent, embed, aura.rainbowCycle, hexToInt(newRank.colorHex));
+      }
       return;
     }
 
-    // Plain level-up (no rank cross).
+    // Plain level-up (no rank cross) — lower-key visual: single aura line
+    // bracketing the message, no animation.
     const user = getStore().users.get(member.id);
-    const rankIcon = user ? (RANK_ICONS[user.cultivation_rank] ?? '⭐') : '⭐';
+    const rankId = user?.cultivation_rank ?? 'pham_nhan';
+    const rankIcon = RANK_ICONS[rankId] ?? '⭐';
+    const description = renderPlainLevelUpDescription({
+      memberMention: member.toString(),
+      newLevel,
+      currentRankId: rankId,
+      rankIcon,
+    });
     const embed = themedEmbed('levelup', {
       title: `${ICONS.sparkle} Lên cấp`,
-      description: `${member} vừa lên **Level ${newLevel}** ${rankIcon}`,
+      description,
       footer: undefined,
     });
     await channel.send({
@@ -227,5 +244,43 @@ export async function postLevelUpEmbed(
     });
   } catch (err) {
     logger.warn({ err, discord_id: member.id }, 'rank-promoter: embed post failed');
+  }
+}
+
+/**
+ * Animate the embed border color through `cycle` over ~3 seconds. Used
+ * for legendary-tier breakthroughs (Đại Thừa+) so visually-significant
+ * promotions look genuinely special. Final frame restores `finalColor`
+ * so the message persists with the rank's canonical color.
+ *
+ * Best-effort: any edit failure (rate limit, message deleted, perm
+ * loss) is swallowed silently — the static first frame is already up
+ * so the user sees the breakthrough regardless.
+ */
+async function animateRainbow(
+  message: Message,
+  embed: ReturnType<typeof themedEmbed>,
+  cycle: readonly number[],
+  finalColor: number,
+): Promise<void> {
+  const FRAME_MS = 500;
+  for (let i = 0; i < cycle.length; i++) {
+    await new Promise((r) => setTimeout(r, FRAME_MS));
+    try {
+      const c = cycle[i];
+      if (c === undefined) continue;
+      embed.setColor(c);
+      await message.edit({ embeds: [embed] });
+    } catch {
+      return; // any failure → stop the animation
+    }
+  }
+  // Restore final color frame.
+  await new Promise((r) => setTimeout(r, FRAME_MS));
+  try {
+    embed.setColor(finalColor);
+    await message.edit({ embeds: [embed] });
+  } catch {
+    /* swallow */
   }
 }
