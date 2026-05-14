@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { startBot, stopBot } from './bot.js';
-import { initStore, shutdownStore } from './db/index.js';
+import { loadCongPhapCatalog } from './config/cong-phap-catalog.js';
+import { getStore, initStore, shutdownStore } from './db/index.js';
 import { logger } from './utils/logger.js';
 
 async function main(): Promise<void> {
@@ -15,6 +16,24 @@ async function main(): Promise<void> {
     },
     'store: ready',
   );
+
+  // Phase 12 — seed công pháp catalog from JSON if Store has none.
+  // Idempotent: re-running on a populated catalog is a no-op.
+  try {
+    const catalog = await loadCongPhapCatalog();
+    let seeded = 0;
+    for (const item of catalog) {
+      if (!getStore().congPhapCatalog.get(item.slug)) {
+        await getStore().congPhapCatalog.set(item);
+        seeded++;
+      }
+    }
+    if (seeded > 0) {
+      logger.info({ seeded, total: catalog.length }, 'store: công pháp catalog seeded');
+    }
+  } catch (err) {
+    logger.error({ err }, 'store: failed to seed công pháp catalog (continuing)');
+  }
 
   const client = await startBot();
 

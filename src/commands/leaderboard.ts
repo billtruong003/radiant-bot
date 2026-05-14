@@ -3,6 +3,7 @@ import { rankById } from '../config/cultivation.js';
 import { DIVIDER, ICONS, RANK_ICONS } from '../config/ui.js';
 import { getStore } from '../db/index.js';
 import { topByXp, weeklyLeaderboard } from '../db/queries/leaderboard.js';
+import { computeCombatPower } from '../modules/combat/power.js';
 import { themedEmbed } from '../utils/embed.js';
 
 /**
@@ -27,13 +28,68 @@ export const data = new SlashCommandBuilder()
         { name: 'Tất cả thời gian', value: 'all' },
         { name: 'Tuần này (7 ngày)', value: 'weekly' },
       ),
+  )
+  .addStringOption((opt) =>
+    opt
+      .setName('mode')
+      .setDescription('Chỉ tiêu xếp hạng (mặc định: xp)')
+      .setRequired(false)
+      .addChoices(
+        { name: 'XP (mặc định)', value: 'xp' },
+        { name: 'Lực chiến (Phase 12)', value: 'luc-chien' },
+      ),
   );
 
 const MEDALS = [ICONS.medal_gold, ICONS.medal_silver, ICONS.medal_bronze];
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const period = interaction.options.getString('period') ?? 'all';
+  const mode = interaction.options.getString('mode') ?? 'xp';
   const store = getStore();
+
+  // Phase 12 — luc-chien mode: rank by combat power, not XP. Period
+  // doesn't apply here (combat power is a current state, not earnable).
+  if (mode === 'luc-chien') {
+    const allUsers = store.users.query(() => true);
+    const ranked = allUsers
+      .map((u) => {
+        const equippedSlug = u.equipped_cong_phap_slug ?? null;
+        const equipped = equippedSlug ? (store.congPhapCatalog.get(equippedSlug) ?? null) : null;
+        return { user: u, score: computeCombatPower(u, equipped) };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+
+    if (ranked.length === 0) {
+      await interaction.reply({
+        content: `${ICONS.trophy} Chưa có ai để xếp hạng. ${ICONS.aki_sad}`,
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const rows = ranked.map((e, i) => {
+      const medal = MEDALS[i];
+      const prefix = medal ?? `**\`#${i + 1}\`**`;
+      const name = e.user.display_name ?? e.user.username;
+      const rank = rankById(e.user.cultivation_rank);
+      const rankIcon = RANK_ICONS[e.user.cultivation_rank] ?? '⭐';
+      return `${prefix} ${rankIcon} **${name}** · ${rank.name}\n　 ⚔️ **${e.score.toLocaleString('vi-VN')}** lực chiến`;
+    });
+
+    const embed = themedEmbed('success', {
+      title: '⚔️ Bảng Xếp Hạng — Lực chiến',
+      description: ['*Top 10 đệ tử mạnh nhất theo lực chiến*', DIVIDER, rows.join('\n\n')].join(
+        '\n',
+      ),
+      footer: 'Lực chiến = base + level×10 + rank×50 + sub_title + công pháp · Realtime',
+    });
+
+    await interaction.reply({ embeds: [embed] });
+    return;
+  }
+
+  // XP mode (legacy default)
   const entries = period === 'weekly' ? weeklyLeaderboard(store, 10) : topByXp(store, 10);
 
   const periodLabel = period === 'weekly' ? 'Tuần này (7 ngày)' : 'Toàn thời gian';

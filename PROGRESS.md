@@ -5,7 +5,7 @@
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
 **Last updated:** 2026-05-14
-**Current phase:** `Phase 11.3 polish shipped + Phase 12 Lát 1 foundation shipped`. Sprint 1 = `/link-whitelist`, `/stats`, B6 verify rejoin cooldown. Lát 1 = User additions (pills, contribution_points, equipped_cong_phap_slug, combat_power_cache, last_quest_assigned_at) + 3 new entities (CongPhap, UserCongPhap, DailyQuest) + Store wiring + `computeCombatPower` + `/stat` read-only + `/grant` admin. Doc `docs/PHASE_12.md` locks scope for Lát 2-6. B7 (Aki memory per user) deferred — needs privacy decision (CLAUDE.md forbids storing message content; B7 would require storing /ask question text).
+**Current phase:** `Phase 12 Lát 1-8 shipped` (Lát 9 docs-threads designed, deferred impl). All game-mech features live: lực chiến + currency earning hooks + công pháp catalog (12 entries) + /inventory + /shop + /cong-phap + /trade sell-back + Aki premium roll + /quest + daily cron + multi-NPC (/ask-akira /ask-meifeng) + /duel PvP simulation + server boost rewards. 409 unit / 210 smoke / 0 lint err / build clean. Lát 9 (docs threads + LLM validation pipeline + HMAC API hook) designed in `docs/PHASE_12.md`, ~1200 LOC scope deferred to dedicated session.
 
 ---
 

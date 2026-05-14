@@ -1,0 +1,125 @@
+{
+  "$schema": "cong-phap-catalog-v1",
+  "items": [
+    {
+      "slug": "ngu-hanh-quyen",
+      "name": "Ngũ Hành Quyền",
+      "description": "Quyền pháp khởi đầu — vận khí năm hành điều hoà.",
+      "rarity": "common",
+      "cost_pills": 0,
+      "cost_contribution": 50,
+      "combat_power": 50,
+      "min_rank_required": null
+    },
+    {
+      "slug": "thanh-phong-bo",
+      "name": "Thanh Phong Bộ",
+      "description": "Khinh công nhẹ nhàng — bước đi như gió thoảng.",
+      "rarity": "common",
+      "cost_pills": 0,
+      "cost_contribution": 80,
+      "combat_power": 60,
+      "min_rank_required": null
+    },
+    {
+      "slug": "kim-cang-quyen",
+      "name": "Kim Cang Quyền",
+      "description": "Cứng như kim cương, công vào hộ thể — phòng thủ bậc nhất Luyện Khí kỳ.",
+      "rarity": "rare",
+      "cost_pills": 1,
+      "cost_contribution": 200,
+      "combat_power": 120,
+      "min_rank_required": "luyen_khi"
+    },
+    {
+      "slug": "huyen-thien-kiem-quyet",
+      "name": "Huyền Thiên Kiếm Quyết",
+      "description": "Kiếm pháp cổ truyền — một kiếm chấn động trời xanh.",
+      "rarity": "rare",
+      "cost_pills": 2,
+      "cost_contribution": 350,
+      "combat_power": 180,
+      "min_rank_required": "truc_co"
+    },
+    {
+      "slug": "luu-quang-than-phap",
+      "name": "Lưu Quang Thân Pháp",
+      "description": "Tốc độ vượt trội — di chuyển nhanh như tia chớp.",
+      "rarity": "rare",
+      "cost_pills": 2,
+      "cost_contribution": 400,
+      "combat_power": 200,
+      "min_rank_required": "truc_co"
+    },
+    {
+      "slug": "kim-dan-luyen-the",
+      "name": "Kim Đan Luyện Thể",
+      "description": "Luyện nội đan thành hình — sức mạnh tăng tiến vượt bậc.",
+      "rarity": "epic",
+      "cost_pills": 5,
+      "cost_contribution": 800,
+      "combat_power": 350,
+      "min_rank_required": "kim_dan"
+    },
+    {
+      "slug": "nguyen-anh-tam-phap",
+      "name": "Nguyên Anh Tâm Pháp",
+      "description": "Tu luyện Nguyên Anh — đạo tâm bất hoại, lực chiến nhân ba.",
+      "rarity": "epic",
+      "cost_pills": 8,
+      "cost_contribution": 1200,
+      "combat_power": 500,
+      "min_rank_required": "nguyen_anh"
+    },
+    {
+      "slug": "thien-ma-giai-the",
+      "name": "Thiên Ma Giải Thể",
+      "description": "Tà công cổ xưa — mạnh nhưng có giá phải trả. Khi mặc cảm thiên kiếp.",
+      "rarity": "epic",
+      "cost_pills": 10,
+      "cost_contribution": 1500,
+      "combat_power": 600,
+      "min_rank_required": "hoa_than"
+    },
+    {
+      "slug": "luc-dao-luan-hoi",
+      "name": "Lục Đạo Luân Hồi",
+      "description": "Luân hồi công pháp — đi qua sinh tử cảnh giới thay đổi.",
+      "rarity": "legendary",
+      "cost_pills": 20,
+      "cost_contribution": 3000,
+      "combat_power": 1000,
+      "min_rank_required": "luyen_hu"
+    },
+    {
+      "slug": "thai-thuong-vong-tinh",
+      "name": "Thái Thượng Vong Tình",
+      "description": "Tuyệt học của Thái Thượng tổ sư — quên tình, đạt đạo tâm.",
+      "rarity": "legendary",
+      "cost_pills": 30,
+      "cost_contribution": 5000,
+      "combat_power": 1500,
+      "min_rank_required": "hop_the"
+    },
+    {
+      "slug": "thien-dao-vo-thuong",
+      "name": "Thiên Đạo Vô Thượng",
+      "description": "Đỉnh cao công pháp — đồng hành thiên đạo, đại đạo tự nhiên.",
+      "rarity": "legendary",
+      "cost_pills": 50,
+      "cost_contribution": 10000,
+      "combat_power": 2500,
+      "min_rank_required": "dai_thua"
+    },
+    {
+      "slug": "truong-sinh-quyet",
+      "name": "Trường Sinh Quyết",
+      "description": "Bí pháp Tiên Nhân — kéo dài tuổi thọ, đạo tâm bất hoại. Reserved.",
+      "rarity": "legendary",
+      "cost_pills": 100,
+      "cost_contribution": 20000,
+      "combat_power": 5000,
+      "min_rank_required": "do_kiep"
+    }
+  ]
+}

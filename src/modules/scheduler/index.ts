@@ -2,8 +2,10 @@ import type { Client } from 'discord.js';
 import cron, { type ScheduledTask } from 'node-cron';
 import { env } from '../../config/env.js';
 import { loadVerificationConfig } from '../../config/verification.js';
+import { getStore } from '../../db/index.js';
 import { logger } from '../../utils/logger.js';
 import { runVoiceTick } from '../leveling/voice-xp.js';
+import { assignDailyQuest } from '../quests/daily-quest.js';
 import { cleanupExpiredVerifications, cleanupStaleVerifyThreads } from '../verification/flow.js';
 import { maybeAutoDisableRaid } from '../verification/raid.js';
 import { backupToGitHub } from './backup.js';
@@ -49,6 +51,20 @@ async function runVoiceXpTick(client: Client): Promise<void> {
   const guild = client.guilds.cache.get(env.DISCORD_GUILD_ID);
   if (!guild) return;
   await runVoiceTick(guild);
+}
+
+async function assignQuestsForActiveUsers(): Promise<void> {
+  const store = getStore();
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const active = store.users.query(
+    (u) => u.verified_at !== null && (u.last_message_at ?? 0) >= sevenDaysAgo,
+  );
+  let assigned = 0;
+  for (const user of active) {
+    const q = await assignDailyQuest(user.discord_id);
+    if (q && q.assigned_at >= Date.now() - 60_000) assigned++;
+  }
+  logger.info({ active_users: active.length, assigned }, 'scheduler: daily quests assigned');
 }
 
 export function startScheduler(client: Client): void {
@@ -116,6 +132,19 @@ export function startScheduler(client: Client): void {
     });
   });
   tasks.push(threadCleanup);
+
+  // Phase 12 Lát 4 — daily quest generator. Runs at 00:00 VN. Issues
+  // 1 quest per active (verified + active in last 7d) user.
+  const dailyQuest = cron.schedule(
+    '0 0 * * *',
+    () => {
+      assignQuestsForActiveUsers().catch((err) => {
+        logger.error({ err }, 'scheduler: daily quest assignment failed');
+      });
+    },
+    { timezone: VN_TZ },
+  );
+  tasks.push(dailyQuest);
 
   logger.info(
     { jobs: tasks.length, tz: VN_TZ },

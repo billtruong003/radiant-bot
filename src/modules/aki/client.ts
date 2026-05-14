@@ -58,6 +58,12 @@ export interface AskAkiInput {
     tokensOut: number;
     costUsd: number;
   };
+  /**
+   * Phase 12 Lát 5 — override system prompt for alt NPCs (Akira, Meifeng).
+   * Defaults to AKI_SYSTEM_PROMPT when omitted. The LLM still uses Aki's
+   * filter pipeline + AkiCallLog table for unified analytics.
+   */
+  systemPromptOverride?: string;
 }
 
 export interface AkiResponse {
@@ -138,7 +144,7 @@ export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
   }
 
   const messages: OpenAI.ChatCompletionMessageParam[] = [
-    { role: 'system', content: AKI_SYSTEM_PROMPT },
+    { role: 'system', content: input.systemPromptOverride ?? AKI_SYSTEM_PROMPT },
     { role: 'user', content: input.imageUrl ? userContent : userText },
   ];
 

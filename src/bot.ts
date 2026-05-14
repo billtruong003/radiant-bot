@@ -1,6 +1,7 @@
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
 import { env } from './config/env.js';
 import { register as registerGuildMemberAdd } from './events/guildMemberAdd.js';
+import { register as registerGuildMemberUpdate } from './events/guildMemberUpdate.js';
 import { register as registerInteractionCreate } from './events/interactionCreate.js';
 import { register as registerMessageCreate } from './events/messageCreate.js';
 import { register as registerMessageReactionAdd } from './events/messageReactionAdd.js';
@@ -29,6 +30,7 @@ export async function startBot(): Promise<Client> {
   // Wire feature handlers BEFORE login so no event can fire un-handled
   // during the brief READY → handler-register window.
   registerGuildMemberAdd(client);
+  registerGuildMemberUpdate(client);
   registerMessageCreate(client);
   registerMessageReactionAdd(client);
   registerMessageReactionRemove(client);

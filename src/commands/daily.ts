@@ -71,13 +71,20 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     metadata: { streak: award.newStreak, base: award.base, bonus: award.bonus },
   });
 
-  // Persist streak + last_daily_at.
+  // Persist streak + last_daily_at. Phase 12: also auto-grant +5
+  // contribution_points + (2 pills if streak milestone 7/14/30).
   const fresh = store.users.get(interaction.user.id);
+  const isStreakMilestone =
+    award.newStreak === 7 || award.newStreak === 14 || award.newStreak === 30;
+  const contribGrant = 5;
+  const pillsGrant = isStreakMilestone ? (award.newStreak === 30 ? 10 : 2) : 0;
   if (fresh) {
     await store.users.set({
       ...fresh,
       daily_streak: award.newStreak,
       last_daily_at: Date.now(),
+      contribution_points: (fresh.contribution_points ?? 0) + contribGrant,
+      pills: (fresh.pills ?? 0) + pillsGrant,
     });
   }
 
@@ -106,6 +113,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }).setThumbnail(interaction.user.displayAvatarURL({ size: 128 }));
 
   await interaction.reply({ embeds: [embed] });
+
+  // Phase 12 Lát 4 — daily_streak_check quest progress.
+  const { incrementProgress } = await import('../modules/quests/daily-quest.js');
+  void incrementProgress(interaction.user.id, 'daily_streak_check', 1);
 
   // Promote if leveled up.
   if (result.leveledUp && member) {

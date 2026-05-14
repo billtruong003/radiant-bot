@@ -82,6 +82,11 @@ async function handle(
     },
   });
 
+  // Phase 12 Lát 4 — reaction_count quest progress (counts on the
+  // REACTOR side, not the message author — Bill spec said "thả 5 reaction").
+  const { incrementProgress } = await import('../modules/quests/daily-quest.js');
+  void incrementProgress(reactor.id, 'reaction_count', 1);
+
   if (!result.leveledUp) return;
   const promotion = await maybePromoteRank(member, result.newLevel);
   await postLevelUpEmbed(member, result.newLevel, promotion);

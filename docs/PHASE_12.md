@@ -19,6 +19,9 @@
 | 4 | Daily quest: cron generate + tracker + `/quest` | 📋 planned |
 | 5 | Multi-NPC: persona files + `/ask-akira`, `/ask-meifeng` | 📋 planned |
 | 6 | PvP `/duel` — design + implement carefully | 📋 planned (future) |
+| 7 | Server boost reward + `/trade` công pháp sell-back | 📐 designed |
+| 8 | Aki occasional premium-buy on /trade | 📐 designed |
+| 9 | Docs threads pipeline (LLM-validated user contributions) | 📐 designed — DEFERRED IMPL |
 
 Status indicators: 📐 designed (plan locked, not coded) · 🔄 in progress · ✅ shipped · ⏸️ paused
 
@@ -353,6 +356,112 @@ schema. Idempotent — re-running on a v12 user is a no-op.
 
 ---
 
+## Lát 7-8 — Server boost + /trade (post-hoc add 2026-05-14)
+
+### Server boost reward
+- `guildMemberUpdate` event handler. When `oldMember.premiumSince === null && newMember.premiumSince !== null` → fresh boost.
+- Grant: **+5 đan dược** + **+500 cống hiến** (lets booster grab a rare công pháp).
+- Idempotent: only fires on `null → set` transition, not on stale cache re-emits.
+- DM thank-you + #bot-log announcement.
+
+### /trade sell <slug>
+- Refund formula: 50% pills + 60% contribution (intentional loss to deter churn).
+- **Aki premium roll**: 10% chance to refund 100% — flavor reward.
+- Auto-unequip if selling the equipped công pháp.
+- Removes `UserCongPhap` record entirely; re-buy required to use again.
+
+---
+
+## Lát 9 — Docs threads pipeline (designed, DEFERRED IMPL)
+
+> Bill 2026-05-14: "làm thêm tính năng… mn contributes document threads
+> thường xuyên hơn trong docs và resources … xóa đi tạo lại để ng ta
+> viết docs contribute… gửi input bài viết qua api để đọc check nếu
+> bài viết valid và tốt thì duyệt, aki sẽ tự phân loại thành bài viết
+> mức độ dễ hoặc khó, gắn tags và section cho nó. Để cửa mở để sau
+> này làm automation pipeline load từ web cá nhân của t qua."
+
+Implementation scope is heavy enough that we **defer to a separate
+session** with its own design doc. Locking design decisions here so
+we're not starting from zero next time.
+
+### Channel structure
+- `#docs` and `#resources` become **forum-style channels** (Discord
+  Forum Channel type, not text channel). Each user contribution = 1
+  thread (post in Discord forum parlance).
+- Existing message-based content gets archived to a one-shot snapshot
+  channel `#docs-archive-2026-05` (read-only).
+- Forum tags: configurable list per channel (e.g. tech / cultivation /
+  lore / dev / data-science / community).
+
+### Submission flow
+- Slash: `/contribute-doc <title> <body> [section?]` — drafts a
+  contribution. Body capped at 4000 chars; longer = paste link to
+  Gist/Hackmd in body (Aki dereferences if URL).
+- Alternative: REST endpoint `POST /api/contribute` on the bot's
+  health server. Same payload + a HMAC-signed header so Bill's
+  personal website automation can push articles directly. Endpoint
+  validates HMAC then runs the same validation pipeline as the slash.
+- Bot creates a thread in the appropriate forum channel with a
+  "⏳ Pending Aki review" marker, posts the body verbatim.
+
+### Validation pipeline
+- New LLM task `doc-validate` in router (Groq Llama 3.3 70B primary,
+  Qwen 32B fallback for VN xianxia drift).
+- System prompt: "You are an editorial gatekeeper. Score 0-100 on
+  (a) clarity, (b) technical correctness, (c) safety, (d) relevance.
+  Return JSON `{ approved, difficulty: 'easy'|'medium'|'hard', tags,
+  section, reasons }`."
+- Threshold: `approved && combined_score ≥ 60` → publish (remove
+  pending marker, apply tags, post Aki summary as second reply).
+- Otherwise: thread auto-archives after 24h with Aki's editorial note.
+- Staff override: `/doc-override approve <thread_id>` forces publish.
+
+### Aki classification output
+- Difficulty: easy / medium / hard (forum tag)
+- Section: tech / cultivation / lore / dev / data-science / community
+- Tags: 1-5 keyword tags (matched against allowed list, no free-form
+  to keep tag namespace clean)
+- Summary: 2-sentence VN overview posted as Aki's reply in the thread
+
+### Entities required
+- `DocContribution`: thread_id, author_id, title, status (pending /
+  approved / rejected), score, difficulty, tags[], section,
+  source ('slash' | 'api'), submitted_at, decided_at
+- Append-only `DocReviewLog`: contribution_id, llm_route_used,
+  llm_cost, raw_response, created_at — for analytics + Bill audit
+
+### Automation pipeline hook
+- The `POST /api/contribute` endpoint with HMAC auth is the future seam.
+- Bill's personal site (billthedev.com or wherever) signs requests with
+  a shared secret env `DOCS_HMAC_SECRET`. Bot validates signature,
+  runs same validation, posts to forum.
+- Same pipeline serves both user-initiated slash + automated pushes
+  — single source of truth.
+
+### Cost concern
+- LLM `doc-validate` cost = ~2K-8K tokens per article on Qwen/Llama.
+  Free tier covers it but spikes possible if Bill auto-pushes 100s
+  of articles. Rate-limit: max 20 validations/hour bot-wide.
+
+### Estimated scope
+- Forum channel setup (sync-server changes): ~80 LOC
+- `/contribute-doc` slash + validation runner: ~300 LOC
+- REST endpoint with HMAC: ~150 LOC
+- DocContribution + DocReviewLog entities: ~100 LOC
+- LLM prompt + result parser: ~200 LOC
+- Tests: ~400 LOC
+- **Total: ~1200 LOC** — too big to bundle with Lát 1-8.
+
+### Migration of existing content
+- One-shot `npm run migrate-docs-to-threads` script:
+  - Reads existing #docs / #resources messages
+  - Creates archive channel + copies them as static text
+  - Switches the original channels to Forum type
+  - Idempotent (skip if archive exists)
+
+---
+
 ## Decision log (Phase 12)
 
 | Date | Decision |
@@ -363,3 +472,6 @@ schema. Idempotent — re-running on a v12 user is a no-op.
 | 2026-05-14 | **NPCs share LLM router** — multi-NPC adds zero infra cost; just persona files + slash wrappers. |
 | 2026-05-14 | **`/duel` defers to after Lát 5** — duel design is the most complex piece; should not block the rest. |
 | 2026-05-14 | **Daily quest target rate** — 1 quest/day with rewards calibrated to ~3% daily XP boost. Avoids treadmill UX. |
+| 2026-05-14 | **Server boost reward = 5 pills + 500 contribution** — generous one-time on first boost transition to actually motivate Nitro spend. |
+| 2026-05-14 | **/trade refund 50-60%** — intentional loss to discourage buy/sell churn; 10% Aki premium gives full price for variance. |
+| 2026-05-14 | **Docs pipeline DEFERRED to Lát 9 session** — scope too big to bundle (~1200 LOC). Design locked in this doc; impl in dedicated commit. |

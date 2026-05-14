@@ -57,6 +57,12 @@ function freshUser(input: Pick<AwardXpInput, 'discordId' | 'username' | 'display
     daily_streak: 0,
     is_suspect: false,
     notes: null,
+    // Phase 12 — initialize to 0 so incr() works without a prior set().
+    pills: 0,
+    contribution_points: 0,
+    equipped_cong_phap_slug: null,
+    combat_power_cache: null,
+    last_quest_assigned_at: null,
   };
 }
 
@@ -119,6 +125,29 @@ export async function awardXp(input: AwardXpInput): Promise<XpAwardResult> {
     metadata: input.metadata ?? null,
     created_at: now,
   });
+
+  // Phase 12 — contribution points auto-earn from message XP. Rate: 1
+  // contribution per 10 XP (effectively ~2 contrib per message), only
+  // for source='message' so voice/reaction/daily don't double-count
+  // (those have their own contribution paths in respective handlers).
+  // Use set() rather than incr() because legacy users from before
+  // Phase 12 may have `contribution_points === undefined` which incr
+  // rejects. set() with `(field ?? 0) + delta` is safe.
+  if (input.source === 'message') {
+    const contribDelta = Math.floor(input.amount / 10);
+    if (contribDelta > 0) {
+      const fresh = store.users.get(input.discordId);
+      if (fresh) {
+        await store.users.set({
+          ...fresh,
+          contribution_points: (fresh.contribution_points ?? 0) + contribDelta,
+        });
+      }
+    }
+    // Phase 12 Lát 4 — daily quest progress (message_count quests).
+    const { incrementProgress } = await import('../quests/daily-quest.js');
+    void incrementProgress(input.discordId, 'message_count', 1, now);
+  }
 
   return { newXp, oldLevel, newLevel, leveledUp };
 }

@@ -98,6 +98,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       inlineField(`${ICONS.xp} Tổng XP`, user.xp.toLocaleString('vi-VN')),
       inlineField(`${ICONS.star} Cấp độ`, `${user.level}`),
       inlineField(`${ICONS.dao} Cảnh giới`, rank.name),
+      // Phase 12 — currencies row
+      inlineField('💊 Đan dược', (user.pills ?? 0).toLocaleString('vi-VN')),
+      inlineField('🪙 Cống hiến', (user.contribution_points ?? 0).toLocaleString('vi-VN')),
+      inlineField('⚔️ Lực chiến', 'Xem `/stat`'),
     );
 
   await interaction.reply({ embeds: [embed] });

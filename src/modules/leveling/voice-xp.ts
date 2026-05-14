@@ -74,6 +74,9 @@ export async function runVoiceTick(guild: Guild): Promise<{
           const promotion = await maybePromoteRank(member, result.newLevel);
           await postLevelUpEmbed(member, result.newLevel, promotion);
         }
+        // Phase 12 Lát 4 — voice_minutes quest progress.
+        const { incrementProgress } = await import('../quests/daily-quest.js');
+        void incrementProgress(member.id, 'voice_minutes', 1);
       } catch (err) {
         logger.error({ err, discord_id: member.id, channel: vc.name }, 'voice-xp: award failed');
       }

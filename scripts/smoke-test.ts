@@ -176,6 +176,11 @@ async function main(): Promise<void> {
   // --- Phase 11.3 polish + Phase 12 Lát 1 checks ---
   await smokeRejoinCooldown();
   await smokeCombatPower();
+  // --- Phase 12 Lát 2-6 ---
+  await smokeCongPhapCatalog();
+  await smokeDuelSimulation();
+  await smokeQuestPool();
+  await smokeNpcPersonas();
 
   // Summary
   const pass = results.filter((r) => r.ok).length;
@@ -1164,6 +1169,107 @@ async function smokeCombatPower(): Promise<void> {
   expectEq(b.rankBonus, 150, 'Kim Đan rank bonus = 150 (idx 3 × 50)');
   expectEq(b.subTitleBonus, 0, 'no sub_title → 0 sub_title bonus');
   expectEq(b.total, 450, 'Kim Đan Lv 20 = 450');
+}
+
+// --- Phase 12 Lát 3: cong-phap catalog seed -----------------------------
+
+async function smokeCongPhapCatalog(): Promise<void> {
+  group('Phase 12 · cong-phap catalog');
+  const { loadCongPhapCatalog, __resetCongPhapCatalogCacheForTesting } = await import(
+    '../src/config/cong-phap-catalog.js'
+  );
+  __resetCongPhapCatalogCacheForTesting();
+  const items = await loadCongPhapCatalog();
+  check('catalog has ≥ 10 entries', items.length >= 10);
+  check(
+    'has common rarity item',
+    items.some((i) => i.rarity === 'common'),
+  );
+  check(
+    'has legendary rarity item',
+    items.some((i) => i.rarity === 'legendary'),
+  );
+  check(
+    'all items have positive combat_power',
+    items.every((i) => i.stat_bonuses.combat_power > 0),
+  );
+  check('slugs are unique', new Set(items.map((i) => i.slug)).size === items.length);
+}
+
+// --- Phase 12 Lát 6: duel simulation -----------------------------------
+
+async function smokeDuelSimulation(): Promise<void> {
+  group('Phase 12 · duel simulation (deterministic)');
+  const { simulateDuel } = await import('../src/modules/combat/duel.js');
+  const weak = {
+    user: { level: 1, cultivation_rank: 'pham_nhan' as const, sub_title: null },
+    displayName: 'W',
+    equippedCongPhap: null,
+  };
+  const strong = {
+    user: { level: 50, cultivation_rank: 'hoa_than' as const, sub_title: 'Kiếm Tu' },
+    displayName: 'S',
+    equippedCongPhap: null,
+  };
+  const r = simulateDuel(weak, strong, 42);
+  check(
+    'duel produces winner',
+    r.winner === 'challenger' || r.winner === 'opponent' || r.winner === 'tie',
+  );
+  check('duel runs at most 5 rounds', r.rounds.length <= 5);
+  check('duel runs at least 1 round', r.rounds.length >= 1);
+  check('lực chiến matches computed', r.challengerLc > 0 && r.opponentLc > 0);
+  expectEq(simulateDuel(weak, strong, 42).winner, r.winner, 'same seed → same winner');
+}
+
+// --- Phase 12 Lát 4: quest pool ----------------------------------------
+
+async function smokeQuestPool(): Promise<void> {
+  group('Phase 12 · daily quest pool');
+  const { __for_testing } = await import('../src/modules/quests/daily-quest.js');
+  const pool = __for_testing.QUEST_POOL;
+  check('quest pool has ≥ 4 templates', pool.length >= 4);
+  check(
+    'all quest types present',
+    ['message_count', 'voice_minutes', 'reaction_count', 'daily_streak_check'].every((t) =>
+      pool.some((q) => q.type === t),
+    ),
+  );
+  check(
+    'all rewards non-negative',
+    pool.every((q) => q.reward_xp >= 0 && q.reward_pills >= 0 && q.reward_contribution >= 0),
+  );
+}
+
+// --- Phase 12 Lát 5: NPC personas --------------------------------------
+
+async function smokeNpcPersonas(): Promise<void> {
+  group('Phase 12 · NPC personas (Akira + Meifeng)');
+  const { AKIRA_SYSTEM_PROMPT } = await import('../src/modules/npc/akira-persona.js');
+  const { MEIFENG_SYSTEM_PROMPT } = await import('../src/modules/npc/meifeng-persona.js');
+  check(
+    'Akira persona mentions name + scholar role',
+    AKIRA_SYSTEM_PROMPT.includes('Akira') && AKIRA_SYSTEM_PROMPT.includes('học sĩ'),
+  );
+  check(
+    'Akira persona forbids sass',
+    !/sass/i.test(AKIRA_SYSTEM_PROMPT) || AKIRA_SYSTEM_PROMPT.includes('không sass'),
+  );
+  check(
+    'Meifeng persona mentions name + combat role',
+    MEIFENG_SYSTEM_PROMPT.includes('Meifeng') && MEIFENG_SYSTEM_PROMPT.includes('kiếm sĩ'),
+  );
+  check('Meifeng persona allows sass', /sass/i.test(MEIFENG_SYSTEM_PROMPT));
+  check(
+    'Both personas mention server context',
+    AKIRA_SYSTEM_PROMPT.includes('Radiant Tech Sect') &&
+      MEIFENG_SYSTEM_PROMPT.includes('Radiant Tech Sect'),
+  );
+  check(
+    'Both personas avoid Han chars',
+    !/[一-鿿]/.test(AKIRA_SYSTEM_PROMPT.replace(/アキラ|美鳳/g, '')) &&
+      !/[一-鿿]/.test(MEIFENG_SYSTEM_PROMPT.replace(/アキラ|美鳳/g, '')),
+  );
 }
 
 main().catch((err) => {

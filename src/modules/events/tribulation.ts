@@ -252,6 +252,12 @@ async function applyOutcomeRewards(
       source: 'tribulation_pass',
       metadata: { event: 'tribulation' },
     });
+    // Phase 12 — pass also grants +5 pills (Đan dược độ kiếp).
+    const store = (await import('../../db/index.js')).getStore();
+    const user = store.users.get(member.id);
+    if (user) {
+      await store.users.set({ ...user, pills: (user.pills ?? 0) + 5 });
+    }
     return result.newXp - (result.newXp - PASS_XP); // i.e., PASS_XP
   }
   // fail OR timeout → penalty (floored)
