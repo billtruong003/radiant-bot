@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
@@ -77,4 +77,20 @@ export async function loadAutomodConfig(): Promise<AutomodConfig> {
  */
 export function __setAutomodConfigForTesting(config: AutomodConfig | null): void {
   cached = config;
+}
+
+/**
+ * Persist a mutated config back to disk + bust the in-memory cache so
+ * the next loadAutomodConfig() picks up the change. Used by the
+ * `/link-whitelist add|remove` admin slash to update the whitelist
+ * without restarting the bot.
+ */
+export async function persistAutomodConfig(next: AutomodConfig): Promise<void> {
+  const url = new URL('./automod.json', import.meta.url);
+  const filePath = fileURLToPath(url);
+  // Validate before writing so a malformed in-memory mutation can't
+  // poison the on-disk file.
+  const validated = automodSchema.parse(next);
+  await writeFile(filePath, `${JSON.stringify(validated, null, 2)}\n`, 'utf-8');
+  cached = validated;
 }

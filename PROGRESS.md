@@ -5,7 +5,7 @@
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
 **Last updated:** 2026-05-14
-**Current phase:** `Phase 11 Commit 2 shipped` (A6 graduated profanity + A6b/A8 LLM narration) — awaiting Bill deploy + live verify. Next: Tier B backlog or Tier C game-mech planning.
+**Current phase:** `Phase 11.3 polish shipped + Phase 12 Lát 1 foundation shipped`. Sprint 1 = `/link-whitelist`, `/stats`, B6 verify rejoin cooldown. Lát 1 = User additions (pills, contribution_points, equipped_cong_phap_slug, combat_power_cache, last_quest_assigned_at) + 3 new entities (CongPhap, UserCongPhap, DailyQuest) + Store wiring + `computeCombatPower` + `/stat` read-only + `/grant` admin. Doc `docs/PHASE_12.md` locks scope for Lát 2-6. B7 (Aki memory per user) deferred — needs privacy decision (CLAUDE.md forbids storing message content; B7 would require storing /ask question text).
 
 ---
 

@@ -9,6 +9,7 @@ import {
   startVerification,
 } from '../modules/verification/flow.js';
 import { recordJoinAndCheck } from '../modules/verification/raid.js';
+import { getRemainingCooldownMs } from '../modules/verification/rejoin-cooldown.js';
 import { postWelcome } from '../modules/welcome/index.js';
 import { logger } from '../utils/logger.js';
 
@@ -113,6 +114,30 @@ async function tryRestoreReturningMember(member: GuildMember): Promise<boolean> 
 async function handleNewMember(member: GuildMember): Promise<void> {
   if (member.user.bot) return;
   logger.info({ discord_id: member.id, tag: member.user.tag }, 'guildMemberAdd: new member');
+
+  // B6 — verify re-attempt cooldown. If this member was kicked for a
+  // failed/timeout verify within the last hour, kick them again with a
+  // "đợi X phút" reason. Stops the rejoin-grind loop without needing
+  // Discord's real ban primitive (which we don't have a clean revoke
+  // path for).
+  const remainingMs = getRemainingCooldownMs(member.id);
+  if (remainingMs !== null) {
+    const remainingMin = Math.ceil(remainingMs / 60_000);
+    const reason = `verify cooldown — vui lòng đợi ${remainingMin} phút trước khi thử lại`;
+    try {
+      await member.kick(reason);
+      logger.info(
+        { discord_id: member.id, tag: member.user.tag, remaining_min: remainingMin },
+        'guildMemberAdd: kicked on rejoin cooldown',
+      );
+    } catch (err) {
+      logger.warn(
+        { err, discord_id: member.id },
+        'guildMemberAdd: failed to kick on cooldown (bot perm?)',
+      );
+    }
+    return;
+  }
 
   const config = await loadVerificationConfig();
 

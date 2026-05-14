@@ -9,10 +9,13 @@ import { SingletonCollection } from './singleton-collection.js';
 import type {
   AkiCallLog,
   AutomodLog,
+  CongPhap,
+  DailyQuest,
   RaidState,
   ReactionRolesConfig,
   SectEvent,
   User,
+  UserCongPhap,
   Verification,
   VoiceSession,
   XpLog,
@@ -34,6 +37,11 @@ interface SnapshotShape {
   raid_state: RaidState;
   reaction_roles_config?: ReactionRolesConfig;
   aki_logs?: AkiCallLog[];
+  // Phase 12 additions — all optional so a snapshot from before the
+  // schema bump still loads cleanly (collections start empty).
+  cong_phap_catalog?: CongPhap[];
+  user_cong_phap?: UserCongPhap[];
+  daily_quests?: DailyQuest[];
 }
 
 const DEFAULT_RAID_STATE: RaidState = {
@@ -77,6 +85,10 @@ export class Store {
   readonly raidState: SingletonCollection<RaidState>;
   readonly reactionRolesConfig: SingletonCollection<ReactionRolesConfig>;
   readonly akiLogs: AppendOnlyCollection<AkiCallLog>;
+  // Phase 12 — game mechanics collections (Lát 1 foundation).
+  readonly congPhapCatalog: Collection<CongPhap>;
+  readonly userCongPhap: Collection<UserCongPhap>;
+  readonly dailyQuests: Collection<DailyQuest>;
 
   private readonly log: AppendOnlyLog;
   private readonly walPath: string;
@@ -118,6 +130,12 @@ export class Store {
     );
     this.akiLogs = new AppendOnlyCollection<AkiCallLog>('aki_logs', this.log);
 
+    // Phase 12: catalog keyed by slug (stable id); inventory + quests
+    // keyed by entity id (ulid).
+    this.congPhapCatalog = new Collection<CongPhap>('cong_phap_catalog', this.log, (c) => c.slug);
+    this.userCongPhap = new Collection<UserCongPhap>('user_cong_phap', this.log, (u) => u.id);
+    this.dailyQuests = new Collection<DailyQuest>('daily_quests', this.log, (q) => q.id);
+
     const map = new Map<string, WalApplicable>();
     for (const c of [
       this.users,
@@ -129,6 +147,9 @@ export class Store {
       this.raidState,
       this.reactionRolesConfig,
       this.akiLogs,
+      this.congPhapCatalog,
+      this.userCongPhap,
+      this.dailyQuests,
     ]) {
       map.set(c.name, c);
     }
@@ -157,6 +178,10 @@ export class Store {
         this.reactionRolesConfig._bulkLoad(snapshot.reaction_roles_config);
       }
       this.akiLogs._bulkLoad(snapshot.aki_logs ?? []);
+      // Phase 12 collections — optional in snapshot for back-compat.
+      this.congPhapCatalog._bulkLoad(snapshot.cong_phap_catalog ?? []);
+      this.userCongPhap._bulkLoad(snapshot.user_cong_phap ?? []);
+      this.dailyQuests._bulkLoad(snapshot.daily_quests ?? []);
       logger.info(
         {
           version: snapshot.version,
@@ -269,6 +294,9 @@ export class Store {
         raid_state: this.raidState._serialize(),
         reaction_roles_config: this.reactionRolesConfig._serialize(),
         aki_logs: this.akiLogs._serialize(),
+        cong_phap_catalog: this.congPhapCatalog._serialize(),
+        user_cong_phap: this.userCongPhap._serialize(),
+        daily_quests: this.dailyQuests._serialize(),
       };
 
       const tmpPath = `${this.snapshotPath}.tmp`;

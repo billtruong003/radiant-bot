@@ -173,6 +173,9 @@ async function main(): Promise<void> {
   await smokeLevelingNarration();
   await smokeLinkPolicy();
   await smokeGroqReasoningGate();
+  // --- Phase 11.3 polish + Phase 12 Lát 1 checks ---
+  await smokeRejoinCooldown();
+  await smokeCombatPower();
 
   // Summary
   const pass = results.filter((r) => r.ok).length;
@@ -1118,6 +1121,49 @@ async function smokeGroqReasoningGate(): Promise<void> {
     'Llama 3.1 8B → reasoning_format SKIPPED',
     !modelSupportsReasoningFormat('llama-3.1-8b-instant'),
   );
+}
+
+// --- Phase 11.3 polish: rejoin cooldown -------------------------------
+
+async function smokeRejoinCooldown(): Promise<void> {
+  group('Phase 11.3 · verify rejoin cooldown (B6)');
+  const mod = await import('../src/modules/verification/rejoin-cooldown.js');
+  mod.reset();
+  expectEq(mod.getCooldownMs(), 60 * 60 * 1000, 'default cooldown = 1 hour');
+  check('fresh user has no cooldown', !mod.isOnCooldown('smoke-rj', 1_000_000));
+  mod.setCooldownMs(5_000);
+  mod.recordFailedVerifyKick('smoke-rj', 1_000_000);
+  check('on cooldown immediately after record', mod.isOnCooldown('smoke-rj', 1_001_000));
+  check('off cooldown after window', !mod.isOnCooldown('smoke-rj', 1_006_000));
+  mod.reset();
+}
+
+// --- Phase 12 Lát 1: combat power formula -----------------------------
+
+async function smokeCombatPower(): Promise<void> {
+  group('Phase 12 · lực chiến formula');
+  const { computeCombatPower, computeCombatPowerBreakdown } = await import(
+    '../src/modules/combat/power.js'
+  );
+  expectEq(
+    computeCombatPower({ level: 0, cultivation_rank: 'pham_nhan', sub_title: null }, null),
+    100,
+    'fresh Phàm Nhân = 100',
+  );
+  expectEq(
+    computeCombatPower({ level: 10, cultivation_rank: 'truc_co', sub_title: 'Kiếm Tu' }, null),
+    350,
+    'Trúc Cơ Lv 10 + sub_title = 350',
+  );
+  const b = computeCombatPowerBreakdown(
+    { level: 20, cultivation_rank: 'kim_dan', sub_title: null },
+    null,
+  );
+  expectEq(b.base, 100, 'breakdown base = 100');
+  expectEq(b.levelBonus, 200, 'breakdown levelBonus = 200');
+  expectEq(b.rankBonus, 150, 'Kim Đan rank bonus = 150 (idx 3 × 50)');
+  expectEq(b.subTitleBonus, 0, 'no sub_title → 0 sub_title bonus');
+  expectEq(b.total, 450, 'Kim Đan Lv 20 = 450');
 }
 
 main().catch((err) => {

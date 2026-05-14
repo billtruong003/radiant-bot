@@ -191,6 +191,14 @@ export async function kickWithReason(
   context: Record<string, unknown> = {},
 ): Promise<void> {
   const reasonText = KICK_REASONS[reason];
+  // B6 — record rejoin cooldown for failure-driven kicks. `audit` /
+  // `accountAgeShort` are policy kicks (not the user's fault) so we
+  // don't penalise rejoin; only 'failed' (captcha exhaustion) and
+  // 'timeout' (gave up the flow) gate retries.
+  if (reason === 'failed' || reason === 'timeout') {
+    const { recordFailedVerifyKick } = await import('./rejoin-cooldown.js');
+    recordFailedVerifyKick(member.id);
+  }
   try {
     await member.kick(reasonText);
     logger.info(
