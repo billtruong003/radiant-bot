@@ -8,7 +8,7 @@ import {
   type TextChannel,
 } from 'discord.js';
 import { ulid } from 'ulid';
-import { ANNOUNCEMENT_CHANNELS } from '../../config/channels.js';
+import { ANNOUNCEMENT_CHANNELS, matchesChannelName } from '../../config/channels.js';
 import {
   TRIBULATION_COOLDOWN_MS,
   TRIBULATION_FAIL_PENALTY,
@@ -89,7 +89,7 @@ export function pickEligibleUserId(): string | null {
 
 function findTribulationChannel(member: GuildMember): TextChannel | null {
   const ch = member.guild.channels.cache.find(
-    (c) => c.name === ANNOUNCEMENT_CHANNELS.tribulation && c.isTextBased(),
+    (c) => matchesChannelName(c, ANNOUNCEMENT_CHANNELS.tribulation) && c.isTextBased(),
   );
   return (ch as TextChannel | undefined) ?? null;
 }

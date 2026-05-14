@@ -64,7 +64,9 @@ function allowFor(names: readonly string[], bits: bigint): Record<string, bigint
 }
 
 const PRESETS: Record<PermPreset, PresetBundle> = {
-  // Everyone can see; nobody (except staff) posts.
+  // Verified members can see; nobody (except staff) posts. Chưa Xác Minh
+  // is explicitly denied so a new member sees ONLY #verify until they
+  // pass the gate (Bill's "chỉ thấy verify" policy, Phase 11).
   public_read: {
     everyoneAllow: READ,
     allow: {
@@ -72,10 +74,12 @@ const PRESETS: Record<PermPreset, PresetBundle> = {
       [STAFF_ELDER]: FULL_TEXT | MANAGE_TEXT,
       [STAFF_SECT_MASTER]: ADMIN_TEXT,
     },
-    deny: {},
+    deny: {
+      [UNVERIFIED]: READ,
+    },
   },
 
-  // Everyone can see + post.
+  // Verified members can see + post. Same Chưa Xác Minh deny rationale.
   public_full: {
     everyoneAllow: FULL_TEXT,
     allow: {
@@ -83,7 +87,9 @@ const PRESETS: Record<PermPreset, PresetBundle> = {
       [STAFF_ELDER]: FULL_TEXT | MANAGE_TEXT,
       [STAFF_SECT_MASTER]: ADMIN_TEXT,
     },
-    deny: {},
+    deny: {
+      [UNVERIFIED]: READ,
+    },
   },
 
   // Hidden from @everyone & Chưa Xác Minh; cultivators + voice access.

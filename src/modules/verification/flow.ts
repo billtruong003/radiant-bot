@@ -13,7 +13,7 @@ import {
   TextInputStyle,
 } from 'discord.js';
 import { ulid } from 'ulid';
-import { ANNOUNCEMENT_CHANNELS } from '../../config/channels.js';
+import { ANNOUNCEMENT_CHANNELS, matchesChannelName } from '../../config/channels.js';
 import { ROLE_PHAM_NHAN, ROLE_UNVERIFIED } from '../../config/roles.js';
 import type { VerificationConfig } from '../../config/verification.js';
 import { getStore } from '../../db/index.js';
@@ -156,7 +156,7 @@ function findRoleByName(guild: Guild, name: string): Role | null {
 
 function findVerifyChannel(guild: Guild): TextChannel | null {
   const ch = guild.channels.cache.find(
-    (c) => c.name === ANNOUNCEMENT_CHANNELS.verification && c.isTextBased(),
+    (c) => matchesChannelName(c, ANNOUNCEMENT_CHANNELS.verification) && c.isTextBased(),
   );
   return (ch as TextChannel | undefined) ?? null;
 }

@@ -1,6 +1,8 @@
 import type { EmbedBuilder, GuildMember, TextChannel } from 'discord.js';
-import { ANNOUNCEMENT_CHANNELS } from '../../config/channels.js';
-import { DIVIDER, ICONS } from '../../config/ui.js';
+import { ANNOUNCEMENT_CHANNELS, matchesChannelName } from '../../config/channels.js';
+import { rankById } from '../../config/cultivation.js';
+import { DIVIDER, ICONS, RANK_ICONS } from '../../config/ui.js';
+import { getStore } from '../../db/index.js';
 import { themedEmbed } from '../../utils/embed.js';
 import { logger } from '../../utils/logger.js';
 
@@ -18,7 +20,9 @@ const WELCOME_CHANNEL = 'general';
 const INTRODUCTIONS_CHANNEL = 'introductions';
 
 function findChannelByName(member: GuildMember, name: string): TextChannel | null {
-  const ch = member.guild.channels.cache.find((c) => c.name === name && c.isTextBased());
+  const ch = member.guild.channels.cache.find(
+    (c) => matchesChannelName(c, name) && c.isTextBased(),
+  );
   return (ch as TextChannel | undefined) ?? null;
 }
 
@@ -80,12 +84,56 @@ function buildQuickStartDm(): string {
   ].join('\n');
 }
 
+function buildReturningEmbed(member: GuildMember): EmbedBuilder {
+  // Pull stats from store so the message references real progress.
+  const user = getStore().users.get(member.id);
+  const rankInfo = (() => {
+    if (!user) return null;
+    try {
+      const r = rankById(user.cultivation_rank);
+      const icon = RANK_ICONS[user.cultivation_rank] ?? '⭐';
+      return { name: r.name, icon, level: user.level, xp: user.xp };
+    } catch {
+      return null;
+    }
+  })();
+
+  const hero = [
+    `${ICONS.sparkle} ${member} đã quay lại **Radiant Tech Sect** ${ICONS.sparkle}`,
+    '',
+    rankInfo
+      ? `${rankInfo.icon} Cảnh giới **${rankInfo.name}** · Level **${rankInfo.level}** · ${rankInfo.xp.toLocaleString('vi-VN')} XP được bảo toàn`
+      : '_Tu vi của đạo hữu được tông môn lưu giữ._',
+    '*Đường tu chưa từng đứt — tiếp tục là được.*',
+  ].join('\n');
+
+  return themedEmbed('success', {
+    title: '🌅 Đệ tử quay về',
+    description: [
+      hero,
+      DIVIDER,
+      `${ICONS.aki_happy} Aki đã miễn captcha cho đạo hữu. Welcome back!`,
+    ].join('\n\n'),
+    footer: 'Radiant Tech Sect — Đường tu là đường tự rèn',
+  })
+    .setAuthor({
+      name: member.displayName,
+      iconURL: member.user.displayAvatarURL({ size: 128 }),
+    })
+    .setThumbnail(member.user.displayAvatarURL({ size: 256 }));
+}
+
+export interface WelcomeOptions {
+  /** True when the member is a previously-verified returner (A1, Phase 11). */
+  returning?: boolean;
+}
+
 /**
  * Post welcome embed in `#general` (fallback `#introductions`) and DM
- * the quick-start guide. Both best-effort.
+ * the quick-start guide. Both best-effort. For returners (opts.returning
+ * true), skips DM and uses the shorter returning-disciple embed.
  */
-export async function postWelcome(member: GuildMember): Promise<void> {
-  // Public welcome — prefer #general, fall back to #introductions.
+export async function postWelcome(member: GuildMember, opts: WelcomeOptions = {}): Promise<void> {
   const channel =
     findChannelByName(member, WELCOME_CHANNEL) ?? findChannelByName(member, INTRODUCTIONS_CHANNEL);
 
@@ -93,11 +141,14 @@ export async function postWelcome(member: GuildMember): Promise<void> {
     try {
       await channel.send({
         content: `${member}`,
-        embeds: [buildWelcomeEmbed(member)],
+        embeds: [opts.returning ? buildReturningEmbed(member) : buildWelcomeEmbed(member)],
         allowedMentions: { users: [member.id] },
       });
     } catch (err) {
-      logger.warn({ err, discord_id: member.id }, 'welcome: channel post failed');
+      logger.warn(
+        { err, discord_id: member.id, returning: !!opts.returning },
+        'welcome: channel post failed',
+      );
     }
   } else {
     logger.warn(
@@ -106,7 +157,7 @@ export async function postWelcome(member: GuildMember): Promise<void> {
     );
   }
 
-  // DM quick-start — silent fail if blocked.
+  if (opts.returning) return; // returners already know the server, skip DM
   try {
     await member.send(buildQuickStartDm());
   } catch {

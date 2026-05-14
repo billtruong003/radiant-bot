@@ -7,6 +7,7 @@ import {
   type OverwriteData,
   PermissionsBitField,
 } from 'discord.js';
+import { canonicalChannelName } from '../../config/channels.js';
 import {
   CATEGORIES,
   CHANNEL_TYPE_TO_DISCORD,
@@ -32,16 +33,24 @@ function findCategory(guild: Guild, name: string): CategoryChannel | undefined {
  * dry-run vs apply so the projection is consistent: if a channel exists
  * under the wrong parent (e.g. Discord starter channels at root), syncChannel
  * will move it into the correct category and count it as an update.
+ *
+ * Phase 11 A5: also matches by canonical (slug) form so a channel currently
+ * named `general` matches the schema's `💬-general-💬`. syncChannel then
+ * detects the display-name drift and renames the existing channel.
  */
 function findChannelByName(
   guild: Guild,
   name: string,
   type: ChannelType,
 ): GuildBasedChannel | undefined {
+  const targetCanonical = canonicalChannelName(name);
+  let canonicalMatch: GuildBasedChannel | undefined;
   for (const ch of guild.channels.cache.values()) {
-    if (ch.name === name && ch.type === type) return ch;
+    if (ch.type !== type) continue;
+    if (ch.name === name) return ch; // exact match wins
+    if (canonicalChannelName(ch.name) === targetCanonical) canonicalMatch = ch;
   }
-  return undefined;
+  return canonicalMatch;
 }
 
 /**
@@ -151,8 +160,12 @@ async function syncChannel(
     const currentParentName = existing.parent?.name ?? null;
     const parentDrift = currentParentName !== targetCategoryName;
     const permsDrift = !overwritesEqual(existing, targetOverwrites);
+    // Display-name drift: canonical matches but exact name differs. This
+    // is the migration trigger for Phase 11 A5 (channels were renamed
+    // to include decorative icons). One-shot per channel.
+    const nameDrift = existing.name !== def.name;
 
-    if (!parentDrift && !permsDrift) {
+    if (!parentDrift && !permsDrift && !nameDrift) {
       logger.debug({ channel: def.name }, 'sync: channel up-to-date');
       counters.channelsUnchanged++;
       return;
@@ -161,6 +174,7 @@ async function syncChannel(
     logger.info(
       {
         channel: def.name,
+        rename: nameDrift ? { from: existing.name, to: def.name } : 'unchanged',
         parent: parentDrift
           ? { from: currentParentName ?? '(root)', to: targetCategoryName }
           : 'unchanged',
@@ -171,6 +185,10 @@ async function syncChannel(
     counters.channelsUpdated++;
     if (opts.dryRun) return;
 
+    if (nameDrift) {
+      await existing.setName(def.name, 'sync-server: rename to schema (icon decoration)');
+      await rateDelay(opts);
+    }
     if (parentDrift && category) {
       await existing.setParent(category.id, {
         lockPermissions: false,

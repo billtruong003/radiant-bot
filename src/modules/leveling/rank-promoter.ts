@@ -1,5 +1,5 @@
 import type { GuildMember, TextChannel } from 'discord.js';
-import { ANNOUNCEMENT_CHANNELS } from '../../config/channels.js';
+import { ANNOUNCEMENT_CHANNELS, matchesChannelName } from '../../config/channels.js';
 import { CULTIVATION_RANKS, rankById, rankForLevel } from '../../config/cultivation.js';
 import { DIVIDER_DOUBLE, ICONS, RANK_ICONS } from '../../config/ui.js';
 import { getStore } from '../../db/index.js';
@@ -89,12 +89,50 @@ export async function maybePromoteRank(
     );
   }
 
+  // B4 (Phase 11): if this promotion lands on Trúc Cơ (level 10), DM
+  // the disciple suggesting a sub-title. One-shot — User.sub_title is
+  // null on first arrival here; if a returning member already has a
+  // sub-title we skip silently.
+  if (newRank === 'truc_co' && oldRank !== 'truc_co') {
+    void promptSubTitleSelection(member).catch((err) => {
+      logger.warn({ err, discord_id: member.id }, 'rank-promoter: sub-title prompt failed');
+    });
+  }
+
   return { promoted: true, oldRank, newRank };
+}
+
+async function promptSubTitleSelection(member: GuildMember): Promise<void> {
+  const user = getStore().users.get(member.id);
+  if (user?.sub_title) return; // already picked one — no nag
+
+  const dm = [
+    '🌟 **Chúc mừng đạo hữu đột phá Trúc Cơ!**',
+    '',
+    'Aki nhận thấy đạo hữu đã đến mốc cảnh giới được chọn **sub-title** — định hướng tu đạo riêng.',
+    '',
+    '**4 lựa chọn:**',
+    '⚔️  `Kiếm Tu`        — gaming / combat',
+    '🧪  `Đan Sư`         — art / creative',
+    '🔮  `Trận Pháp Sư`   — tech / dev',
+    '🌀  `Tán Tu`         — mixed (giữ tự do)',
+    '',
+    'Dùng `/title add <name>` để chọn. Đổi sau cũng được bằng `/title remove`.',
+    '',
+    '_Đường tu càng rõ chí, càng vững (◕‿◕)_',
+  ].join('\n');
+
+  try {
+    await member.send(dm);
+    logger.info({ discord_id: member.id }, 'rank-promoter: sub-title prompt DM sent');
+  } catch {
+    // DM blocked — silent skip. The user can still use /title anytime.
+  }
 }
 
 function findLevelUpChannel(member: GuildMember): TextChannel | null {
   const ch = member.guild.channels.cache.find(
-    (c) => c.name === ANNOUNCEMENT_CHANNELS.levelUp && c.isTextBased(),
+    (c) => matchesChannelName(c, ANNOUNCEMENT_CHANNELS.levelUp) && c.isTextBased(),
   );
   return (ch as TextChannel | undefined) ?? null;
 }

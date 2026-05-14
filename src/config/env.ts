@@ -43,10 +43,13 @@ const envSchema = z.object({
   /** Server-wide cap on Aki cost per VN-calendar-day. Above this, /ask refuses. */
   AKI_DAILY_BUDGET_USD: z.coerce.number().nonnegative().default(2.0),
 
-  /** Google Gemini API key (for /ask filter stage). Empty disables filter — all questions go straight to Grok. */
+  /** Google Gemini API key (LLM router fallback provider). Empty = skip in router fallback chain. */
   GEMINI_API_KEY: z.string().default(''),
-  /** Gemini Flash model for the cheap filter. */
+  /** Legacy: Gemini model for filter. Now per-task in `llm/router.ts`. Kept for Gemini-only single-key mode. */
   AKI_FILTER_MODEL: z.string().default('gemini-2.0-flash'),
+
+  /** Groq API key (LLM router primary provider). Free tier 30 RPM / 14.4K RPD for 8B. Empty = router falls back to Gemini. */
+  GROQ_API_KEY: z.string().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,5 +1,6 @@
 import { EmbedBuilder, type Guild, type Message, type TextChannel } from 'discord.js';
 import { CHANNEL_GUIDES, type ChannelGuide } from '../../config/channel-guides.js';
+import { matchesChannelName } from '../../config/channels.js';
 import type { BotCliService } from '../service.js';
 
 /**
@@ -62,9 +63,9 @@ async function applyGuide(
   botId: string,
   dryRun: boolean,
 ): Promise<'posted' | 'edited' | 'no-channel' | 'dry-post' | 'dry-edit'> {
-  const channel = guild.channels.cache.find((c) => c.name === guide.channel && c.isTextBased()) as
-    | TextChannel
-    | undefined;
+  const channel = guild.channels.cache.find(
+    (c) => matchesChannelName(c, guide.channel) && c.isTextBased(),
+  ) as TextChannel | undefined;
   if (!channel) return 'no-channel';
 
   const existing = await findExistingPinned(channel, guide.title, botId);

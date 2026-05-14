@@ -1,29 +1,25 @@
 import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
+import { llm } from '../llm/index.js';
 import { AKI_FILTER_SYSTEM_PROMPT, preFilterObvious } from './persona-filter.js';
 
 /**
- * Gemini Flash filter stage. Sits BEFORE Grok in /ask. Classifies the
- * question:
+ * Aki filter stage. Sits BEFORE Grok in /ask. Classifies the question:
  *   - legit=true  → caller forwards to Grok for the real answer
- *   - legit=false → Gemini wrote a sass-tier rejection itself, return it
- *                   and skip Grok entirely (saves $$$)
+ *   - legit=false → Aki's sass-tier rejection (no Grok call, saves $$$)
  *
- * Uses the Gemini REST API directly (fetch) — no SDK needed. Endpoint:
- *   POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key=...
+ * Phase 11: rewritten to use the per-task LLM router. Primary provider
+ * is Groq (free, fast 8B); fallback is Gemini. See `src/modules/llm/`.
  *
- * Pricing (Gemini 2.0 Flash, per 1M tokens):
- *   - input  : $0.075
- *   - output : $0.30
+ * Fail-open policy (Bill's call, UX-first):
+ *   - LLM error / both providers down / unparseable JSON → forward to
+ *     Grok anyway (return {legit:true}). Cost is bounded by the
+ *     existing per-user quota (100/day) + server daily budget cap, so
+ *     a filter outage at worst lets through one user's quota.
  *
- * Typical filter call: ~800 prompt tokens (system+question) + ~80 output
- * = ~$0.000084/call. Cheap enough that we run it on EVERY /ask call.
+ * Costs are 0 on Groq free tier; ~$0.0001 if router falls back to
+ * Gemini. Tracked per-call in AkiCallLog via filterMeta.
  */
-
-const PRICING = {
-  inputPer1M: 0.075,
-  outputPer1M: 0.3,
-} as const;
 
 export interface FilterResult {
   /** True = forward to Grok. False = use `response` directly. */
@@ -34,39 +30,21 @@ export interface FilterResult {
   tokensOut: number;
   costUsd: number;
   /** Attribution for logging — see AkiCallLog.filter_stage. */
-  source: 'gemini' | 'pre-filter' | 'fail-open' | 'disabled';
-}
-
-export function isFilterEnabled(): boolean {
-  return env.GEMINI_API_KEY.length > 0;
-}
-
-function computeCost(tokensIn: number, tokensOut: number): number {
-  return (tokensIn * PRICING.inputPer1M + tokensOut * PRICING.outputPer1M) / 1_000_000;
-}
-
-interface GeminiResponse {
-  candidates?: Array<{
-    content?: { parts?: Array<{ text?: string }> };
-    finishReason?: string;
-  }>;
-  usageMetadata?: {
-    promptTokenCount?: number;
-    candidatesTokenCount?: number;
-    totalTokenCount?: number;
-  };
+  source: 'groq' | 'gemini' | 'pre-filter' | 'fail-open' | 'disabled';
 }
 
 /**
- * Strip markdown fences if Gemini wrapped the JSON despite the prompt
- * telling it not to. Defensive — Flash sometimes ignores the rule.
+ * True if at least one LLM provider has a key configured. False = the
+ * router would always return null, so we short-circuit to fail-open.
  */
+export function isFilterEnabled(): boolean {
+  return env.GROQ_API_KEY.length > 0 || env.GEMINI_API_KEY.length > 0;
+}
+
 function stripFences(raw: string): string {
   let s = raw.trim();
   if (s.startsWith('```')) {
-    // remove opening ```json or ```
     s = s.replace(/^```(?:json)?\s*\n?/i, '');
-    // remove closing ```
     s = s.replace(/\n?```\s*$/i, '');
   }
   return s.trim();
@@ -79,12 +57,8 @@ function parseFilterJson(raw: string): { legit: boolean; response: string | null
     if (typeof parsed !== 'object' || parsed === null) return null;
     const obj = parsed as { legit?: unknown; response?: unknown };
     if (typeof obj.legit !== 'boolean') return null;
-    if (obj.legit) {
-      return { legit: true, response: null };
-    }
-    if (typeof obj.response !== 'string' || obj.response.trim().length === 0) {
-      return null;
-    }
+    if (obj.legit) return { legit: true, response: null };
+    if (typeof obj.response !== 'string' || obj.response.trim().length === 0) return null;
     return { legit: false, response: obj.response.trim() };
   } catch {
     return null;
@@ -92,15 +66,11 @@ function parseFilterJson(raw: string): { legit: boolean; response: string | null
 }
 
 /**
- * Call Gemini Flash with the filter persona. Returns FilterResult.
- *
- * Fail-open policy: if Gemini errors, returns `{legit: true}` so the
- * /ask call falls through to Grok. Rationale: filter being down should
- * never block legit users — worst case is we don't save Grok tokens
- * for that single call. The cost cap on Grok still protects budget.
+ * Run the filter. Returns FilterResult. Never throws — fail-open by
+ * design (errors → legit=true so /ask falls through to Grok).
  */
 export async function runFilter(question: string): Promise<FilterResult> {
-  // 0. Cheap pre-filter for the truly obvious — skip Gemini call.
+  // 0. Cheap local pre-filter for the obvious — skip LLM entirely.
   const obvious = preFilterObvious(question);
   if (obvious) {
     return {
@@ -113,7 +83,7 @@ export async function runFilter(question: string): Promise<FilterResult> {
     };
   }
 
-  // 1. Service disabled — fail open (forward all to Grok).
+  // 1. Service entirely disabled (no provider keys) → fail-open.
   if (!isFilterEnabled()) {
     return {
       legit: true,
@@ -125,45 +95,17 @@ export async function runFilter(question: string): Promise<FilterResult> {
     };
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-    env.AKI_FILTER_MODEL,
-  )}:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`;
+  // 2. Route through LLM. Returns null if both providers unavailable.
+  const result = await llm.complete('aki-filter', {
+    systemPrompt: AKI_FILTER_SYSTEM_PROMPT,
+    userPrompt: question,
+    responseFormat: 'json',
+    maxOutputTokens: 200,
+    temperature: 0.7,
+  });
 
-  const body = {
-    systemInstruction: {
-      parts: [{ text: AKI_FILTER_SYSTEM_PROMPT }],
-    },
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: question }],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 200,
-      responseMimeType: 'application/json',
-    },
-    safetySettings: [
-      // Filter persona is intentionally sassy — relax thresholds so
-      // Gemini doesn't block its own outputs. We still self-censor in
-      // the persona prompt.
-      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-    ],
-  };
-
-  let resp: Response;
-  try {
-    resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-  } catch (err) {
-    logger.warn({ err }, 'aki-filter: network error, failing open');
+  if (!result) {
+    logger.warn('aki-filter: no provider available, failing open');
     return {
       legit: true,
       response: null,
@@ -174,58 +116,31 @@ export async function runFilter(question: string): Promise<FilterResult> {
     };
   }
 
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    logger.warn(
-      { status: resp.status, body: text.slice(0, 500) },
-      'aki-filter: non-OK, failing open',
-    );
-    return {
-      legit: true,
-      response: null,
-      tokensIn: 0,
-      tokensOut: 0,
-      costUsd: 0,
-      source: 'fail-open',
-    };
-  }
-
-  let json: GeminiResponse;
-  try {
-    json = (await resp.json()) as GeminiResponse;
-  } catch (err) {
-    logger.warn({ err }, 'aki-filter: bad JSON, failing open');
-    return {
-      legit: true,
-      response: null,
-      tokensIn: 0,
-      tokensOut: 0,
-      costUsd: 0,
-      source: 'fail-open',
-    };
-  }
-
-  const tokensIn = json.usageMetadata?.promptTokenCount ?? 0;
-  const tokensOut = json.usageMetadata?.candidatesTokenCount ?? 0;
-  const costUsd = computeCost(tokensIn, tokensOut);
-
-  const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-  const parsed = parseFilterJson(rawText);
-
+  const parsed = parseFilterJson(result.text);
   if (!parsed) {
     logger.warn(
-      { raw: rawText.slice(0, 300), finishReason: json.candidates?.[0]?.finishReason },
+      { raw: result.text.slice(0, 300), provider: result.provider, model: result.model },
       'aki-filter: unparseable response, failing open',
     );
-    return { legit: true, response: null, tokensIn, tokensOut, costUsd, source: 'fail-open' };
+    return {
+      legit: true,
+      response: null,
+      tokensIn: result.tokensIn,
+      tokensOut: result.tokensOut,
+      costUsd: result.costUsd,
+      source: 'fail-open',
+    };
   }
 
   logger.info(
     {
       legit: parsed.legit,
-      tokens_in: tokensIn,
-      tokens_out: tokensOut,
-      cost_usd: costUsd.toFixed(6),
+      provider: result.provider,
+      model: result.model,
+      tokens_in: result.tokensIn,
+      tokens_out: result.tokensOut,
+      cost_usd: result.costUsd.toFixed(6),
+      duration_ms: result.durationMs,
     },
     'aki-filter: classified',
   );
@@ -233,10 +148,10 @@ export async function runFilter(question: string): Promise<FilterResult> {
   return {
     legit: parsed.legit,
     response: parsed.response,
-    tokensIn,
-    tokensOut,
-    costUsd,
-    source: 'gemini',
+    tokensIn: result.tokensIn,
+    tokensOut: result.tokensOut,
+    costUsd: result.costUsd,
+    source: result.provider,
   };
 }
 
@@ -244,5 +159,4 @@ export async function runFilter(question: string): Promise<FilterResult> {
 export const __for_testing = {
   stripFences,
   parseFilterJson,
-  computeCost,
 };

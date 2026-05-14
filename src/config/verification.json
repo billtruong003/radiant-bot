@@ -3,7 +3,7 @@
   "thresholds": {
     "accountAgeKickDays": 0,
     "accountAgeSuspectDays": 7,
-    "captchaTimeoutMs": 300000,
+    "captchaTimeoutMs": 172800000,
     "captchaMaxAttempts": 3,
     "raidJoinWindowMs": 60000,
     "raidJoinThreshold": 10

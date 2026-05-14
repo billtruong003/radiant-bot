@@ -1,5 +1,5 @@
 import { type Client, Events, type GuildMember, type Message } from 'discord.js';
-import { NO_XP_CHANNEL_NAMES } from '../config/channels.js';
+import { isNoXpChannel } from '../config/channels.js';
 import { env } from '../config/env.js';
 import { MESSAGE_XP_MAX, MESSAGE_XP_MIN } from '../config/leveling.js';
 import { STAFF_ROLE_NAMES } from '../config/roles.js';
@@ -79,7 +79,7 @@ async function handleGuildMessage(message: Message): Promise<void> {
     }
   }
 
-  if (NO_XP_CHANNEL_NAMES.has(message.channel.name)) return;
+  if (isNoXpChannel(message.channel.name)) return;
   if (!isXpEligibleMessage(message.content)) return;
 
   // 60s/user cooldown (SPEC §3 sacred constant).

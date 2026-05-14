@@ -6,7 +6,7 @@ import {
   type PartialUser,
   type User,
 } from 'discord.js';
-import { NO_XP_CHANNEL_NAMES } from '../config/channels.js';
+import { isNoXpChannel } from '../config/channels.js';
 import { REACTION_MAX_PER_MESSAGE, REACTION_XP_AMOUNT } from '../config/leveling.js';
 import { reactionXpCooldown } from '../modules/leveling/cooldown.js';
 import { maybePromoteRank, postLevelUpEmbed } from '../modules/leveling/rank-promoter.js';
@@ -56,7 +56,7 @@ async function handle(
   if (message.author?.id === reactor.id) return; // no self-XP
 
   const channel = message.channel;
-  if ('name' in channel && channel.name && NO_XP_CHANNEL_NAMES.has(channel.name)) return;
+  if ('name' in channel && channel.name && isNoXpChannel(channel.name)) return;
 
   // Cap: only the first 10 reactions on a message count for XP.
   if (totalReactionCount(r) > REACTION_MAX_PER_MESSAGE) return;

@@ -132,7 +132,7 @@ export interface AkiCallLog extends Record<string, unknown> {
    *   - 'disabled'    → GEMINI_API_KEY not set
    *   - null          → pre-filter era log
    */
-  filter_stage?: 'gemini' | 'pre-filter' | 'fail-open' | 'disabled' | null;
+  filter_stage?: 'groq' | 'gemini' | 'pre-filter' | 'fail-open' | 'disabled' | null;
   filter_tokens_in?: number;
   filter_tokens_out?: number;
   filter_cost_usd?: number;

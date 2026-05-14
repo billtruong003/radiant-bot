@@ -1,8 +1,15 @@
 import { type Client, Events, type GuildMember, type Role } from 'discord.js';
+import { rankById } from '../config/cultivation.js';
 import { loadVerificationConfig } from '../config/verification.js';
+import { getStore } from '../db/index.js';
 import { auditMember } from '../modules/verification/audit.js';
-import { UNVERIFIED_ROLE_NAME, startVerification } from '../modules/verification/flow.js';
+import {
+  PHAM_NHAN_ROLE_NAME,
+  UNVERIFIED_ROLE_NAME,
+  startVerification,
+} from '../modules/verification/flow.js';
 import { recordJoinAndCheck } from '../modules/verification/raid.js';
+import { postWelcome } from '../modules/welcome/index.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -38,19 +45,88 @@ async function assignUnverifiedRole(member: GuildMember): Promise<void> {
   }
 }
 
+/**
+ * Re-join short-circuit: if this Discord ID was previously verified
+ * (User entity exists in store with verified_at set), skip the captcha
+ * entirely. Restore Phàm Nhân + their current cultivation rank role
+ * and post a "returning disciple" welcome.
+ *
+ * Returns true if the fast-path was taken.
+ */
+async function tryRestoreReturningMember(member: GuildMember): Promise<boolean> {
+  const user = getStore().users.get(member.id);
+  if (!user || user.verified_at === null) return false;
+
+  const guild = member.guild;
+  const phamNhanRole = guild.roles.cache.find((r) => r.name === PHAM_NHAN_ROLE_NAME);
+  const rankRole = (() => {
+    try {
+      return guild.roles.cache.find((r) => r.name === rankById(user.cultivation_rank).name) ?? null;
+    } catch {
+      return null;
+    }
+  })();
+
+  if (!phamNhanRole) {
+    logger.warn(
+      { discord_id: member.id, role: PHAM_NHAN_ROLE_NAME },
+      'rejoin: Phàm Nhân role missing — falling back to full verify',
+    );
+    return false;
+  }
+
+  try {
+    await member.roles.add(phamNhanRole, 'returning verified disciple');
+    if (rankRole && rankRole.id !== phamNhanRole.id) {
+      await member.roles.add(rankRole, `restore cultivation rank ${user.cultivation_rank}`);
+    }
+  } catch (err) {
+    logger.error(
+      { err, discord_id: member.id },
+      'rejoin: failed to grant verified roles — falling back to full verify',
+    );
+    return false;
+  }
+
+  logger.info(
+    {
+      discord_id: member.id,
+      tag: member.user.tag,
+      cultivation_rank: user.cultivation_rank,
+      level: user.level,
+      original_verified_at: user.verified_at,
+    },
+    'rejoin: restored previously-verified member, skipped captcha',
+  );
+
+  // Best-effort welcome (returning-disciple variant). postWelcome detects
+  // returning via store lookup; we set a hint flag for future iteration.
+  try {
+    await postWelcome(member, { returning: true });
+  } catch (err) {
+    logger.warn({ err, discord_id: member.id }, 'rejoin: welcome post failed');
+  }
+
+  return true;
+}
+
 async function handleNewMember(member: GuildMember): Promise<void> {
   if (member.user.bot) return;
   logger.info({ discord_id: member.id, tag: member.user.tag }, 'guildMemberAdd: new member');
 
   const config = await loadVerificationConfig();
 
-  // Track this join for raid detection BEFORE starting the challenge so
-  // the threshold check is based on the latest count.
+  // Track this join for raid detection BEFORE branching. Even a returning
+  // verified member counts as a join for raid-burst detection.
   const raid = await recordJoinAndCheck(
     Date.now(),
     config.thresholds.raidJoinWindowMs,
     config.thresholds.raidJoinThreshold,
   );
+
+  // Re-join short-circuit (A1, Phase 11). Skip captcha for verified
+  // returners. Audit + raid mode still apply for true new joiners.
+  if (await tryRestoreReturningMember(member)) return;
 
   await assignUnverifiedRole(member);
 

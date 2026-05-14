@@ -1,4 +1,5 @@
 import { ChannelType, EmbedBuilder, type Guild, type GuildBasedChannel } from 'discord.js';
+import { matchesChannelName } from '../../config/channels.js';
 import type { BotCliService } from '../service.js';
 
 const COLORS = {
@@ -19,7 +20,7 @@ function resolveChannel(guild: Guild, query: string): GuildBasedChannel | undefi
   const id = idMatch?.[1];
   if (id) return guild.channels.cache.get(id);
   for (const ch of guild.channels.cache.values()) {
-    if (ch.name === query) return ch;
+    if (matchesChannelName(ch, query) || ch.name === query) return ch;
   }
   return undefined;
 }

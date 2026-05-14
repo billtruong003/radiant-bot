@@ -1,6 +1,6 @@
 import type { Client, TextChannel } from 'discord.js';
 import { EmbedBuilder } from 'discord.js';
-import { ANNOUNCEMENT_CHANNELS } from '../../config/channels.js';
+import { ANNOUNCEMENT_CHANNELS, matchesChannelName } from '../../config/channels.js';
 import { rankById } from '../../config/cultivation.js';
 import { env } from '../../config/env.js';
 import { getStore } from '../../db/index.js';
@@ -25,7 +25,7 @@ export async function postWeeklyLeaderboard(client: Client): Promise<void> {
     return;
   }
   const channel = guild.channels.cache.find(
-    (c) => c.name === ANNOUNCEMENT_CHANNELS.leaderboard && c.isTextBased(),
+    (c) => matchesChannelName(c, ANNOUNCEMENT_CHANNELS.leaderboard) && c.isTextBased(),
   ) as TextChannel | undefined;
   if (!channel) {
     logger.warn(

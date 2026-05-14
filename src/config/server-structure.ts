@@ -149,87 +149,97 @@ export const ROLES: readonly RoleDef[] = [
  * the guild was created with so `meme` / `game-development` / `gaming` /
  * `highlight` / `Gaming` (voice) are moved in place without rename.
  */
+/**
+ * Phase 11 A5: channel names decorated with icons on both sides.
+ *
+ * Discord lowercases + hyphenates text channel names automatically; the
+ * emoji on each side survives as decoration. Callers should NEVER rely
+ * on exact-name matching against these literals — use
+ * `canonicalChannelName()` / `matchesChannelName()` from
+ * `src/config/channels.ts` to compare against the canonical slug
+ * (`💬-general-💬` → `general`).
+ */
 export const CATEGORIES: readonly CategoryDef[] = [
   {
     name: '📢 Hub',
     channels: [
-      { name: 'announcements', type: 'text', perm: 'public_read' },
-      { name: 'rules', type: 'text', perm: 'public_read' },
-      { name: 'bot-log', type: 'text', perm: 'bot_log', noXp: true },
-      { name: 'elder-lounge', type: 'text', perm: 'admin_only' },
+      { name: '📢-announcements-📢', type: 'text', perm: 'public_read' },
+      { name: '📜-rules-📜', type: 'text', perm: 'public_read' },
+      { name: '📋-bot-log-📋', type: 'text', perm: 'bot_log', noXp: true },
+      { name: '🏛️-elder-lounge-🏛️', type: 'text', perm: 'admin_only' },
     ],
   },
   {
     name: '🔒 Verification',
-    channels: [{ name: 'verify', type: 'text', perm: 'unverified_only', noXp: true }],
+    channels: [{ name: '🔒-verify-🔒', type: 'text', perm: 'unverified_only', noXp: true }],
   },
   {
     name: 'General Realm',
     channels: [
-      { name: 'general', type: 'text', perm: 'verified_full' },
-      { name: 'introductions', type: 'text', perm: 'verified_full' },
-      { name: 'meme', type: 'text', perm: 'verified_full' },
-      { name: 'daily-checkin', type: 'text', perm: 'verified_full' },
+      { name: '💬-general-💬', type: 'text', perm: 'verified_full' },
+      { name: '👋-introductions-👋', type: 'text', perm: 'verified_full' },
+      { name: '🤣-meme-🤣', type: 'text', perm: 'verified_full' },
+      { name: '📅-daily-checkin-📅', type: 'text', perm: 'verified_full' },
     ],
   },
   {
     name: 'Tech Innovations',
     channels: [
-      { name: 'game-development', type: 'text', perm: 'verified_full' },
-      { name: 'ai-ml', type: 'text', perm: 'verified_full' },
-      { name: 'tools-showcase', type: 'text', perm: 'verified_full' },
-      { name: 'help-me', type: 'text', perm: 'verified_full' },
+      { name: '🎮-game-dev-🎮', type: 'text', perm: 'verified_full' },
+      { name: '🤖-ai-ml-🤖', type: 'text', perm: 'verified_full' },
+      { name: '🛠️-tools-showcase-🛠️', type: 'text', perm: 'verified_full' },
+      { name: '🆘-help-me-🆘', type: 'text', perm: 'verified_full' },
     ],
   },
   {
     name: 'Entertainment',
     channels: [
-      { name: 'gaming', type: 'text', perm: 'verified_full' },
-      { name: 'highlight', type: 'text', perm: 'verified_full' },
-      { name: 'movie-night', type: 'text', perm: 'verified_full' },
+      { name: '🕹️-gaming-🕹️', type: 'text', perm: 'verified_full' },
+      { name: '⭐-highlight-⭐', type: 'text', perm: 'verified_full' },
+      { name: '🎬-movie-night-🎬', type: 'text', perm: 'verified_full' },
     ],
   },
   {
     name: '🎨 Creative',
     channels: [
-      { name: 'art', type: 'text', perm: 'verified_full' },
-      { name: 'music', type: 'text', perm: 'verified_full' },
-      { name: 'writing', type: 'text', perm: 'verified_full' },
+      { name: '🎨-art-🎨', type: 'text', perm: 'verified_full' },
+      { name: '🎵-music-🎵', type: 'text', perm: 'verified_full' },
+      { name: '✍️-writing-✍️', type: 'text', perm: 'verified_full' },
     ],
   },
   {
     name: '📈 Cultivation Path',
     channels: [
-      { name: 'leveling-guide', type: 'text', perm: 'verified_read' },
-      { name: 'level-up', type: 'text', perm: 'verified_read' },
-      { name: 'leaderboard', type: 'text', perm: 'verified_read' },
-      { name: 'tribulation', type: 'text', perm: 'verified_full' },
+      { name: '📖-leveling-guide-📖', type: 'text', perm: 'verified_read' },
+      { name: '⚡-level-up-⚡', type: 'text', perm: 'verified_read' },
+      { name: '🏆-leaderboard-🏆', type: 'text', perm: 'verified_read' },
+      { name: '🌩️-tribulation-🌩️', type: 'text', perm: 'verified_full' },
     ],
   },
   {
     name: '🛠️ Workshop',
     channels: [
-      { name: 'bot-commands', type: 'text', perm: 'verified_full', noXp: true },
-      { name: 'bot-dev', type: 'text', perm: 'mod_only', noXp: true },
-      { name: 'automation-ideas', type: 'text', perm: 'verified_full' },
+      { name: '💻-bot-commands-💻', type: 'text', perm: 'verified_full', noXp: true },
+      { name: '🔧-bot-dev-🔧', type: 'text', perm: 'mod_only', noXp: true },
+      { name: '💡-automation-ideas-💡', type: 'text', perm: 'verified_full' },
     ],
   },
   {
     name: '📚 Resources',
     channels: [
-      { name: 'docs', type: 'text', perm: 'verified_full' },
-      { name: 'jobs', type: 'text', perm: 'verified_full' },
+      { name: '📚-docs-📚', type: 'text', perm: 'verified_full' },
+      { name: '💼-jobs-💼', type: 'text', perm: 'verified_full' },
     ],
   },
   {
     name: 'Voice Channels',
     channels: [
-      { name: 'Main Hall', type: 'voice', perm: 'verified_full' },
-      { name: 'Gaming', type: 'voice', perm: 'verified_full' },
-      { name: 'Focus Room', type: 'voice', perm: 'verified_full' },
-      { name: 'Quiet Study', type: 'voice', perm: 'verified_full' },
-      { name: 'Movie Room', type: 'voice', perm: 'verified_full' },
-      { name: 'Gaming 2', type: 'voice', perm: 'verified_full' },
+      { name: '🏛️ Main Hall 🏛️', type: 'voice', perm: 'verified_full' },
+      { name: '🎮 Gaming 🎮', type: 'voice', perm: 'verified_full' },
+      { name: '🎯 Focus Room 🎯', type: 'voice', perm: 'verified_full' },
+      { name: '📚 Quiet Study 📚', type: 'voice', perm: 'verified_full' },
+      { name: '🎬 Movie Room 🎬', type: 'voice', perm: 'verified_full' },
+      { name: '🎮 Gaming 2 🎮', type: 'voice', perm: 'verified_full' },
     ],
   },
 ] as const;

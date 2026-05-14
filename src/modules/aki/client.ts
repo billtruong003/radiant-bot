@@ -45,9 +45,15 @@ export interface AskAkiInput {
   question: string;
   /** Discord attachment URL (image/jpeg, image/png, image/webp). */
   imageUrl?: string;
-  /** Filter stage attribution (Phase 10 chunk 7). Optional. */
+  /** Asker's Discord username (login handle, e.g. "billtruong003"). */
+  askerUsername?: string;
+  /** Asker's server display name (nickname or fallback to username). */
+  askerDisplayName?: string;
+  /** Most recent channel messages (excluding bots + the /ask interaction), oldest → newest. */
+  recentMessages?: ReadonlyArray<{ authorDisplayName: string; content: string }>;
+  /** Filter stage attribution (Phase 10 chunk 7 / Phase 11 LLM router). */
   filterMeta?: {
-    stage: 'gemini' | 'pre-filter' | 'fail-open' | 'disabled';
+    stage: 'groq' | 'gemini' | 'pre-filter' | 'fail-open' | 'disabled';
     tokensIn: number;
     tokensOut: number;
     costUsd: number;
@@ -92,14 +98,48 @@ export function isAkiEnabled(): boolean {
 export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
   const client = getClient();
 
-  const userContent: OpenAI.ChatCompletionContentPart[] = [{ type: 'text', text: input.question }];
+  // Build the user prompt with optional identity + channel context.
+  // Format:
+  //   [Người hỏi: <displayName> (@<username>)]
+  //   [Đoạn chat gần nhất:
+  //     <author>: <msg>
+  //     ...]
+  //
+  //   <question>
+  //
+  // Identity + context are optional — pure question still works for
+  // backward compat with old callers / tests.
+  const identityLine =
+    input.askerDisplayName || input.askerUsername
+      ? `[Người hỏi: ${input.askerDisplayName ?? input.askerUsername}${
+          input.askerUsername && input.askerUsername !== input.askerDisplayName
+            ? ` (@${input.askerUsername})`
+            : ''
+        }]`
+      : '';
+  const contextBlock =
+    input.recentMessages && input.recentMessages.length > 0
+      ? [
+          '[Đoạn chat gần nhất trong kênh:',
+          ...input.recentMessages.map(
+            (m) => `  ${m.authorDisplayName}: ${m.content.slice(0, 280)}`,
+          ),
+          ']',
+        ].join('\n')
+      : '';
+
+  const userText = [identityLine, contextBlock, input.question]
+    .filter((s) => s.length > 0)
+    .join('\n\n');
+
+  const userContent: OpenAI.ChatCompletionContentPart[] = [{ type: 'text', text: userText }];
   if (input.imageUrl) {
     userContent.push({ type: 'image_url', image_url: { url: input.imageUrl } });
   }
 
   const messages: OpenAI.ChatCompletionMessageParam[] = [
     { role: 'system', content: AKI_SYSTEM_PROMPT },
-    { role: 'user', content: input.imageUrl ? userContent : input.question },
+    { role: 'user', content: input.imageUrl ? userContent : userText },
   ];
 
   const resp = await client.chat.completions.create({
@@ -167,7 +207,7 @@ export async function logRefusal(
   questionLength: number,
   reason: string,
   filterMeta?: {
-    stage: 'gemini' | 'pre-filter' | 'fail-open' | 'disabled';
+    stage: 'groq' | 'gemini' | 'pre-filter' | 'fail-open' | 'disabled';
     tokensIn: number;
     tokensOut: number;
     costUsd: number;

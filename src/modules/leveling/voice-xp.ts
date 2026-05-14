@@ -1,5 +1,5 @@
 import { ChannelType, type Guild, type VoiceChannel } from 'discord.js';
-import { WORKING_VOICE_CHANNEL_NAMES } from '../../config/channels.js';
+import { isWorkingVoiceChannel } from '../../config/channels.js';
 import { VOICE_WORKING_XP_PER_MIN, VOICE_XP_PER_MIN } from '../../config/leveling.js';
 import { logger } from '../../utils/logger.js';
 import { maybePromoteRank, postLevelUpEmbed } from './rank-promoter.js';
@@ -22,7 +22,7 @@ import { awardXp } from './tracker.js';
  */
 
 function isWorkingChannel(name: string): boolean {
-  return WORKING_VOICE_CHANNEL_NAMES.has(name);
+  return isWorkingVoiceChannel(name);
 }
 
 function countNonBotHumans(channel: VoiceChannel): number {

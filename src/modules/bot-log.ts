@@ -1,5 +1,5 @@
 import type { Client, MessagePayload, TextChannel } from 'discord.js';
-import { ANNOUNCEMENT_CHANNELS } from '../config/channels.js';
+import { ANNOUNCEMENT_CHANNELS, matchesChannelName } from '../config/channels.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
@@ -33,7 +33,7 @@ function getChannel(): TextChannel | null {
   const guild = _client.guilds.cache.get(env.DISCORD_GUILD_ID);
   if (!guild) return null;
   const ch = guild.channels.cache.find(
-    (c) => c.name === ANNOUNCEMENT_CHANNELS.sectLog && c.isTextBased(),
+    (c) => matchesChannelName(c, ANNOUNCEMENT_CHANNELS.sectLog) && c.isTextBased(),
   );
   return (ch as TextChannel | undefined) ?? null;
 }
