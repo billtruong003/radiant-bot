@@ -41,100 +41,109 @@ export interface RoleDef {
   isUnverified?: boolean;
 }
 
+// Phase 12.1 palette refresh — "Ethereal Mystic". Each role family has
+// its own hue arc:
+//   - Staff: antique-gold → cosmic-nebula → dusk-violet → twilight-blue
+//   - Cultivation: cloud → mist → river → honey → iris → rose → sage →
+//     apricot → pearl → divine sun → iridescent
+//   - Sub-title: steel mist / blush pink / amethyst dream / driftwood
+// All distinct enough that two adjacent ranks no longer read the same.
 export const ROLES: readonly RoleDef[] = [
-  // Top admin — sect master. Gets gold + full manage perms in channel
-  // overwrites. Bot operator / server owner usually holds this.
-  { name: 'Chưởng Môn', colorHex: '#d4af37', hoist: true, mentionable: true, isStaff: true },
-  { name: 'Tiên Nhân', colorHex: '#ffffff', hoist: true, mentionable: true },
+  // Top admin — sect master. Antique gold, deeper than the cultivation
+  // Độ Kiếp gold so the master visibly outranks even Độ Kiếp disciples.
+  { name: 'Chưởng Môn', colorHex: '#c9a455', hoist: true, mentionable: true, isStaff: true },
+  // Iridescent cream-pearl — admin-grant only, distinct from Đại Thừa
+  // pearl mist below.
+  { name: 'Tiên Nhân', colorHex: '#f5e8ff', hoist: true, mentionable: true },
   // The bot's flair role — "Heavenly Dao", positioned between Tiên Nhân and
-  // Trưởng Lão. Decorative for now: real bot perms come from its managed
-  // role (Administrator in dev). Phase 9 audit will move bot perms here
-  // and drop Administrator from the managed role.
-  { name: 'Thiên Đạo', colorHex: '#fdb913', hoist: true, mentionable: false, isStaff: true },
+  // Trưởng Lão. Cosmic midnight-nebula evokes the "thiên đạo" cosmic-voice
+  // persona that narrates automod punishments (Phase 11.2).
+  { name: 'Thiên Đạo', colorHex: '#2c1e4e', hoist: true, mentionable: false, isStaff: true },
   // Senior advisor — supermod tier, manually granted to trusted seniors by
-  // Chưởng Môn. Same channel visibility as admin, mod-level message powers,
-  // CANNOT manage channels/roles (that stays with Chưởng Môn alone).
-  { name: 'Trưởng Lão', colorHex: '#a569bd', hoist: true, mentionable: true, isStaff: true },
-  // Law enforcer — moderator tier. Renamed from "Nội Môn Đệ Tử" to better
-  // signal the law-enforcement role (chấp pháp đường) in the sect metaphor.
-  { name: 'Chấp Pháp', colorHex: '#5dade2', hoist: true, mentionable: true, isStaff: true },
+  // Chưởng Môn. Dusk violet — wisdom + nightfall.
+  { name: 'Trưởng Lão', colorHex: '#9c7fbf', hoist: true, mentionable: true, isStaff: true },
+  // Law enforcer — moderator tier. Twilight blue, distinct from Trúc Cơ
+  // river-blue so a mod isn't visually mistaken for a level-10 disciple.
+  { name: 'Chấp Pháp', colorHex: '#6890b8', hoist: true, mentionable: true, isStaff: true },
   {
     name: 'Độ Kiếp',
-    colorHex: '#ffd700',
+    colorHex: '#ffd56b',
     hoist: false,
     mentionable: false,
     isCultivationRank: true,
   },
   {
     name: 'Đại Thừa',
-    colorHex: '#ecf0f1',
+    colorHex: '#e8eaf0',
     hoist: false,
     mentionable: false,
     isCultivationRank: true,
   },
   {
     name: 'Hợp Thể',
-    colorHex: '#e67e22',
+    colorHex: '#d4a574',
     hoist: false,
     mentionable: false,
     isCultivationRank: true,
   },
   {
     name: 'Luyện Hư',
-    colorHex: '#1abc9c',
+    colorHex: '#8fbf9f',
     hoist: false,
     mentionable: false,
     isCultivationRank: true,
   },
   {
     name: 'Hóa Thần',
-    colorHex: '#e74c3c',
+    colorHex: '#d97b8a',
     hoist: false,
     mentionable: false,
     isCultivationRank: true,
   },
   {
     name: 'Nguyên Anh',
-    colorHex: '#9b59b6',
+    colorHex: '#b09bd3',
     hoist: false,
     mentionable: false,
     isCultivationRank: true,
   },
   {
     name: 'Kim Đan',
-    colorHex: '#f4d03f',
+    colorHex: '#e6c87e',
     hoist: false,
     mentionable: false,
     isCultivationRank: true,
   },
   {
     name: 'Trúc Cơ',
-    colorHex: '#5dade2',
+    colorHex: '#7fa6c5',
     hoist: false,
     mentionable: false,
     isCultivationRank: true,
   },
   {
     name: 'Luyện Khí',
-    colorHex: '#a0a0a0',
+    colorHex: '#b8c5d0',
     hoist: false,
     mentionable: false,
     isCultivationRank: true,
   },
   {
     name: 'Phàm Nhân',
-    colorHex: '#8a8a8a',
+    colorHex: '#95989e',
     hoist: false,
     mentionable: false,
     isCultivationRank: true,
   },
-  { name: 'Kiếm Tu', colorHex: '#c0392b', hoist: false, mentionable: true, isSubTitle: true },
-  { name: 'Đan Sư', colorHex: '#27ae60', hoist: false, mentionable: true, isSubTitle: true },
-  { name: 'Trận Pháp Sư', colorHex: '#2980b9', hoist: false, mentionable: true, isSubTitle: true },
-  { name: 'Tán Tu', colorHex: '#7f8c8d', hoist: false, mentionable: true, isSubTitle: true },
+  // Sub-titles — themed per archetype, pastel so they don't fight with
+  // the cultivation rank color a member also wears.
+  { name: 'Kiếm Tu', colorHex: '#8d9ba8', hoist: false, mentionable: true, isSubTitle: true },
+  { name: 'Đan Sư', colorHex: '#efb5a3', hoist: false, mentionable: true, isSubTitle: true },
+  { name: 'Trận Pháp Sư', colorHex: '#a89bce', hoist: false, mentionable: true, isSubTitle: true },
+  { name: 'Tán Tu', colorHex: '#a89b8d', hoist: false, mentionable: true, isSubTitle: true },
   {
     name: 'Chưa Xác Minh',
-    colorHex: '#4a4a4a',
+    colorHex: '#3a3a3a',
     hoist: false,
     mentionable: false,
     isUnverified: true,

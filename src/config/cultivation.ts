@@ -13,13 +13,17 @@ export interface CultivationRank {
  * 10 cảnh giới (cultivation realms) ordered low → high. Index 0 = starting
  * rank after verification. The 11th rank (Tiên Nhân) is admin-grant only.
  */
+// Phase 12.1 palette refresh — "Ethereal Mystic": pastel + cosmic dreamy
+// arc emphasising the spiritual / immortal theme. Each tier has a
+// distinct hue family so adjacent ranks read as a visible elevation
+// rather than the previous Flat-UI default soup.
 export const CULTIVATION_RANKS: readonly CultivationRank[] = [
   {
     id: 'pham_nhan',
     name: 'Phàm Nhân',
     minLevel: 0,
     maxLevel: 0,
-    colorHex: '#8a8a8a',
+    colorHex: '#95989e',
     description: 'Default sau khi xác minh',
   },
   {
@@ -27,7 +31,7 @@ export const CULTIVATION_RANKS: readonly CultivationRank[] = [
     name: 'Luyện Khí',
     minLevel: 1,
     maxLevel: 9,
-    colorHex: '#a0a0a0',
+    colorHex: '#b8c5d0',
     description: 'Khởi đầu tu vi — được thêm phản ứng',
   },
   {
@@ -35,7 +39,7 @@ export const CULTIVATION_RANKS: readonly CultivationRank[] = [
     name: 'Trúc Cơ',
     minLevel: 10,
     maxLevel: 19,
-    colorHex: '#5dade2',
+    colorHex: '#7fa6c5',
     description: 'Dùng emoji bên ngoài, nhúng liên kết',
   },
   {
@@ -43,7 +47,7 @@ export const CULTIVATION_RANKS: readonly CultivationRank[] = [
     name: 'Kim Đan',
     minLevel: 20,
     maxLevel: 34,
-    colorHex: '#f4d03f',
+    colorHex: '#e6c87e',
     description: 'Tạo chủ đề công khai',
   },
   {
@@ -51,7 +55,7 @@ export const CULTIVATION_RANKS: readonly CultivationRank[] = [
     name: 'Nguyên Anh',
     minLevel: 35,
     maxLevel: 49,
-    colorHex: '#9b59b6',
+    colorHex: '#b09bd3',
     description: 'Tạo chủ đề riêng tư, đính kèm tập tin',
   },
   {
@@ -59,7 +63,7 @@ export const CULTIVATION_RANKS: readonly CultivationRank[] = [
     name: 'Hóa Thần',
     minLevel: 50,
     maxLevel: 69,
-    colorHex: '#e74c3c',
+    colorHex: '#d97b8a',
     description: 'Người nói ưu tiên, sticker ngoài',
   },
   {
@@ -67,7 +71,7 @@ export const CULTIVATION_RANKS: readonly CultivationRank[] = [
     name: 'Luyện Hư',
     minLevel: 70,
     maxLevel: 89,
-    colorHex: '#1abc9c',
+    colorHex: '#8fbf9f',
     description: 'Quản lý tin nhắn của chính mình',
   },
   {
@@ -75,7 +79,7 @@ export const CULTIVATION_RANKS: readonly CultivationRank[] = [
     name: 'Hợp Thể',
     minLevel: 90,
     maxLevel: 119,
-    colorHex: '#e67e22',
+    colorHex: '#d4a574',
     description: 'Trusted — có thể được đề cử Nội Môn',
   },
   {
@@ -83,7 +87,7 @@ export const CULTIVATION_RANKS: readonly CultivationRank[] = [
     name: 'Đại Thừa',
     minLevel: 120,
     maxLevel: 159,
-    colorHex: '#ecf0f1',
+    colorHex: '#e8eaf0',
     description: 'Custom title flair, custom emoji react',
   },
   {
@@ -91,7 +95,7 @@ export const CULTIVATION_RANKS: readonly CultivationRank[] = [
     name: 'Độ Kiếp',
     minLevel: 160,
     maxLevel: null,
-    colorHex: '#ffd700',
+    colorHex: '#ffd56b',
     description: 'Đỉnh cao tu vi, có thể vote Trưởng Lão',
   },
 ] as const;
@@ -101,7 +105,7 @@ export const TIEN_NHAN: CultivationRank = {
   name: 'Tiên Nhân',
   minLevel: Number.POSITIVE_INFINITY,
   maxLevel: null,
-  colorHex: '#ffffff',
+  colorHex: '#f5e8ff',
   description: 'Admin grant only',
 };
 
