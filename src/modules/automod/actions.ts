@@ -36,6 +36,11 @@ const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const NUDGE_COOLDOWN_MS = 10_000;
 const STERN_THRESHOLD = 5;
 const DELETE_THRESHOLD = 15;
+// Retroactive sweep window — when profanity tips into delete tier, scrub
+// everything the offender has posted in this channel since their FIRST
+// profanity hit, but no older than this. Anything older stays. Per Bill
+// 2026-05-14: "nếu tin đó đã nằm vài ngày thì k tính nhưng < 15p thì xóa".
+const SWEEP_MAX_AGE_MS = 15 * 60 * 1000;
 
 const lastNudgeAt: Map<string, number> = new Map();
 
@@ -129,6 +134,66 @@ async function trySendNudge(
   }
 }
 
+/**
+ * Phase 11.2 (post-deploy request) — at the profanity-delete tier we
+ * don't just delete the current offending message; we also scrub the
+ * offender's recent message history in the same channel back to their
+ * first profanity hit, capped at SWEEP_MAX_AGE_MS so anything older
+ * than 15 minutes stays put. This stops a long drip of profanity from
+ * surviving when one tip-over fires.
+ *
+ * Best-effort: needs `ManageMessages` perm + `ReadMessageHistory`.
+ * Failures log but never throw — the main action chain still runs.
+ *
+ * Discord constraint: `bulkDelete` rejects messages older than 14 days.
+ * With `filterOld=true` the SDK silently drops those. We're already
+ * capped at 15 minutes here so the filter is just belt-and-suspenders.
+ */
+async function sweepUserHistory(message: Message, sinceTs: number, nowTs: number): Promise<void> {
+  const channel = message.channel as unknown as {
+    messages?: { fetch?: (opts: { limit: number }) => Promise<Map<string, Message>> };
+    bulkDelete?: (msgs: unknown, filterOld?: boolean) => Promise<unknown>;
+  };
+  if (!channel?.messages?.fetch || typeof channel.bulkDelete !== 'function') return;
+
+  const cutoff = Math.max(sinceTs, nowTs - SWEEP_MAX_AGE_MS);
+  try {
+    // Fetch the most recent 100 messages from the channel (Discord max).
+    // 15 min is short enough that a sane channel won't have spilled past
+    // this window in normal use.
+    const fetched = await channel.messages.fetch({ limit: 100 });
+    const matching: Message[] = [];
+    for (const msg of fetched.values()) {
+      const m = msg as unknown as {
+        id: string;
+        author: { id: string };
+        createdTimestamp: number;
+        deletable?: boolean;
+      };
+      if (m.author.id !== message.author.id) continue;
+      if (m.createdTimestamp < cutoff) continue;
+      if (m.deletable === false) continue;
+      matching.push(msg as Message);
+    }
+    if (matching.length === 0) return;
+    await channel.bulkDelete(matching, true);
+    logger.info(
+      {
+        discord_id: message.author.id,
+        channel_id: message.channelId,
+        swept: matching.length,
+        since_ms_ago: nowTs - cutoff,
+      },
+      'automod: swept user history at profanity delete tier',
+    );
+  } catch (err) {
+    logger.warn(
+      { err, discord_id: message.author.id, channel_id: message.channelId },
+      'automod: history sweep failed',
+    );
+  }
+}
+
 async function tryPostCleanupLine(
   message: Message,
   ruleId: 'profanity' | 'spam',
@@ -196,14 +261,33 @@ export async function applyDecision(message: Message, decision: AutomodDecision)
   // Phase 11.2 — capture display name BEFORE delete (after delete the
   // message ref still works but member may be gone if action=kick).
   const offenderName = resolveDisplayName(message);
+  const nowTs = Date.now();
+
+  // Phase 11.2 (post-deploy request) — profanity at delete tier triggers
+  // a retroactive history sweep INSTEAD of a single-message delete. The
+  // sweep removes the current message + every prior message from this
+  // user in this channel back to their first profanity hit (capped at
+  // 15 min). For all other rules + actions the existing single-message
+  // delete still applies.
+  const isProfanityDeleteTier = rule.id === 'profanity';
+  const firstHitMs =
+    typeof hit.context?.firstProfanityHitMs === 'number' ? hit.context.firstProfanityHitMs : nowTs;
 
   // Side-effects per action type. Delete is implicit for all except 'kick'.
   switch (rule.action) {
     case 'delete':
-      await tryDelete(message);
+      if (isProfanityDeleteTier) {
+        await sweepUserHistory(message, firstHitMs, nowTs);
+      } else {
+        await tryDelete(message);
+      }
       break;
     case 'warn':
-      await tryDelete(message);
+      if (isProfanityDeleteTier) {
+        await sweepUserHistory(message, firstHitMs, nowTs);
+      } else {
+        await tryDelete(message);
+      }
       await tryWarn(message, rule.warnText ?? `⚠️ Tin nhắn của bạn bị xoá (lý do: ${hit.reason}).`);
       break;
     case 'timeout':

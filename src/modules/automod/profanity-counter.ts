@@ -7,26 +7,36 @@
  *
  *   - 1–4 hits in window  → Aki gentle nudge (no delete)
  *   - 5–14 hits in window → Aki stern nudge (no delete)
- *   - 15+ hits in window  → existing delete + warn DM + log
+ *   - 15+ hits in window  → existing delete + warn DM + log + RETROACTIVE
+ *                            channel-history sweep (Bill, post-deploy
+ *                            request 2026-05-14): when a user tips into
+ *                            delete tier, scrub all their messages in
+ *                            the channel since their FIRST profanity in
+ *                            the broader 15-minute sweep window.
  *
  * State is pure in-memory (Map<userId, timestamps[]>). Acceptable trade-off:
- * a bot restart re-zeroes everyone, but a 60s window is short enough that
- * the worst case is one "lucky escape" right after a restart. Persisting
- * would invite false positives on long-uptime instances anyway.
+ * a bot restart re-zeroes everyone, but a 15-minute window is short
+ * enough that the worst case is one "lucky escape" right after a restart.
  *
- * Pruning: we lazily drop timestamps outside the window every time the
- * counter is touched, so memory stays O(n_recent_offenders) without a
- * background sweep.
+ * Window layout:
+ *   - TIER_WINDOW_MS (60s)   → counts hits for tier-decision (1-4 / 5-14 / 15+)
+ *   - SWEEP_WINDOW_MS (15min) → oldest hit retained for retroactive cleanup
+ *
+ * Both share the same per-user timestamp array; the array is pruned to
+ * the wider (15min) window and the narrower (60s) count is derived on
+ * read. Memory is O(hits-per-user-in-15min) which is bounded by spam rate
+ * × 15min (e.g. 60 hits = ~480 bytes per user).
  */
 
-const WINDOW_MS = 60_000;
+const TIER_WINDOW_MS = 60_000;
+const SWEEP_WINDOW_MS = 15 * 60_000;
 
 const hits: Map<string, number[]> = new Map();
 
 function prune(userId: string, now: number): number[] {
   const arr = hits.get(userId);
   if (!arr) return [];
-  const cutoff = now - WINDOW_MS;
+  const cutoff = now - SWEEP_WINDOW_MS;
   // Timestamps are append-only and monotonic, so trim from the head.
   let i = 0;
   while (i < arr.length) {
@@ -44,20 +54,43 @@ function prune(userId: string, now: number): number[] {
   return kept;
 }
 
+export interface HitResult {
+  /** Number of hits within the 60s tier-decision window (drives nudge severity). */
+  count: number;
+  /**
+   * Timestamp (epoch ms) of the OLDEST profanity hit still in the 15min
+   * sweep window. Used by retroactive history cleanup at delete tier.
+   * Equals `now` when this is the first hit.
+   */
+  firstHitMs: number;
+}
+
 /**
- * Record one profanity hit for `userId` and return the resulting count
- * within the 60s sliding window (including this hit).
+ * Record one profanity hit for `userId` and return `{ count, firstHitMs }`.
+ * `count` is hits-in-60s (drives tier). `firstHitMs` is oldest-in-15min
+ * (drives retroactive sweep at delete tier).
  */
-export function recordHit(userId: string, now: number = Date.now()): number {
+export function recordHit(userId: string, now: number = Date.now()): HitResult {
   const kept = prune(userId, now);
   kept.push(now);
   hits.set(userId, kept);
-  return kept.length;
+  const tierCutoff = now - TIER_WINDOW_MS;
+  let count = 0;
+  for (const ts of kept) {
+    if (ts >= tierCutoff) count++;
+  }
+  return { count, firstHitMs: kept[0] ?? now };
 }
 
 /** Read the current count without recording a new hit. Used by tests. */
 export function getCount(userId: string, now: number = Date.now()): number {
-  return prune(userId, now).length;
+  const kept = prune(userId, now);
+  const tierCutoff = now - TIER_WINDOW_MS;
+  let count = 0;
+  for (const ts of kept) {
+    if (ts >= tierCutoff) count++;
+  }
+  return count;
 }
 
 /** Test / shutdown helper. */
@@ -69,4 +102,5 @@ export function reset(userId?: string): void {
   }
 }
 
-export const WINDOW_MS_FOR_TESTING = WINDOW_MS;
+export const WINDOW_MS_FOR_TESTING = TIER_WINDOW_MS;
+export const SWEEP_WINDOW_MS_FOR_TESTING = SWEEP_WINDOW_MS;

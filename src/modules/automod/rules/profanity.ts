@@ -60,10 +60,14 @@ export const profanityRule: AutomodRule = {
     const config = await loadAutomodConfig();
     const hit = findProfanity(message.content, config.profanityWords);
     if (!hit) return null;
-    const profanityCount = recordHit(message.author.id);
+    const result = recordHit(message.author.id);
     return {
       reason: `profanity match: ${hit}`,
-      context: { word: hit, profanityCount },
+      context: {
+        word: hit,
+        profanityCount: result.count,
+        firstProfanityHitMs: result.firstHitMs,
+      },
     };
   },
 };

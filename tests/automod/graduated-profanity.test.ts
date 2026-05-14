@@ -162,23 +162,85 @@ describe('graduated profanity flow (Phase 11.2 / A6)', () => {
     expect(callArgs?.systemPrompt).toContain('STERN');
   });
 
-  it('count=15 → tips over into delete + DM + log + narration', async () => {
+  it('count=15 → retroactive sweep + DM + log + narration', async () => {
     const { applyDecision, automodEngine, makeMockMessage, counter } = await loadWithLlmMock(
       store,
       TEST_CONFIG,
       () => Promise.resolve(null), // LLM down → narration uses static fallback
     );
 
-    // Pre-fill 14 hits so detect() lands us at 15.
-    for (let i = 0; i < 14; i++) counter.recordHit('u-tip');
+    // Pre-fill 14 hits spread over the last 50s so the 60s tier window
+    // sees them all (count = 14 + current = 15) but firstHitMs reaches
+    // back ~50s — far enough to cover msg-old-1 (40s ago) in the sweep.
+    const baseTs = Date.now();
+    for (let i = 0; i < 14; i++) {
+      counter.recordHit('u-tip', baseTs - 50_000 + i * 3_000);
+    }
     const { message, spies } = makeMockMessage({ content: 'shit again', authorId: 'u-tip' });
+
+    // Inject a stub channel with messages.fetch + bulkDelete for the sweep.
+    const fetchedMessages = new Map<string, unknown>([
+      [
+        'msg-old-1',
+        {
+          id: 'msg-old-1',
+          author: { id: 'u-tip' },
+          createdTimestamp: baseTs - 40_000, // 40s ago → inside sweep cutoff (firstHitMs ≈ 50s ago)
+          deletable: true,
+        },
+      ],
+      [
+        'msg-other',
+        {
+          id: 'msg-other',
+          author: { id: 'someone-else' },
+          createdTimestamp: baseTs - 30_000,
+          deletable: true,
+        },
+      ],
+      [
+        'msg-too-old',
+        {
+          id: 'msg-too-old',
+          author: { id: 'u-tip' },
+          createdTimestamp: baseTs - 30 * 60_000, // 30 min ago → past 15min sweep cap
+          deletable: true,
+        },
+      ],
+      [
+        'msg-current',
+        {
+          id: 'msg-test-1',
+          author: { id: 'u-tip' },
+          createdTimestamp: baseTs,
+          deletable: true,
+        },
+      ],
+    ]);
+    const fetchSpy = vi.fn().mockResolvedValue(fetchedMessages);
+    const bulkDeleteSpy = vi.fn().mockResolvedValue(undefined);
+    (message as unknown as { channel: unknown }).channel = {
+      messages: { fetch: fetchSpy },
+      bulkDelete: bulkDeleteSpy,
+      send: vi.fn().mockResolvedValue(undefined),
+    };
 
     const d = await automodEngine.evaluate(message);
     if (!d || d.rule.id !== 'profanity') throw new Error('expected profanity decision');
     expect(d.hit.context?.profanityCount).toBe(15);
     await applyDecision(message, d);
 
-    expect(spies.delete).toHaveBeenCalledTimes(1);
+    // Sweep ran instead of single tryDelete on message.delete().
+    expect(spies.delete).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledWith({ limit: 100 });
+    expect(bulkDeleteSpy).toHaveBeenCalledTimes(1);
+    // Should bulk delete 2 messages from u-tip within sweep window
+    // (msg-old-1 + msg-current). msg-too-old (30min) and msg-other
+    // (different user) are excluded.
+    const deletedArg = bulkDeleteSpy.mock.calls[0]?.[0] as Array<{ id: string }>;
+    const deletedIds = deletedArg.map((m) => m.id).sort();
+    expect(deletedIds).toEqual(['msg-old-1', 'msg-test-1']);
+
     expect(spies.dmSend).toHaveBeenCalledTimes(1);
     expect(store.automodLogs.count()).toBe(1);
     const log = store.automodLogs.recent(1)[0];

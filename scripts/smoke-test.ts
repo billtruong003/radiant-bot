@@ -880,19 +880,34 @@ async function smokeProfanityCounter(): Promise<void> {
   const counter = await import('../src/modules/automod/profanity-counter.js');
   counter.reset();
 
-  expectEq(counter.recordHit('smoke-u', 1_000), 1, '1st hit → count=1 (gentle tier)');
-  expectEq(counter.recordHit('smoke-u', 1_500), 2, '2nd hit in window → count=2');
-  expectEq(counter.recordHit('smoke-u', 2_000), 3, '3rd hit → count=3');
+  expectEq(counter.recordHit('smoke-u', 1_000).count, 1, '1st hit → count=1 (gentle tier)');
+  expectEq(counter.recordHit('smoke-u', 1_500).count, 2, '2nd hit in window → count=2');
+  expectEq(counter.recordHit('smoke-u', 2_000).count, 3, '3rd hit → count=3');
   for (let i = 4; i <= 5; i++) counter.recordHit('smoke-u', 2_000 + i);
   expectEq(counter.getCount('smoke-u', 2_500), 5, 'count=5 → STERN tier boundary');
   for (let i = 6; i <= 15; i++) counter.recordHit('smoke-u', 2_000 + i);
   expectEq(counter.getCount('smoke-u', 2_500), 15, 'count=15 → DELETE tier boundary');
 
-  // Window pruning
-  counter.reset('smoke-u');
-  counter.recordHit('smoke-u', 1_000);
-  const afterWindow = 1_000 + counter.WINDOW_MS_FOR_TESTING + 1;
-  expectEq(counter.getCount('smoke-u', afterWindow), 0, 'hit pruned after 60s window');
+  // firstHitMs (sweep anchor)
+  counter.reset('smoke-fh');
+  const first = counter.recordHit('smoke-fh', 5_000).firstHitMs;
+  expectEq(first, 5_000, '1st hit → firstHitMs = current ts');
+  const later = counter.recordHit('smoke-fh', 8_000).firstHitMs;
+  expectEq(later, 5_000, 'subsequent hit → firstHitMs sticks to oldest');
+
+  // Tier window pruning (60s) — firstHitMs in 15min window stays available
+  counter.reset('smoke-tw');
+  counter.recordHit('smoke-tw', 1_000);
+  const afterTier = 1_000 + counter.WINDOW_MS_FOR_TESTING + 30_000;
+  const r = counter.recordHit('smoke-tw', afterTier);
+  expectEq(r.count, 1, '60s tier window pruned old hit from count');
+  expectEq(r.firstHitMs, 1_000, '15min sweep window kept oldest hit as anchor');
+
+  // Sweep window pruning (15min) — old hit fully drops
+  counter.reset('smoke-sw');
+  counter.recordHit('smoke-sw', 1_000);
+  const afterSweep = 1_000 + counter.SWEEP_WINDOW_MS_FOR_TESTING + 1;
+  expectEq(counter.getCount('smoke-sw', afterSweep), 0, 'hit pruned after 15min sweep window');
 
   // Per-user isolation
   counter.reset();
