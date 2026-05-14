@@ -676,10 +676,15 @@ async function smokeLlmRouter(): Promise<void> {
   expectEq(routes['aki-filter'][0]?.provider, 'groq', 'aki-filter[0] = groq');
   expectEq(
     routes['aki-filter'][0]?.model,
-    'llama-3.1-8b-instant',
-    'aki-filter[0] model = 8B-instant',
+    'llama-3.3-70b-versatile',
+    'aki-filter[0] = 70B (quality classification, fix for 8B misclassifying VN)',
   );
-  expectEq(routes['aki-nudge'][0]?.model, 'llama-3.1-8b-instant', 'aki-nudge[0] = 8B');
+  expectEq(
+    routes['aki-filter'][1]?.model,
+    'llama-3.1-8b-instant',
+    'aki-filter[1] = 8B (fast fallback when 70B exhausted)',
+  );
+  expectEq(routes['aki-nudge'][0]?.model, 'llama-3.1-8b-instant', 'aki-nudge[0] = 8B (short text)');
   expectEq(routes.narration[0]?.provider, 'groq', 'narration[0] = groq');
   expectEq(routes.narration[0]?.model, 'llama-3.3-70b-versatile', 'narration[0] = 70B-versatile');
 

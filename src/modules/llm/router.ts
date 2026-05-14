@@ -37,15 +37,20 @@ interface Route {
 }
 
 const TASK_ROUTES: Record<TaskId, readonly Route[]> = {
-  // Filter is the hottest path. Groq 8B 14.4K RPD covers the steady
-  // state; Gemini Flash Lite (highest Gemini free RPD at 500) is the
-  // primary fallback; 2.5/3 Flash backstop when both are throttled.
+  // Filter primary = 70B for classification nuance — 8B was misclassifying
+  // borderline VN questions ("Aki ở đâu?") as trash and improvising
+  // incoherent sass. 70B Versatile has 1K RPD on Groq free which still
+  // covers ~10 daily-maxed users at the 100/user/day quota. 8B falls
+  // through as a "fast path" if 70B is exhausted, then Gemini chain.
   'aki-filter': [
+    { provider: 'groq', model: 'llama-3.3-70b-versatile' },
     { provider: 'groq', model: 'llama-3.1-8b-instant' },
     { provider: 'gemini', model: 'gemini-2.0-flash' },
     { provider: 'gemini', model: 'gemini-2.5-flash' },
     { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
   ],
+  // Nudge is short, simple "kiềm chế lời" reminders — 8B is fine here
+  // (no nuanced classification, just persona-flavored text).
   'aki-nudge': [
     { provider: 'groq', model: 'llama-3.1-8b-instant' },
     { provider: 'gemini', model: 'gemini-2.0-flash' },

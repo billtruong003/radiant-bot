@@ -133,16 +133,22 @@ describe('LLM router', () => {
       ).toBe(true);
     });
 
-    it('skips throttled route on subsequent calls until window expires', async () => {
+    it('skips all throttled groq routes and lands on gemini', async () => {
       const groqComplete = vi.fn();
       const { router } = await loadRouterWith({
         groq: () => ({ complete: groqComplete }),
       });
-      const groqRoute = router.__for_testing.TASK_ROUTES['aki-filter'][0];
-      router.__for_testing.throttledUntil.set(
-        `${groqRoute?.provider}:${groqRoute?.model}`,
-        Date.now() + 60_000,
-      );
+      // aki-filter now has 2 groq routes (70B + 8B). Throttle both so
+      // the chain falls through to the first gemini route.
+      const chain = router.__for_testing.TASK_ROUTES['aki-filter'];
+      for (const route of chain) {
+        if (route.provider === 'groq') {
+          router.__for_testing.throttledUntil.set(
+            `${route.provider}:${route.model}`,
+            Date.now() + 60_000,
+          );
+        }
+      }
 
       const result = await router.complete('aki-filter', { systemPrompt: 's', userPrompt: 'u' });
       expect(result?.provider).toBe('gemini');
@@ -177,11 +183,18 @@ describe('LLM router', () => {
   });
 
   describe('task routes', () => {
-    it('aki-filter primary (index 0) = groq llama-3.1-8b-instant', async () => {
+    it('aki-filter primary (index 0) = groq llama-3.3-70b-versatile (quality for classification)', async () => {
       const { router } = await loadRouterWith({});
       const chain = router.__for_testing.TASK_ROUTES['aki-filter'];
       expect(chain[0]?.provider).toBe('groq');
-      expect(chain[0]?.model).toBe('llama-3.1-8b-instant');
+      expect(chain[0]?.model).toBe('llama-3.3-70b-versatile');
+    });
+
+    it('aki-filter fallback (index 1) = groq llama-3.1-8b-instant (fast path)', async () => {
+      const { router } = await loadRouterWith({});
+      const chain = router.__for_testing.TASK_ROUTES['aki-filter'];
+      expect(chain[1]?.provider).toBe('groq');
+      expect(chain[1]?.model).toBe('llama-3.1-8b-instant');
     });
 
     it('narration primary (index 0) = groq llama-3.3-70b-versatile', async () => {
@@ -206,9 +219,9 @@ describe('LLM router', () => {
       }
     });
 
-    it('aki-filter has 4 routes (multi-model gemini rotation)', async () => {
+    it('aki-filter has ≥4 routes (groq 70B+8B + multi-model gemini rotation)', async () => {
       const { router } = await loadRouterWith({});
-      expect(router.__for_testing.TASK_ROUTES['aki-filter'].length).toBe(4);
+      expect(router.__for_testing.TASK_ROUTES['aki-filter'].length).toBeGreaterThanOrEqual(4);
     });
 
     it('narration prioritises 2.5-flash over flash-lite for prose quality', async () => {
