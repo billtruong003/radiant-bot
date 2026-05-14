@@ -4,8 +4,8 @@
 > Status: `todo` | `in_progress` | `blocked` | `done`
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
-**Last updated:** 2026-05-13
-**Current phase:** `Launch-ready` (Phase 8 code+docs complete; manual VM provision is the gate)
+**Last updated:** 2026-05-14
+**Current phase:** `Phase 11 1B` (1A foundation done + live sync applied; 1B verify-thread + first-msg react next)
 
 ---
 
@@ -669,6 +669,135 @@ code for users (anti-spam policy).
 - Daily budget cap ($2/day default OK?)
 - Per-user limits (5/min, 50/day OK?)
 - Channel scoping (all channels, or `#bot-commands` + `#help-me` only?)
+
+---
+
+## Phase 11 — Verify hardening + UX richness + LLM provider abstraction
+
+**Status:** `1A done`, `1B in_progress`, `2 designed`
+**Estimated complexity:** L (3 sessions)
+**Goal:** Address verify pain points (re-join captcha replay, DM-blocked
+button-spam in public, 5-min timeout too tight), introduce a free-tier
+LLM provider with per-task routing (Groq + Gemini fallback), decorate
+channels with icons, and lay the groundwork for cultivation-themed
+Gemini narration (Thiên Đạo punishment + level-up prose).
+
+### Commit 1A — Foundation + LLM infra (DONE 2026-05-14, `34703a3`)
+
+8 features in one commit. Tests: 290 unit + 104 smoke, all green.
+
+- [x] **LLM provider infrastructure** — `src/modules/llm/`
+    - `types.ts` (LlmProvider interface + errors)
+    - `providers/groq.ts` (OpenAI-compat via `openai` SDK)
+    - `providers/gemini.ts` (fetch adapter, extracted from filter.ts)
+    - `router.ts` (per-task routes + 429 throttle + fallback chain)
+    - `index.ts` (single seam `llm.complete(task, input)`)
+    - Task routes: filter+nudge → `llama-3.1-8b-instant` (14.4K RPD),
+      narration → `llama-3.3-70b-versatile` (1K RPD), fallback → Gemini Flash
+- [x] **Filter migrated** to `llm.complete('aki-filter')`. Fail-open
+      preserved (Bill's UX-first call).
+- [x] **A1 · Re-join skip** — `guildMemberAdd` checks `store.users` for
+      `verified_at !== null`. Restores Phàm Nhân + current rank role,
+      skips captcha, posts "Đệ tử quay về" embed.
+- [x] **A3 · 2-day verify timeout** — `captchaTimeoutMs: 300000 → 172800000`.
+- [x] **A4 · "Chỉ thấy verify"** — `public_read` + `public_full` presets
+      now deny `UNVERIFIED: READ`. Fresh joins see only #verify until pass.
+- [x] **A7 · /ask context** — sends username + nickname + last 5 channel
+      messages to Grok via `AskAkiInput`. `collectRecentContext()` in
+      `commands/ask.ts` (best-effort; failures drop context silently).
+- [x] **B4 · Sub-title prompt on Trúc Cơ promotion** — DM with 4
+      sub-title options when level reaches Trúc Cơ (lvl 10). One-shot
+      (skips if `user.sub_title` already set).
+- [x] **A5 · Channel rename with icons** — all 33 channels renamed
+      (`💬-general-💬`, `🔒-verify-🔒`, voice `🎯 Focus Room 🎯`, etc).
+      `canonicalChannelName()` + `matchesChannelName()` helpers in
+      `config/channels.ts` so lookups stay slug-based. `isNoXpChannel()`
+      + `isWorkingVoiceChannel()` replace raw `Set.has()`. sync-server
+      auto-renames on canonical-match drift detection.
+- [x] **Bot-log audit reasons** (Phase 11 carry-over from Phase 10
+      bugfix): kick log post now includes audit_reasons array, so a
+      kick says "lý do: audit — `account age 0.13d < 1d threshold`"
+      instead of just "lý do: audit".
+- [x] **Auto-kick disabled** by default (`accountAgeKickDays: 0`).
+      Every new account goes through captcha; no implicit kicks.
+- [x] **Smoke-test + unit tests** — `npm run smoke-test` (104 checks),
+      `tests/llm/router.test.ts` (11 tests), `tests/config/channels.test.ts`
+      (23 tests). `tests/aki/filter.test.ts` rewritten for new arch.
+
+**Live sync verified:** 2026-05-14, 33 channels renamed in-place,
+sync-server output `channelsCreated: 1 · channelsUpdated: 33`.
+
+### Commit 1B — Verify thread + auto-react (next)
+
+- [ ] **A2 · Per-user verify thread on DM blocked** — when DM fails,
+      create a public thread `verify-<username>` in `#verify`, post
+      the challenge button inside. Replaces public-channel button
+      so multiple pending users don't see each other's buttons.
+- [ ] **B1 · Verify thread cleanup cron** — sweep archived
+      verify-named threads older than 24h, delete them.
+- [ ] **B3 · First-message auto-react** — after verification pass,
+      first message a user sends in `#general` gets a `🌟` from Aki +
+      a "Tân đệ tử nhập môn ٩(◕‿◕)۶" reply. One-shot per user;
+      tracked via a new flag on User entity.
+
+### Commit 2 — Gemini narration (designed)
+
+- [ ] **A6 · Graduated profanity rate-limiter** — count profanity hits
+      per user in 60s window. 1-4 → Aki nudge (gentle), 5-14 → Aki
+      nudge (stronger), 15+ → delete + warn (current behavior). Even
+      tông chủ gets nudged — but with `respectful_tone: true` flag
+      → sweeter prompt to Aki/Gemini ("Tông Chủ ơi đệ tử mạn phép
+      nhắc...").
+- [ ] **A6b · Thiên Đạo punishment narration** — when an automod
+      action lands (delete/timeout/kick), post a cultivation-themed
+      announce in #bot-log: "Thiên Đạo đã giáng thiên kiếp khiến
+      ABC...". Uses `narration` task (Llama 3.3 70B).
+- [ ] **A8 · Level-up cultivation narration** — replace the current
+      static "X đã đột phá lên Trúc Cơ" with Gemini/Groq prose: "A
+      đã tiến đến Trúc Cơ kỳ, vạn người kính ngưỡng…". Falls back
+      to static text on LLM error (graceful degradation).
+
+### Backlog (Phase 11+ future)
+
+- B2 · `#audit-log` consolidation channel for staff
+- B5 · `/stats` admin dashboard
+- B6 · Verify re-attempt cooldown (kicked → can't rejoin 1h)
+- B7 · Aki memory per user (last N /ask retrieved into prompt)
+- Channel role-tier visibility (Inner Sect, Core Disciples, Elders) —
+  deferred, would need new presets + UX design
+
+### Decision log (Phase 11)
+
+- **2026-05-14** (P11): **LLM provider abstraction** chosen over
+  hardcoded-Gemini-everywhere. Reason: Bill's Gemini free tier
+  rate-limit pain (15 RPM) → adding Groq with 30 RPM + 14.4K RPD
+  for 8B = 70× headroom for filter traffic. Single seam keeps
+  feature code clean even if we swap providers again.
+- **2026-05-14** (P11): **Multi-key rotation deferred.** Single Groq
+  key has 30 RPM × 14.4K RPD = plenty for a small server's filter
+  + nudge + narration workload. Multi-key adds TOS risk (Google /
+  Groq say one account per person) for negligible gain at current
+  scale. Revisit if traffic grows past 10× current estimate.
+- **2026-05-14** (P11): **Fail-open filter, NOT fail-closed.** UX
+  priority — rejecting legit users during a 30s LLM outage is
+  worse than burning Grok tokens on those calls. Cost is bounded
+  by existing per-user quota (100/day) + server daily budget ($2/day)
+  so a filter outage at worst lets through one user's daily quota.
+- **2026-05-14** (P11): **Channel icons on both sides** (`💬-general-💬`)
+  per Bill's "1 icon trước và 1 icon sau" instruction. Adds visual
+  weight in the channel list. Required `canonicalChannelName()` helper
+  for all lookup sites that compare by canonical slug (`general`)
+  not display name.
+- **2026-05-14** (P11): **`accountAgeKickDays: 0` (auto-kick off).**
+  Original `1` (24h) was too aggressive — caught legit new Discord
+  users like azurajoan1996 (account <3h old, kicked 4× as they
+  rejoined). Captcha gate is sufficient barrier. Schema accepts
+  `nonnegative()` so 0 explicitly disables; audit.ts treats 0 as
+  "skip kick path".
+- **2026-05-14** (P11): **Sub-title prompt only on Trúc Cơ promotion**,
+  not every level. Promotion (level 10) is the canonical "you're not
+  a tutorial player anymore" moment in the cultivation theme. Earlier
+  prompts would feel premature; later prompts would be too late.
 
 ---
 

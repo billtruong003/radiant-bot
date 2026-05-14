@@ -42,6 +42,13 @@ export interface User extends Record<string, unknown> {
   daily_streak: number;
   is_suspect: boolean;
   notes: string | null;
+  /**
+   * Phase 11 B3: timestamp when Aki posted the first-message welcome
+   * react (🌟 + "Tân đệ tử nhập môn"). null = greeting not yet sent;
+   * non-null = already greeted, one-shot done. Optional for back-compat
+   * with users persisted before this field existed.
+   */
+  first_message_greeted_at?: number | null;
 }
 
 export interface XpLog extends Record<string, unknown> {
@@ -67,6 +74,13 @@ export interface Verification extends Record<string, unknown> {
   attempts: number;
   started_at: number;
   status: 'pending' | 'passed' | 'failed' | 'timeout';
+  /**
+   * Phase 11 A2: per-user verify thread ID (when DM was blocked and we
+   * fell back to a thread in #verify). Null = either DM succeeded OR
+   * verification predates the feature. Lets cleanup cron delete the
+   * thread on pass/fail/timeout.
+   */
+  fallback_thread_id?: string | null;
 }
 
 export interface AutomodLog extends Record<string, unknown> {

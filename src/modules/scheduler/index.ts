@@ -4,7 +4,7 @@ import { env } from '../../config/env.js';
 import { loadVerificationConfig } from '../../config/verification.js';
 import { logger } from '../../utils/logger.js';
 import { runVoiceTick } from '../leveling/voice-xp.js';
-import { cleanupExpiredVerifications } from '../verification/flow.js';
+import { cleanupExpiredVerifications, cleanupStaleVerifyThreads } from '../verification/flow.js';
 import { maybeAutoDisableRaid } from '../verification/raid.js';
 import { backupToGitHub } from './backup.js';
 import { maybeRunRandomTribulation } from './tribulation-trigger.js';
@@ -106,6 +106,16 @@ export function startScheduler(client: Client): void {
     { timezone: VN_TZ },
   );
   tasks.push(tribulationCron);
+
+  // Hourly — sweep stale verify-* threads from #verify (Phase 11 B1).
+  const threadCleanup = cron.schedule('0 * * * *', () => {
+    const guild = client.guilds.cache.get(env.DISCORD_GUILD_ID);
+    if (!guild) return;
+    cleanupStaleVerifyThreads(guild).catch((err) => {
+      logger.error({ err }, 'scheduler: verify-thread cleanup failed');
+    });
+  });
+  tasks.push(threadCleanup);
 
   logger.info(
     { jobs: tasks.length, tz: VN_TZ },

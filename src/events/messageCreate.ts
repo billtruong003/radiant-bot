@@ -1,9 +1,11 @@
 import { type Client, Events, type GuildMember, type Message } from 'discord.js';
-import { isNoXpChannel } from '../config/channels.js';
+import { canonicalChannelName, isNoXpChannel } from '../config/channels.js';
 import { env } from '../config/env.js';
 import { MESSAGE_XP_MAX, MESSAGE_XP_MIN } from '../config/leveling.js';
 import { STAFF_ROLE_NAMES } from '../config/roles.js';
+import { ICONS } from '../config/ui.js';
 import { loadVerificationConfig } from '../config/verification.js';
+import { getStore } from '../db/index.js';
 import { applyDecision, automodEngine } from '../modules/automod/index.js';
 import { messageXpCooldown } from '../modules/leveling/cooldown.js';
 import { isXpEligibleMessage } from '../modules/leveling/eligibility.js';
@@ -64,6 +66,47 @@ async function handleDirectMessage(message: Message): Promise<void> {
   }
 }
 
+/**
+ * Phase 11 B3: one-shot "tân đệ tử nhập môn" greeting on a verified
+ * member's first message in #general. Adds a 🌟 react + a short
+ * reply. Tracked via `user.first_message_greeted_at` so it fires
+ * exactly once per user lifetime.
+ *
+ * Triggers:
+ *   - User must be verified (verified_at !== null)
+ *   - Message must be in the #general channel
+ *   - first_message_greeted_at must be null
+ *
+ * Best-effort: failures are swallowed so XP earning isn't blocked.
+ */
+async function maybeGreetFirstMessage(message: Message): Promise<void> {
+  if (!message.inGuild()) return;
+  if (canonicalChannelName(message.channel.name) !== 'general') return;
+  const user = getStore().users.get(message.author.id);
+  if (!user || user.verified_at === null) return;
+  if (user.first_message_greeted_at != null) return;
+
+  // Mark first so concurrent messages can't double-greet.
+  await getStore().users.set({ ...user, first_message_greeted_at: Date.now() });
+
+  try {
+    await message.react('🌟');
+  } catch {
+    // Reaction can fail if message was deleted between read + react.
+  }
+  try {
+    await message.reply({
+      content: `${ICONS.sparkle} Tân đệ tử nhập môn ٩(◕‿◕)۶ Aki chào ${message.member?.displayName ?? message.author.username} ở **#general** — chúc tu hành thuận lợi.`,
+      allowedMentions: { repliedUser: false },
+    });
+  } catch (err) {
+    logger.warn(
+      { err, discord_id: message.author.id },
+      'first-message-greet: reply failed (continuing)',
+    );
+  }
+}
+
 async function handleGuildMessage(message: Message): Promise<void> {
   if (!message.inGuild()) return; // narrows channel to GuildBasedChannel
   if (message.author.bot) return;
@@ -78,6 +121,10 @@ async function handleGuildMessage(message: Message): Promise<void> {
       return; // violating message earns no XP
     }
   }
+
+  // Phase 11 B3 (independent of XP path — fires even on no-XP channels
+  // but the inner check restricts to #general).
+  void maybeGreetFirstMessage(message);
 
   if (isNoXpChannel(message.channel.name)) return;
   if (!isXpEligibleMessage(message.content)) return;

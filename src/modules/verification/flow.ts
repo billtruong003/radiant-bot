@@ -1,8 +1,10 @@
 import {
   ActionRowBuilder,
+  type AnyThreadChannel,
   ButtonBuilder,
   type ButtonInteraction,
   ButtonStyle,
+  ChannelType,
   type Guild,
   type GuildMember,
   ModalBuilder,
@@ -11,6 +13,7 @@ import {
   type TextChannel,
   TextInputBuilder,
   TextInputStyle,
+  ThreadAutoArchiveDuration,
 } from 'discord.js';
 import { ulid } from 'ulid';
 import { ANNOUNCEMENT_CHANNELS, matchesChannelName } from '../../config/channels.js';
@@ -318,6 +321,30 @@ async function sendChallengeDm(
   }
 }
 
+/**
+ * Sanitise a username into a Discord-thread-safe name fragment.
+ * Strips non-alphanumeric, lower-cases, truncates so the full thread
+ * name stays under Discord's 100-char limit.
+ */
+function threadNameFor(member: GuildMember): string {
+  const slug = (member.user.username || member.user.tag || member.id)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50);
+  return `verify-${slug || member.id.slice(-6)}`;
+}
+
+/**
+ * Phase 11 A2: DM blocked → open a per-user thread inside #verify and
+ * post the start button there. Replaces the previous "public button
+ * in #verify channel" pattern so multiple pending users no longer see
+ * each other's verification UI.
+ *
+ * Thread auto-archives after 24h; the cleanup cron (B1) sweeps stale
+ * threads. The thread id is persisted on the Verification record so
+ * pass/fail/timeout can delete it.
+ */
 async function postFallbackButton(
   member: GuildMember,
   auditDecision: AuditResult['decision'],
@@ -330,28 +357,101 @@ async function postFallbackButton(
     );
     return;
   }
+
   const button = new ButtonBuilder()
     .setCustomId(BUTTON_ID_START)
     .setLabel('🔓 Bắt đầu xác minh')
     .setStyle(ButtonStyle.Primary);
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
+  const introContent = [
+    `${member} ✨ chào tân đạo hữu!`,
+    '',
+    'Aki gửi DM nhưng đạo hữu đang **chặn tin nhắn riêng** — không sao.',
+    'Bấm nút dưới để xác minh ngay trong thread riêng này nhé. *(◕‿◕)*',
+    '',
+    '_Thread này chỉ đạo hữu + staff thấy. Hoàn thành xong thread sẽ tự đóng._',
+  ].join('\n');
+
+  let thread: AnyThreadChannel | null = null;
   try {
+    thread = await channel.threads.create({
+      name: threadNameFor(member),
+      autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
+      type: ChannelType.PublicThread,
+      reason: 'verify: DM-blocked fallback thread',
+    });
+  } catch (err) {
+    logger.warn(
+      { err, discord_id: member.id },
+      'verify: thread create failed, falling back to channel post',
+    );
+  }
+
+  // Persist thread id (or null) on the Verification record so cleanup
+  // + pass-path delete know where to look.
+  const existing = getStore().verifications.get(member.id);
+  if (existing) {
+    await getStore().verifications.set({
+      ...existing,
+      fallback_thread_id: thread?.id ?? null,
+    });
+  }
+
+  try {
+    if (thread) {
+      await thread.send({
+        content: introContent,
+        components: [row],
+        allowedMentions: { users: [member.id] },
+      });
+      logger.info(
+        { discord_id: member.id, thread_id: thread.id, audit: auditDecision },
+        'verify: fallback thread created + button posted',
+      );
+      return;
+    }
+    // Thread create failed → legacy channel post path. Still safer
+    // than dropping the verification for users whose DM is blocked.
     await channel.send({
-      content: [
-        `${member} ✨ chào tân đạo hữu!`,
-        '',
-        'Aki gửi DM nhưng bạn đang **chặn tin nhắn riêng** — không sao.',
-        'Bấm nút dưới để xác minh ngay tại đây nhé. *(◕‿◕)*',
-      ].join('\n'),
+      content: introContent,
       components: [row],
       allowedMentions: { users: [member.id] },
     });
     logger.info(
       { discord_id: member.id, audit: auditDecision },
-      'verify: fallback button posted in #verify',
+      'verify: fallback button posted in channel (thread create failed)',
     );
   } catch (err) {
     logger.error({ err, discord_id: member.id }, 'verify: failed to post fallback button');
+  }
+}
+
+/**
+ * Best-effort delete the per-user verify thread (if any). Called from
+ * pass / fail-kick / timeout paths. Idempotent — silent skip when the
+ * verification record has no thread id, or the thread is already gone.
+ */
+async function deleteFallbackThread(
+  guild: Guild,
+  verification: Verification,
+  reason: string,
+): Promise<void> {
+  const threadId = verification.fallback_thread_id;
+  if (!threadId) return;
+  try {
+    const thread = await guild.channels.fetch(threadId);
+    if (thread?.isThread()) {
+      await thread.delete(reason);
+      logger.info(
+        { discord_id: verification.discord_id, thread_id: threadId, reason },
+        'verify: fallback thread deleted',
+      );
+    }
+  } catch (err) {
+    logger.warn(
+      { err, discord_id: verification.discord_id, thread_id: threadId },
+      'verify: fallback thread delete failed (may already be gone)',
+    );
   }
 }
 
@@ -412,6 +512,8 @@ async function passVerification(
     ...verification,
     status: 'passed',
   });
+  // A2 cleanup: drop the fallback thread if one was opened.
+  void deleteFallbackThread(member.guild, verification, 'verify passed');
   const ok = await grantVerifiedRoles(member, 'verification passed');
   if (ok) {
     logger.info(
@@ -459,6 +561,7 @@ async function failAttempt(
       attempts: nextAttempts,
       status: 'failed',
     });
+    void deleteFallbackThread(member.guild, verification, 'verify failed (max attempts)');
     await kickWithReason(member, 'failed', { attempts: nextAttempts });
     return { outcome: 'fail-kick', attemptsLeft: 0 };
   }
@@ -629,6 +732,7 @@ export async function cleanupExpiredVerifications(
   let kicked = 0;
   for (const v of stale) {
     await getStore().verifications.set({ ...v, status: 'timeout' });
+    void deleteFallbackThread(guild, v, 'verify timeout');
     const member = await guild.members.fetch(v.discord_id).catch(() => null);
     if (member) {
       await kickWithReason(member, 'timeout', {
@@ -641,4 +745,49 @@ export async function cleanupExpiredVerifications(
     logger.info({ expired: stale.length, kicked }, 'verify: expired pending verifications swept');
   }
   return { expired: stale.length, kicked };
+}
+
+/**
+ * Phase 11 B1: sweep archived "verify-*" threads in #verify older than
+ * `staleMs`. These accumulate when verifications complete (pass / fail /
+ * timeout) but the thread delete races / fails. Called from the same
+ * scheduler cron as `cleanupExpiredVerifications`.
+ *
+ * Safe: only targets threads whose name starts with the "verify-" prefix
+ * set by `threadNameFor`. Active threads (recent activity) are skipped.
+ */
+export async function cleanupStaleVerifyThreads(
+  guild: Guild,
+  staleMs: number = 24 * 60 * 60 * 1000,
+  now: number = Date.now(),
+): Promise<{ swept: number }> {
+  const channel = guild.channels.cache.find(
+    (c) => matchesChannelName(c, ANNOUNCEMENT_CHANNELS.verification) && c.isTextBased(),
+  ) as TextChannel | undefined;
+  if (!channel) return { swept: 0 };
+
+  let swept = 0;
+  const active = await channel.threads.fetchActive().catch(() => null);
+  const archived = await channel.threads.fetchArchived({ limit: 100 }).catch(() => null);
+
+  const candidates = [...(active?.threads.values() ?? []), ...(archived?.threads.values() ?? [])];
+
+  for (const thread of candidates) {
+    if (!thread.name.startsWith('verify-')) continue;
+    const lastActivity = thread.archiveTimestamp ?? thread.createdTimestamp ?? 0;
+    if (now - lastActivity < staleMs) continue;
+    try {
+      await thread.delete('verify thread cleanup (stale > 24h)');
+      swept++;
+    } catch (err) {
+      logger.warn(
+        { err, thread_id: thread.id, name: thread.name },
+        'verify-thread-cleanup: delete failed',
+      );
+    }
+  }
+  if (swept > 0) {
+    logger.info({ swept }, 'verify-thread-cleanup: stale threads swept');
+  }
+  return { swept };
 }
