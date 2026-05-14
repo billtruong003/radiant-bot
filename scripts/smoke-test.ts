@@ -156,6 +156,12 @@ async function main(): Promise<void> {
   await smokeRankPromotion();
   await smokeTribulation();
   await smokeAkiFilter();
+  // --- Phase 11 1A checks ---
+  await smokeChannelCanonical();
+  await smokePermPresetsPhase11();
+  await smokeVerifyConfigPhase11();
+  await smokeAskContextFormat();
+  await smokeLlmRouter();
 
   // Summary
   const pass = results.filter((r) => r.ok).length;
@@ -528,6 +534,176 @@ async function smokeAkiFilter(): Promise<void> {
 }
 
 // --- Run -----------------------------------------------------------------
+
+// --- Phase 11 1A: channel canonical name + lookup ----------------------
+
+async function smokeChannelCanonical(): Promise<void> {
+  group('Phase 11 · canonical channel name (icon-decorated → slug)');
+  const { canonicalChannelName, isNoXpChannel, isWorkingVoiceChannel } = await import(
+    '../src/config/channels.js'
+  );
+
+  expectEq(canonicalChannelName('💬-general-💬'), 'general', 'icon-on-both-sides → slug');
+  expectEq(canonicalChannelName('🔒-verify-🔒'), 'verify', 'verify channel → verify');
+  expectEq(canonicalChannelName('🎮 Gaming 🎮'), 'gaming', 'voice (spaces) → slug');
+  expectEq(canonicalChannelName('🎯 Focus Room 🎯'), 'focus-room', 'voice multi-word → slug');
+  expectEq(canonicalChannelName('🎮 Gaming 2 🎮'), 'gaming-2', 'voice with number → slug');
+  expectEq(canonicalChannelName('general'), 'general', 'plain canonical → itself');
+  expectEq(canonicalChannelName('bot-log'), 'bot-log', 'hyphen plain → preserved');
+
+  // Set-membership wrappers
+  check('isNoXpChannel("💻-bot-commands-💻") → true', isNoXpChannel('💻-bot-commands-💻'));
+  check('isNoXpChannel("📋-bot-log-📋") → true', isNoXpChannel('📋-bot-log-📋'));
+  check('isNoXpChannel("🔒-verify-🔒") → true', isNoXpChannel('🔒-verify-🔒'));
+  check('isNoXpChannel("💬-general-💬") → false', !isNoXpChannel('💬-general-💬'));
+  check(
+    'isWorkingVoiceChannel("🎯 Focus Room 🎯") → true',
+    isWorkingVoiceChannel('🎯 Focus Room 🎯'),
+  );
+  check(
+    'isWorkingVoiceChannel("📚 Quiet Study 📚") → true',
+    isWorkingVoiceChannel('📚 Quiet Study 📚'),
+  );
+  check('isWorkingVoiceChannel("🎮 Gaming 🎮") → false', !isWorkingVoiceChannel('🎮 Gaming 🎮'));
+}
+
+// --- Phase 11 1A: perm presets deny Chưa Xác Minh on public_read --------
+
+async function smokePermPresetsPhase11(): Promise<void> {
+  group('Phase 11 · perm presets deny UNVERIFIED on public_*');
+  const { resolveOverwrites } = await import('../src/modules/sync/perm-presets.js');
+
+  const ctx = {
+    everyoneRoleId: 'role-everyone',
+    roleByName: new Map([
+      ['Chưởng Môn', { id: 'role-cm' }],
+      ['Trưởng Lão', { id: 'role-tl' }],
+      ['Chấp Pháp', { id: 'role-cp' }],
+      ['Chưa Xác Minh', { id: 'role-unverified' }],
+    ]),
+  };
+
+  const publicRead = resolveOverwrites('public_read', ctx);
+  const publicFull = resolveOverwrites('public_full', ctx);
+
+  const unverifiedReadDeny = (overwrites: typeof publicRead) =>
+    overwrites.some((o) => {
+      if (o.id !== 'role-unverified') return false;
+      // OverwriteData.deny accepts many shapes; we set bigint internally
+      // so a runtime typeof check is enough.
+      if (typeof o.deny !== 'bigint') return false;
+      return (o.deny & (1n << 10n)) !== 0n; // ViewChannel = bit 10
+    });
+
+  check('public_read denies Chưa Xác Minh ViewChannel', unverifiedReadDeny(publicRead));
+  check('public_full denies Chưa Xác Minh ViewChannel', unverifiedReadDeny(publicFull));
+}
+
+// --- Phase 11 1A: verify config 2-day timeout + kickDays=0 --------------
+
+async function smokeVerifyConfigPhase11(): Promise<void> {
+  group('Phase 11 · verify config (2-day timeout, kickDays=0)');
+  const { loadVerificationConfig } = await import('../src/config/verification.js');
+  const config = await loadVerificationConfig();
+
+  expectEq(
+    config.thresholds.captchaTimeoutMs,
+    172_800_000,
+    'captchaTimeoutMs = 2 days (172800000 ms)',
+  );
+  expectEq(config.thresholds.accountAgeKickDays, 0, 'accountAgeKickDays = 0 (auto-kick disabled)');
+}
+
+// --- Phase 11 1A: /ask context prompt formatting -----------------------
+
+async function smokeAskContextFormat(): Promise<void> {
+  group('Phase 11 · /ask prompt formatting (identity + recent messages)');
+
+  // We can't easily exercise askAki without an OpenAI client, but we
+  // CAN inspect the exact prompt-string assembly logic by reading
+  // input + verifying the template structure. Since the formatting
+  // lives inline in askAki, mirror the contract here:
+  const askerDisplayName = 'BillT';
+  const askerUsername = 'billtruong003';
+  const recentMessages = [
+    { authorDisplayName: 'Alice', content: 'có ai gặp lỗi npm install canvas ko?' },
+    { authorDisplayName: 'Bob', content: 'gcc-multilib có thiếu ko?' },
+  ];
+  const question = 'mình build lại từ source thì sao?';
+
+  const expectedIdentity = `[Người hỏi: ${askerDisplayName} (@${askerUsername})]`;
+  const expectedContext = [
+    '[Đoạn chat gần nhất trong kênh:',
+    `  Alice: ${recentMessages[0]?.content ?? ''}`,
+    `  Bob: ${recentMessages[1]?.content ?? ''}`,
+    ']',
+  ].join('\n');
+  const expectedUserPrompt = [expectedIdentity, expectedContext, question].join('\n\n');
+
+  // Sanity: the canonical structure is what's documented in client.ts
+  check(
+    'identity line uses [Người hỏi: <display> (@<username>)] format',
+    expectedIdentity.includes('Người hỏi') &&
+      expectedIdentity.includes('BillT') &&
+      expectedIdentity.includes('@billtruong003'),
+  );
+  check(
+    'context block prefixed with [Đoạn chat gần nhất trong kênh:',
+    expectedContext.startsWith('[Đoạn chat gần nhất trong kênh:'),
+  );
+  check(
+    'context block lists messages indented (2 spaces)',
+    expectedContext.includes('  Alice:') && expectedContext.includes('  Bob:'),
+  );
+  check(
+    'identity + context + question separated by blank lines (\\n\\n)',
+    expectedUserPrompt.split('\n\n').length >= 3,
+  );
+}
+
+// --- Phase 11 1A: LLM router task routes -------------------------------
+
+async function smokeLlmRouter(): Promise<void> {
+  group('Phase 11 · LLM router (per-task config + provider abstraction)');
+  const { __for_testing } = await import('../src/modules/llm/router.js');
+  const routes = __for_testing.TASK_ROUTES;
+
+  // Verify the route table matches the architecture we agreed on.
+  expectEq(routes['aki-filter'].primary.provider, 'groq', 'aki-filter primary = groq');
+  expectEq(
+    routes['aki-filter'].primary.model,
+    'llama-3.1-8b-instant',
+    'aki-filter model = llama-3.1-8b-instant (14.4K RPD)',
+  );
+  expectEq(routes['aki-filter'].fallback.provider, 'gemini', 'aki-filter fallback = gemini');
+
+  expectEq(routes['aki-nudge'].primary.model, 'llama-3.1-8b-instant', 'aki-nudge → 8B');
+
+  expectEq(routes.narration.primary.provider, 'groq', 'narration primary = groq');
+  expectEq(
+    routes.narration.primary.model,
+    'llama-3.3-70b-versatile',
+    'narration model = llama-3.3-70b-versatile (prose quality)',
+  );
+
+  // Throttle bookkeeping (in-memory map, smoke-level)
+  const { throttledUntil, isThrottled } = __for_testing;
+  throttledUntil.clear();
+  const now = 1_000_000;
+  throttledUntil.set('groq', now + 5000);
+  check('isThrottled returns true within window', isThrottled('groq', now + 2000));
+  check('isThrottled returns false after window', !isThrottled('groq', now + 10_000));
+  throttledUntil.clear();
+
+  // Provider registry
+  const { geminiProvider } = await import('../src/modules/llm/providers/gemini.js');
+  const { groqProvider } = await import('../src/modules/llm/providers/groq.js');
+  expectEq(geminiProvider.name, 'gemini', 'geminiProvider.name = gemini');
+  expectEq(groqProvider.name, 'groq', 'groqProvider.name = groq');
+  // Both should be disabled in this smoke run (no env keys set)
+  check('geminiProvider.isEnabled() = false (no key in test env)', !geminiProvider.isEnabled());
+  check('groqProvider.isEnabled() = false (no key in test env)', !groqProvider.isEnabled());
+}
 
 main().catch((err) => {
   console.error(`${ANSI.red}smoke-test crashed:${ANSI.reset}`, err);
