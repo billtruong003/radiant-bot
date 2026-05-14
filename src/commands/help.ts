@@ -91,6 +91,11 @@ const SECTIONS: ReadonlyArray<{
         staff: true,
       },
       {
+        name: '/thien-dao target:@user crime:<text>',
+        desc: 'Triệu hồi Thiên Đạo xử phạt đệ tử (CHỈ Chưởng Môn — Aki/LLM tự chọn hình phạt)',
+        staff: true,
+      },
+      {
         name: '/contribute-doc <title> <body> [section?]',
         desc: 'Submit document contribution — Aki tự duyệt + tag (Lát 9)',
       },

@@ -189,6 +189,8 @@ async function main(): Promise<void> {
   // --- Phase 12.3 — aura + elder lounge voice ---
   await smokeAura();
   await smokeElderLoungeVoice();
+  // --- Phase 12.4 — Áp Chế Thiên Đạo ---
+  await smokeDivineJudgment();
 
   // Summary
   const pass = results.filter((r) => r.ok).length;
@@ -1613,6 +1615,96 @@ async function smokeElderLoungeVoice(): Promise<void> {
         expectEq(ch.perm, 'admin_only', 'elder-lounge voice uses admin_only preset');
       }
     }
+  }
+}
+
+// --- Phase 12.4 — Áp Chế Thiên Đạo --------------------------------------
+
+async function smokeDivineJudgment(): Promise<void> {
+  group('Phase 12.4 · Áp Chế Thiên Đạo (admin punishment via LLM judge)');
+  const { __for_testing } = await import('../src/modules/admin/divine-judgment.js');
+  const { parseLlmJson, previousRank, clamp } = __for_testing;
+
+  // Happy path JSON parse.
+  const happy = parseLlmJson(
+    JSON.stringify({
+      verdict: 'Thiên đạo phong ấn vong ngôn của đệ tử.',
+      punishments: [
+        { id: 'xp_deduct', severity: 500 },
+        { id: 'public_shame', severity: 1 },
+      ],
+    }),
+  );
+  check('divine: parse happy path', happy !== null && happy.punishments.length === 2);
+  expectEq(happy?.punishments[0]?.id, 'xp_deduct', 'first punishment id');
+  expectEq(happy?.punishments[0]?.severity, 500, 'first punishment severity');
+
+  // Markdown fence + <think> stripping.
+  check(
+    'divine: strips markdown fence',
+    parseLlmJson(
+      '```json\n{"verdict":"v","punishments":[{"id":"public_shame","severity":1}]}\n```',
+    ) !== null,
+  );
+  check(
+    'divine: strips <think> reasoning leak',
+    parseLlmJson(
+      '<think>thinking...</think>\n{"verdict":"X","punishments":[{"id":"pill_confiscate","severity":2}]}',
+    )?.verdict === 'X',
+  );
+
+  // Malformed entries dropped, valid kept.
+  const mixed = parseLlmJson(
+    JSON.stringify({
+      verdict: 'v',
+      punishments: [
+        { id: 'xp_deduct', severity: 100 },
+        { id: 123, severity: 100 },
+        { severity: 100 },
+        { id: 'pill_confiscate', severity: 'high' },
+        { id: 'public_shame', severity: 1 },
+      ],
+    }),
+  );
+  expectEq(mixed?.punishments.length, 2, 'malformed entries filtered, 2 valid kept');
+
+  // Broken JSON returns null.
+  expectEq(parseLlmJson('not json'), null, 'broken JSON → null');
+  expectEq(parseLlmJson(JSON.stringify({ verdict: 'v' })), null, 'missing punishments → null');
+
+  // previousRank chain.
+  expectEq(previousRank('luyen_khi'), 'pham_nhan', 'demote Luyện Khí → Phàm Nhân');
+  expectEq(previousRank('do_kiep'), 'dai_thua', 'demote Độ Kiếp → Đại Thừa');
+  expectEq(previousRank('pham_nhan'), null, 'Phàm Nhân has no previous (floor)');
+  expectEq(previousRank('tien_nhan'), null, 'Tiên Nhân has no auto-demote (admin grant)');
+
+  // clamp helper.
+  expectEq(clamp(50, 0, 100), 50, 'clamp inside range');
+  expectEq(clamp(-5, 0, 100), 0, 'clamp below → lo');
+  expectEq(clamp(999, 0, 100), 100, 'clamp above → hi');
+  expectEq(clamp(50.7, 0, 100), 51, 'clamp rounds to integer');
+
+  // Verify punishment menu loads + has expected IDs.
+  const { loadPunishmentMenu, __resetMenuCacheForTesting } = await import(
+    '../src/config/divine-punishments.js'
+  );
+  __resetMenuCacheForTesting();
+  const menu = await loadPunishmentMenu();
+  check('menu loaded with ≥ 5 punishments', menu.punishments.length >= 5);
+  const ids = menu.punishments.map((p) => p.id);
+  check('menu has xp_deduct', ids.includes('xp_deduct'));
+  check('menu has rank_demote_one', ids.includes('rank_demote_one'));
+  check('menu has timeout_minutes', ids.includes('timeout_minutes'));
+  check('menu has public_shame', ids.includes('public_shame'));
+  check('menu has cong_phap_strip', ids.includes('cong_phap_strip'));
+  check(
+    'menu max_punishments_per_judgment > 0',
+    menu.max_punishments_per_judgment > 0 && menu.max_punishments_per_judgment <= 5,
+  );
+
+  // Severity range sanity — each entry's max ≥ min.
+  for (const p of menu.punishments) {
+    check(`menu: ${p.id} has valid range (min ≤ max)`, p.severity_min <= p.severity_max);
   }
 }
 

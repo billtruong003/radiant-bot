@@ -1,0 +1,55 @@
+{
+  "$schema": "divine-punishments-v1",
+  "punishments": [
+    {
+      "id": "xp_deduct",
+      "name": "Trừ XP",
+      "severity_min": 50,
+      "severity_max": 5000,
+      "description": "Trừ XP của đệ tử (sàn = cumulativeXpForLevel của level hiện tại, không demote)"
+    },
+    {
+      "id": "pill_confiscate",
+      "name": "Tịch thu đan dược",
+      "severity_min": 1,
+      "severity_max": 50,
+      "description": "Tịch thu N đan dược (sàn = 0)"
+    },
+    {
+      "id": "contribution_deduct",
+      "name": "Trừ điểm cống hiến",
+      "severity_min": 10,
+      "severity_max": 5000,
+      "description": "Trừ N điểm cống hiến (sàn = 0)"
+    },
+    {
+      "id": "rank_demote_one",
+      "name": "Giáng 1 cảnh giới",
+      "severity_min": 1,
+      "severity_max": 1,
+      "description": "Giảm 1 bậc cảnh giới (không dưới Phàm Nhân; Tiên Nhân là admin-grant nên skip)"
+    },
+    {
+      "id": "timeout_minutes",
+      "name": "Cấm khẩu N phút",
+      "severity_min": 5,
+      "severity_max": 1440,
+      "description": "Discord timeout N phút (max 24h = 1440 phút)"
+    },
+    {
+      "id": "cong_phap_strip",
+      "name": "Tước công pháp đang trang bị",
+      "severity_min": 1,
+      "severity_max": 1,
+      "description": "Gỡ công pháp đang trang bị (vẫn giữ trong inventory)"
+    },
+    {
+      "id": "public_shame",
+      "name": "Công khai xử phạt",
+      "severity_min": 1,
+      "severity_max": 1,
+      "description": "Chỉ post narration đến #bot-log, không có hình phạt thật"
+    }
+  ],
+  "max_punishments_per_judgment": 3
+}
