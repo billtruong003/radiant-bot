@@ -4,7 +4,8 @@ import { z } from 'zod';
 
 const verificationConfigSchema = z.object({
   thresholds: z.object({
-    accountAgeKickDays: z.number().int().positive(),
+    /** 0 = disable auto-kick; everyone goes through captcha. */
+    accountAgeKickDays: z.number().nonnegative(),
     accountAgeSuspectDays: z.number().int().positive(),
     captchaTimeoutMs: z.number().int().positive(),
     captchaMaxAttempts: z.number().int().positive(),

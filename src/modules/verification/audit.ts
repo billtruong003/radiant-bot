@@ -49,8 +49,9 @@ export function auditMember(
   const reasons: string[] = [];
   const ageDays = accountAgeDays(member, now);
 
-  // HARD fail: account too young → kick.
-  if (ageDays < config.thresholds.accountAgeKickDays) {
+  // HARD fail: account too young → kick. Threshold = 0 disables this
+  // path entirely (every account gets the captcha gate instead).
+  if (config.thresholds.accountAgeKickDays > 0 && ageDays < config.thresholds.accountAgeKickDays) {
     return {
       decision: 'kick',
       reasons: [

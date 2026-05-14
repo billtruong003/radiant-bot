@@ -201,7 +201,20 @@ export async function kickWithReason(
     );
   }
   await logModAction(member.id, 'spam', 'kick', { phase: 'verify', reason, ...context });
-  await postBotLog(`❌ Kick **${member.user.tag}** (\`${member.id}\`) — lý do: \`${reason}\``);
+
+  // Surface audit reasons so a kick is self-explanatory in #bot-log
+  // instead of just "lý do: audit". reasons is an array of short
+  // strings like ["account age 0.13d < kick threshold 1d"].
+  const auditReasons = Array.isArray((context as { audit_reasons?: unknown }).audit_reasons)
+    ? (context as { audit_reasons: unknown[] }).audit_reasons.filter(
+        (r): r is string => typeof r === 'string',
+      )
+    : [];
+  const detail =
+    auditReasons.length > 0 ? ` — ${auditReasons.map((r) => `\`${r}\``).join(' · ')}` : '';
+  await postBotLog(
+    `❌ Kick **${member.user.tag}** (\`${member.id}\`) — lý do: \`${reason}\`${detail}`,
+  );
 }
 
 /**

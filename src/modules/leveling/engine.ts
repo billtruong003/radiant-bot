@@ -1,11 +1,12 @@
 /**
  * XP curve from SPEC §2:
  *   xpToNext(level) = 5L^2 + 50L + 100
- * Reference points (cumulative XP to reach level):
- *   level 1   ≈ 100
- *   level 10  ≈ 1,800
- *   level 50  ≈ 110,000
- *   level 100 ≈ 835,000
+ * Reference cumulative XP to reach a level (Σ xpToNext(0..L-1)):
+ *   level 1   = 100
+ *   level 10  = 4,675
+ *   level 20  = 28,350
+ *   level 50  = 333,375
+ *   level 100 = 2,498,750
  */
 export function xpToNext(level: number): number {
   return 5 * level * level + 50 * level + 100;

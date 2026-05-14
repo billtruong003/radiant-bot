@@ -1,7 +1,7 @@
 {
   "$schema": "verification-config-v1",
   "thresholds": {
-    "accountAgeKickDays": 1,
+    "accountAgeKickDays": 0,
     "accountAgeSuspectDays": 7,
     "captchaTimeoutMs": 300000,
     "captchaMaxAttempts": 3,
