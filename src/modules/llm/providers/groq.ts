@@ -24,6 +24,20 @@ import {
  * throttle the right way.
  */
 
+/**
+ * Groq accepts `reasoning_format: 'hidden'` ONLY on reasoning models
+ * (Qwen 3 family, gpt-oss family). Sending it to non-reasoning models
+ * (Llama 3.x, Llama 4 Scout) returns HTTP 400 — observed in prod on
+ * 2026-05-14 after we tried to send unconditionally.
+ *
+ * Pattern match instead of an exact list because Groq adds Qwen / gpt-oss
+ * variants over time. Conservative — only known reasoning prefixes go in.
+ */
+export function modelSupportsReasoningFormat(model: string): boolean {
+  const m = model.toLowerCase();
+  return m.includes('qwen') || m.includes('gpt-oss');
+}
+
 let _client: OpenAI | null = null;
 
 function getClient(): OpenAI {
@@ -49,13 +63,12 @@ export const groqProvider: LlmProvider = {
 
     try {
       // Groq-specific: `reasoning_format: 'hidden'` suppresses the
-      // `<think>…</think>` chain-of-thought trace that Qwen 3 32B (and
-      // gpt-oss-120b) emit by default in `raw` mode. Without this,
-      // reasoning leaks into output and broke prod narration / filter
-      // JSON parsing on 2026-05-14. Non-reasoning models (Llama 3.x, 4)
-      // silently ignore this field, so it's safe to send unconditionally.
-      // `reasoning_format` is a Groq-only extension not in the OpenAI
-      // typedef. Cast to a wider record to slip it past the type-checker.
+      // `<think>…</think>` chain-of-thought trace that reasoning models
+      // (Qwen 3 family, gpt-oss family) emit by default. Critically, this
+      // parameter is REJECTED with HTTP 400 by non-reasoning models like
+      // Llama 3.3 70B and Llama 4 Scout — observed in prod 2026-05-14.
+      // Only send it for models that actually support it.
+      const sendReasoningFormat = modelSupportsReasoningFormat(input.model);
       const createArgs = {
         model: input.model,
         messages: [
@@ -65,7 +78,7 @@ export const groqProvider: LlmProvider = {
         max_tokens: input.maxOutputTokens ?? 400,
         temperature: input.temperature ?? 0.7,
         ...(input.responseFormat === 'json' ? { response_format: { type: 'json_object' } } : {}),
-        reasoning_format: 'hidden',
+        ...(sendReasoningFormat ? { reasoning_format: 'hidden' } : {}),
       } as unknown as Parameters<typeof client.chat.completions.create>[0];
       const resp = (await client.chat.completions.create(createArgs)) as ChatCompletion;
 

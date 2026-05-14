@@ -172,6 +172,7 @@ async function main(): Promise<void> {
   await smokeAutomodNarration();
   await smokeLevelingNarration();
   await smokeLinkPolicy();
+  await smokeGroqReasoningGate();
 
   // Summary
   const pass = results.filter((r) => r.ok).length;
@@ -1092,6 +1093,30 @@ async function smokeLinkPolicy(): Promise<void> {
     findSuspiciousLinks('billthedev.com/blog', strict).length,
     0,
     'strict: whitelisted host still passes',
+  );
+}
+
+// --- Phase 11.2 post-deploy: reasoning_format gate ---------------------
+
+async function smokeGroqReasoningGate(): Promise<void> {
+  group('Phase 11.2 · groq reasoning_format gate (fix prod 400 on Llama)');
+  const { modelSupportsReasoningFormat } = await import('../src/modules/llm/providers/groq.js');
+  check('Qwen 3 32B → reasoning_format sent', modelSupportsReasoningFormat('qwen/qwen3-32b'));
+  check(
+    'gpt-oss-120b → reasoning_format sent',
+    modelSupportsReasoningFormat('openai/gpt-oss-120b'),
+  );
+  check(
+    'Llama 3.3 70B → reasoning_format SKIPPED (prevents prod 400)',
+    !modelSupportsReasoningFormat('llama-3.3-70b-versatile'),
+  );
+  check(
+    'Llama 4 Scout → reasoning_format SKIPPED',
+    !modelSupportsReasoningFormat('meta-llama/llama-4-scout-17b-16e-instruct'),
+  );
+  check(
+    'Llama 3.1 8B → reasoning_format SKIPPED',
+    !modelSupportsReasoningFormat('llama-3.1-8b-instant'),
   );
 }
 
