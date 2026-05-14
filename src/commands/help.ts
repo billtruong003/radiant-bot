@@ -92,7 +92,7 @@ const SECTIONS: ReadonlyArray<{
       },
       {
         name: '/thien-dao target:@user crime:<text>',
-        desc: 'Triệu hồi Thiên Đạo xử phạt đệ tử (CHỈ Chưởng Môn — Aki/LLM tự chọn hình phạt)',
+        desc: 'Triệu hồi Thiên Đạo xử phạt đệ tử (CHỈ Chưởng Môn — Aki/LLM tự chọn hình phạt). Aki cũng tự gọi Thiên Đạo nếu ai chửi em ấy trong chat (cooldown 1h/user).',
         staff: true,
       },
       {

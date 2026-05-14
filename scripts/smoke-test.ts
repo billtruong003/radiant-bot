@@ -191,6 +191,8 @@ async function main(): Promise<void> {
   await smokeElderLoungeVoice();
   // --- Phase 12.4 — Áp Chế Thiên Đạo ---
   await smokeDivineJudgment();
+  // --- Phase 12.5 — Aki auto-defense ---
+  await smokeAkiDefense();
 
   // Summary
   const pass = results.filter((r) => r.ok).length;
@@ -1706,6 +1708,49 @@ async function smokeDivineJudgment(): Promise<void> {
   for (const p of menu.punishments) {
     check(`menu: ${p.id} has valid range (min ≤ max)`, p.severity_min <= p.severity_max);
   }
+}
+
+// --- Phase 12.5 — Aki auto-defense -----------------------------------
+
+async function smokeAkiDefense(): Promise<void> {
+  group('Phase 12.5 · Aki auto-defense (insult detector + cooldown)');
+  const { detectAkiInsult, isOnCooldown, recordWrath, reset } = await import(
+    '../src/modules/admin/aki-defense.js'
+  );
+
+  // True positives — name + insult both present.
+  check('defense: "Aki gà" fires', detectAkiInsult('Aki gà').isInsult);
+  check('defense: "Aki ngu" fires', detectAkiInsult('Aki ngu').isInsult);
+  check('defense: "Aki do" (no diacritic) fires', detectAkiInsult('Aki do').isInsult);
+  check('defense: "AKI GA" upper-case fires', detectAkiInsult('AKI GA').isInsult);
+  check('defense: "Akira dumb" fires (alt NPC)', detectAkiInsult('Akira dumb').isInsult);
+  check('defense: "Meifeng useless" fires', detectAkiInsult('Meifeng useless').isInsult);
+  check('defense: "bad bot Aki" fires (EN insult)', detectAkiInsult('bad bot Aki').isInsult);
+
+  // True negatives — no name OR no insult.
+  check('defense: "Aki xinh" does NOT fire (no insult)', !detectAkiInsult('Aki xinh').isInsult);
+  check(
+    'defense: "Hỏi Aki cách lên cảnh giới" does NOT fire',
+    !detectAkiInsult('Hỏi Aki cách lên cảnh giới').isInsult,
+  );
+  check(
+    'defense: "thằng kia gà" does NOT fire (no Aki name)',
+    !detectAkiInsult('thằng kia gà quá').isInsult,
+  );
+  check(
+    'defense: "akimichu là tên" does NOT fire (substring)',
+    !detectAkiInsult('akimichu là tên hay').isInsult,
+  );
+  check('defense: empty input does NOT fire', !detectAkiInsult('').isInsult);
+
+  // Cooldown
+  reset();
+  expectEq(isOnCooldown('u-def', 1_000_000), false, 'cooldown: fresh user not on cooldown');
+  recordWrath('u-def', 1_000_000);
+  expectEq(isOnCooldown('u-def', 1_000_500), true, 'cooldown: on immediately after record');
+  expectEq(isOnCooldown('u-def', 1_000_000 + 3_600_001), false, 'cooldown: expires after 1h+1ms');
+  expectEq(isOnCooldown('u-other', 1_000_500), false, 'cooldown: per-user isolation');
+  reset();
 }
 
 main().catch((err) => {

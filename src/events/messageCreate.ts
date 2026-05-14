@@ -6,6 +6,7 @@ import { STAFF_ROLE_NAMES } from '../config/roles.js';
 import { ICONS } from '../config/ui.js';
 import { loadVerificationConfig } from '../config/verification.js';
 import { getStore } from '../db/index.js';
+import { maybeDivineWrath } from '../modules/admin/aki-defense.js';
 import { applyDecision, automodEngine } from '../modules/automod/index.js';
 import { messageXpCooldown } from '../modules/leveling/cooldown.js';
 import { isXpEligibleMessage } from '../modules/leveling/eligibility.js';
@@ -127,6 +128,13 @@ async function handleGuildMessage(message: Message): Promise<void> {
       return; // violating message earns no XP
     }
   }
+
+  // Phase 12.5 — Aki auto-defense. If the message insults Aki (or alt
+  // NPCs) AND no automod rule already fired AND user isn't staff,
+  // invoke Thiên Đạo. 1h per-user cooldown stops spam-triggering. The
+  // call is awaited so a wrath-triggering message doesn't ALSO earn XP.
+  const wrathFired = await maybeDivineWrath({ message, isStaff: memberIsStaff });
+  if (wrathFired) return;
 
   // Phase 11 B3 (independent of XP path — fires even on no-XP channels
   // but the inner check restricts to #general).
