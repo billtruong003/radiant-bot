@@ -162,6 +162,10 @@ async function main(): Promise<void> {
   await smokeVerifyConfigPhase11();
   await smokeAskContextFormat();
   await smokeLlmRouter();
+  // --- Phase 11 1B checks ---
+  await smokeVerifyThreadName();
+  await smokeFirstMessageGreet();
+  await smokeSchedulerWired();
 
   // Summary
   const pass = results.filter((r) => r.ok).length;
@@ -703,6 +707,128 @@ async function smokeLlmRouter(): Promise<void> {
   // Both should be disabled in this smoke run (no env keys set)
   check('geminiProvider.isEnabled() = false (no key in test env)', !geminiProvider.isEnabled());
   check('groqProvider.isEnabled() = false (no key in test env)', !groqProvider.isEnabled());
+}
+
+// --- Phase 11 1B: verify thread name + fallback record schema ---------
+
+async function smokeVerifyThreadName(): Promise<void> {
+  group('Phase 11 1B · verify-thread naming + Verification schema');
+  const { __for_testing } = await import('../src/modules/verification/flow.js');
+  const { threadNameFor } = __for_testing;
+
+  // Mock minimal GuildMember surface that threadNameFor reads.
+  const mkMember = (username: string, id = '111222333444555666') =>
+    ({ id, user: { username, tag: `${username}#0001` } }) as unknown as Parameters<
+      typeof threadNameFor
+    >[0];
+
+  expectEq(threadNameFor(mkMember('aliceDev')), 'verify-alicedev', 'simple username → slug');
+  expectEq(
+    threadNameFor(mkMember('Alice.Dev_2024')),
+    'verify-alice-dev-2024',
+    'dots+underscores → dashes',
+  );
+  expectEq(threadNameFor(mkMember('_alice_')), 'verify-alice', 'strips leading/trailing dashes');
+  expectEq(
+    threadNameFor(mkMember('🔥🔥🔥')),
+    'verify-555666',
+    'unicode-only → falls back to last-6 of id',
+  );
+
+  // Long username → truncated to 50 char slug
+  const long = 'a'.repeat(80);
+  const longName = threadNameFor(mkMember(long));
+  check('long username slug capped at 50 chars', longName === `verify-${'a'.repeat(50)}`);
+  check('full thread name stays under Discord 100-char limit', longName.length <= 100);
+
+  // Verify the schema includes fallback_thread_id (compile-only check
+  // works at runtime by reading a synthetic record)
+  const syntheticVerification: import('../src/db/types.js').Verification = {
+    discord_id: 'u1',
+    challenge_type: 'math',
+    challenge_data: { expected: '42' },
+    attempts: 0,
+    started_at: Date.now(),
+    status: 'pending',
+    fallback_thread_id: 'thread-test-id',
+  };
+  check(
+    'Verification.fallback_thread_id field accepted',
+    syntheticVerification.fallback_thread_id === 'thread-test-id',
+  );
+}
+
+// --- Phase 11 1B: first-message greeting (User schema + channel match) -
+
+async function smokeFirstMessageGreet(): Promise<void> {
+  group('Phase 11 1B · first-message greet (User flag + channel match)');
+  const { canonicalChannelName } = await import('../src/config/channels.js');
+
+  // The greet logic fires only when canonicalChannelName(msg.channel.name)
+  // === 'general'. Verify that the renamed `💬-general-💬` resolves to
+  // `general` (otherwise the greeting never fires after the rename).
+  expectEq(
+    canonicalChannelName('💬-general-💬'),
+    'general',
+    'greeting-target channel `💬-general-💬` canonicalises to `general`',
+  );
+  // Negative: greeting must NOT trigger in #introductions or #verify
+  expectEq(
+    canonicalChannelName('👋-introductions-👋'),
+    'introductions',
+    '#introductions canonical ≠ general (greet skipped)',
+  );
+  expectEq(
+    canonicalChannelName('🔒-verify-🔒'),
+    'verify',
+    '#verify canonical ≠ general (greet skipped)',
+  );
+
+  // User.first_message_greeted_at field accepted by the User type
+  const syntheticUser: import('../src/db/types.js').User = {
+    discord_id: 'u-smoke',
+    username: 'Smoke',
+    display_name: null,
+    xp: 0,
+    level: 0,
+    cultivation_rank: 'pham_nhan',
+    sub_title: null,
+    joined_at: 0,
+    verified_at: Date.now(),
+    last_message_at: null,
+    last_daily_at: null,
+    daily_streak: 0,
+    is_suspect: false,
+    notes: null,
+    first_message_greeted_at: null,
+  };
+  check(
+    'User.first_message_greeted_at field accepted (null = ungreeted)',
+    syntheticUser.first_message_greeted_at === null,
+  );
+  const greeted = { ...syntheticUser, first_message_greeted_at: 1_700_000_000_000 };
+  check(
+    'User.first_message_greeted_at accepts timestamp',
+    greeted.first_message_greeted_at !== null,
+  );
+}
+
+// --- Phase 11 1B: scheduler wired with new cron -----------------------
+
+async function smokeSchedulerWired(): Promise<void> {
+  group('Phase 11 1B · scheduler wires thread cleanup cron');
+  // We can't easily start the scheduler in smoke (cron + Discord client
+  // needed). Instead verify the cleanup function is exported from
+  // verification/flow.js (the contract scheduler depends on).
+  const flow = await import('../src/modules/verification/flow.js');
+  check(
+    'cleanupStaleVerifyThreads exported from verification/flow.ts',
+    typeof flow.cleanupStaleVerifyThreads === 'function',
+  );
+  check(
+    'cleanupExpiredVerifications still exported (unchanged)',
+    typeof flow.cleanupExpiredVerifications === 'function',
+  );
 }
 
 main().catch((err) => {

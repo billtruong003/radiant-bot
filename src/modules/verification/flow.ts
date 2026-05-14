@@ -715,6 +715,11 @@ export async function handleFallbackModalSubmit(
   }
 }
 
+/** Exposed for tests + smoke-test. */
+export const __for_testing = {
+  threadNameFor,
+};
+
 /**
  * Sweep all pending verifications past timeout. Called by a cron job from
  * the scheduler (Chunk 7). Kicks the member and marks the record as
