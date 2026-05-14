@@ -26,7 +26,7 @@ export type ProviderName = 'groq' | 'gemini';
  * Logical tasks. Each maps to (primary provider+model, fallback +model)
  * in `router.ts`. Add a task here when introducing a new LLM feature.
  */
-export type TaskId = 'aki-filter' | 'aki-nudge' | 'narration';
+export type TaskId = 'aki-filter' | 'aki-nudge' | 'narration' | 'doc-validate';
 
 export interface CompletionInput {
   systemPrompt: string;

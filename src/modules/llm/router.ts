@@ -62,6 +62,15 @@ const TASK_ROUTES: Record<TaskId, readonly Route[]> = {
     { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
     { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
   ],
+  // DOC-VALIDATE — Phase 12 Lát 9 doc gatekeeper. Needs reliable JSON
+  // output + strong VN reading comprehension. Llama 3.3 70B has the best
+  // tradeoff (no reasoning overhead, supports JSON mode, strong VN).
+  'doc-validate': [
+    { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+    { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
+    { provider: 'gemini', model: 'gemini-2.5-flash' },
+    { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
+  ],
   // NARRATION — cultivation-themed prose. Llama 3.3 70B first because it
   // is non-reasoning (no `<think>` overhead, every token goes to prose)
   // and gives strong VN xianxia output. Qwen 3 32B + gpt-oss-120b are

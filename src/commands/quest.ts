@@ -50,8 +50,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     `**${label}** — đạt ${quest.target}`,
     `\`${bar}\` ${status}`,
     '',
-    '**Thưởng nếu hoàn thành:**',
-    `• ✨ ${quest.reward_xp} XP _(không tự cấp — chỉ tích luỹ tham khảo)_`,
+    '**Thưởng khi hoàn thành:**',
+    `• ✨ ${quest.reward_xp} XP _(tự cấp + có thể trigger lên cấp)_`,
     `• 💊 ${quest.reward_pills} đan dược`,
     `• 🪙 ${quest.reward_contribution} cống hiến`,
   ].join('\n');

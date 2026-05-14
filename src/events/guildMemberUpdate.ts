@@ -38,10 +38,27 @@ async function handleUpdate(
     return;
   }
 
+  // Double-reward gate: if this user has been rewarded for a boost before
+  // (premium_boosted_at_ms set), skip. Stops the unboost/reboost cycle
+  // from farming pills. We log so staff can grant manually if a real
+  // first-time boost was missed (e.g., bot was offline).
+  if (user.premium_boosted_at_ms != null) {
+    logger.info(
+      {
+        discord_id: newMember.id,
+        tag: newMember.user.tag,
+        first_boost_ms: user.premium_boosted_at_ms,
+      },
+      'boost: skipped — user already rewarded for a prior boost',
+    );
+    return;
+  }
+
   await store.users.set({
     ...user,
     pills: (user.pills ?? 0) + BOOST_REWARD_PILLS,
     contribution_points: (user.contribution_points ?? 0) + BOOST_REWARD_CONTRIBUTION,
+    premium_boosted_at_ms: Date.now(),
   });
 
   logger.info(

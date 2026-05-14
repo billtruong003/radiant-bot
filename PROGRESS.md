@@ -5,7 +5,7 @@
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
 **Last updated:** 2026-05-14
-**Current phase:** `Phase 12 Lát 1-8 shipped` (Lát 9 docs-threads designed, deferred impl). All game-mech features live: lực chiến + currency earning hooks + công pháp catalog (12 entries) + /inventory + /shop + /cong-phap + /trade sell-back + Aki premium roll + /quest + daily cron + multi-NPC (/ask-akira /ask-meifeng) + /duel PvP simulation + server boost rewards. 409 unit / 210 smoke / 0 lint err / build clean. Lát 9 (docs threads + LLM validation pipeline + HMAC API hook) designed in `docs/PHASE_12.md`, ~1200 LOC scope deferred to dedicated session.
+**Current phase:** `ALL DONE — Phase 0-12 complete + handoff documented`. 27 slash commands. 417 unit / 216 smoke / 0 lint err / build clean. Lát 9 docs pipeline shipped: `/contribute-doc` + `POST /api/contribute` HMAC + LLM `doc-validate` + auto-classify. All polish items done (`/help`, /breakthrough pill consume, quest auto-XP, boost double-reward gate, /duel accept window, /aki-memory opt-in). Role color palette refreshed to "Ethereal Mystic". `HANDOFF.md` + `docs/SETUP.md` written for project clone/revival. See `HANDOFF.md` §"Future direction" for Tier A/B/C roadmap.
 
 ---
 

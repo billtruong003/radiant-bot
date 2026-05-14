@@ -104,17 +104,33 @@ export function isAkiEnabled(): boolean {
 export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
   const client = getClient();
 
-  // Build the user prompt with optional identity + channel context.
-  // Format:
-  //   [Người hỏi: <displayName> (@<username>)]
-  //   [Đoạn chat gần nhất:
-  //     <author>: <msg>
-  //     ...]
-  //
-  //   <question>
-  //
-  // Identity + context are optional — pure question still works for
-  // backward compat with old callers / tests.
+  // Phase 12 B7 — memory opt-in: if user has aki_memory_opt_in=true,
+  // fetch last 3 of their stored question_text + summarize into the
+  // user prompt for continuity. Read fail = silent skip (don't break
+  // the call over an optional feature).
+  let memoryBlock = '';
+  let memoryOptedIn = false;
+  try {
+    const store = getStore();
+    const user = store.users.get(input.discordId);
+    if (user?.aki_memory_opt_in === true) {
+      memoryOptedIn = true;
+      const prior = store.akiLogs
+        .query((l) => l.discord_id === input.discordId && l.question_text != null && !l.refusal)
+        .slice(-3);
+      if (prior.length > 0) {
+        memoryBlock = [
+          '[Câu hỏi gần đây của user (do user opt-in cho Aki nhớ):',
+          ...prior.map((p, i) => `  ${i + 1}. ${(p.question_text ?? '').slice(0, 200)}`),
+          ']',
+        ].join('\n');
+      }
+    }
+  } catch {
+    // Store unavailable in some test paths — skip memory silently.
+  }
+
+  // Build the user prompt with optional identity + memory + channel context.
   const identityLine =
     input.askerDisplayName || input.askerUsername
       ? `[Người hỏi: ${input.askerDisplayName ?? input.askerUsername}${
@@ -134,7 +150,7 @@ export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
         ].join('\n')
       : '';
 
-  const userText = [identityLine, contextBlock, input.question]
+  const userText = [identityLine, memoryBlock, contextBlock, input.question]
     .filter((s) => s.length > 0)
     .join('\n\n');
 
@@ -184,6 +200,9 @@ export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
     filter_tokens_out: input.filterMeta?.tokensOut ?? 0,
     filter_cost_usd: input.filterMeta?.costUsd ?? 0,
     filter_rejected: false,
+    // Phase 12 B7 — only persist question text when user has opted in.
+    // Cap 500 chars (Discord input max anyway).
+    question_text: memoryOptedIn ? input.question.slice(0, 500) : null,
   });
 
   logger.info(

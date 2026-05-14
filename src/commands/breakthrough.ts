@@ -42,7 +42,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  const user = getStore().users.get(member.id);
+  const store = getStore();
+  const user = store.users.get(member.id);
   if (!user || user.level < TRIBULATION_CONSTANTS.TRIBULATION_LEVEL_MIN) {
     await interaction.reply({
       content: `⚠️ Yêu cầu **Level ≥ ${TRIBULATION_CONSTANTS.TRIBULATION_LEVEL_MIN}** mới được phép thử Thiên Kiếp. Hiện tại bạn level **${user?.level ?? 0}**.`,
@@ -60,10 +61,26 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
+  // Phase 12 polish — tribulation now consumes 1 đan dược (pill). This
+  // closes the economic loop: tribulation pass grants +5 pills (net +4
+  // per success), fail / timeout still consumes the pill (sunk cost).
+  // Pills earned from /daily streak milestones + boost + quests fund
+  // repeated attempts.
+  const TRIBULATION_PILL_COST = 1;
+  const currentPills = user.pills ?? 0;
+  if (currentPills < TRIBULATION_PILL_COST) {
+    await interaction.reply({
+      content: `💊 Cần **${TRIBULATION_PILL_COST} đan dược** để khởi Thiên Kiếp. Bạn có **${currentPills}**. Kiếm đan dược từ \`/daily\` streak (mốc 7/14/30 ngày), hoàn thành \`/quest\`, hoặc boost server.`,
+      ephemeral: true,
+    });
+    return;
+  }
+  await store.users.set({ ...user, pills: currentPills - TRIBULATION_PILL_COST });
+
   // Acknowledge before the (potentially 30s) collector starts. Ephemeral
   // confirmation so we don't double-mention in #tribulation.
   await interaction.reply({
-    content: '⚡ Thiên Kiếp bắt đầu... hãy nhìn vào kênh **#tribulation**.',
+    content: `⚡ Đã tiêu **${TRIBULATION_PILL_COST} đan dược**. Thiên Kiếp bắt đầu... hãy nhìn vào kênh **#tribulation**.`,
     ephemeral: true,
   });
 

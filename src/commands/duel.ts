@@ -1,25 +1,41 @@
-import { type ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  type ChatInputCommandInteraction,
+  ComponentType,
+  EmbedBuilder,
+  type Message,
+  type MessageActionRowComponentBuilder,
+  SlashCommandBuilder,
+} from 'discord.js';
 import { rankById } from '../config/cultivation.js';
 import { getStore } from '../db/index.js';
 import { simulateDuel } from '../modules/combat/duel.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * /duel @opponent [stake=1] — Phase 12 Lát 6 PvP combat.
+ * /duel @opponent [stake=1] — Phase 12 Lát 6 PvP combat with accept window.
  *
- * Simplified flow (no interactive accept window for v1):
- *   - Caller picks opponent + stake (1-10 pills)
- *   - Both fighters must have ≥ stake pills
- *   - Simulate 5 rounds, post result embed
- *   - Winner: +stake×2 pills (winner & loser delta together = 0 net,
- *     stake transfers)
- *   - Per-user 30min cooldown, max 3 duels/day, enforced via in-memory map
+ * Flow:
+ *   1. Caller invokes /duel @opponent [stake] — public message with
+ *      "✅ Accept / ❌ Decline" buttons + 60s collector.
+ *   2. Opponent (only they can press) clicks accept → simulate 5 rounds,
+ *      edit message to show result + transfer stake.
+ *   3. Opponent declines OR timeout → edit message to show "declined" /
+ *      "timeout", refund any held state.
  *
- * Future v2: button-based accept flow + per-round move selection.
+ * Both fighters must have ≥ stake pills at challenge time. Pills are
+ * NOT escrowed up-front — only deducted at settlement. Edge case: if
+ * either user spends pills between challenge + accept, settlement uses
+ * Math.max(0, pills - delta) so neither account goes negative.
+ *
+ * Cooldown + daily cap applied at challenge time (not at accept).
  */
 
 const DUEL_COOLDOWN_MS = 30 * 60 * 1000;
 const DUELS_PER_DAY_MAX = 3;
+const ACCEPT_WINDOW_MS = 60_000;
 
 interface DuelMetadata {
   lastDuelAt: number;
@@ -88,7 +104,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  // Cooldown + daily cap for challenger.
   const cMeta = getMeta(challenger.id, now);
   if (now - cMeta.lastDuelAt < DUEL_COOLDOWN_MS) {
     const remainingMin = Math.ceil((DUEL_COOLDOWN_MS - (now - cMeta.lastDuelAt)) / 60_000);
@@ -106,7 +121,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  // Stake check.
   const cPills = cUser.pills ?? 0;
   const oPills = oUser.pills ?? 0;
   if (cPills < stake) {
@@ -124,101 +138,185 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  const cEquipped = cUser.equipped_cong_phap_slug
-    ? (store.congPhapCatalog.get(cUser.equipped_cong_phap_slug) ?? null)
-    : null;
-  const oEquipped = oUser.equipped_cong_phap_slug
-    ? (store.congPhapCatalog.get(oUser.equipped_cong_phap_slug) ?? null)
-    : null;
-
-  const result = simulateDuel(
-    {
-      user: cUser,
-      displayName:
-        interaction.member && 'displayName' in interaction.member
-          ? (interaction.member as { displayName: string }).displayName
-          : challenger.username,
-      equippedCongPhap: cEquipped,
-    },
-    {
-      user: oUser,
-      displayName: opponent.username,
-      equippedCongPhap: oEquipped,
-    },
-    now & 0xffffffff,
-  );
-
-  // Settle stake atomically.
-  const cDelta = result.winner === 'challenger' ? stake : -stake;
-  const oDelta = result.winner === 'opponent' ? stake : -stake;
-  await store.users.set({ ...cUser, pills: Math.max(0, cPills + cDelta) });
-  await store.users.set({ ...oUser, pills: Math.max(0, oPills + oDelta) });
-
-  // Update meta.
-  duelMetadata.set(challenger.id, {
-    lastDuelAt: now,
-    duelsToday: cMeta.duelsToday + 1,
-    todayStart: cMeta.todayStart,
-  });
-
-  logger.info(
-    {
-      challenger: challenger.id,
-      opponent: opponent.id,
-      stake,
-      winner: result.winner,
-      c_lc: result.challengerLc,
-      o_lc: result.opponentLc,
-      rounds: result.rounds.length,
-    },
-    'duel: settled',
-  );
-
-  // Build narrative embed.
-  const cName = challenger.username;
-  const oName = opponent.username;
-  const winnerName =
-    result.winner === 'challenger' ? cName : result.winner === 'opponent' ? oName : 'Hòa';
-  const winnerEmoji =
-    result.winner === 'challenger' ? '🏆' : result.winner === 'opponent' ? '🏆' : '🤝';
-
-  const roundLines = result.rounds.map((r) => {
-    const cMark = r.challengerCrit ? '⚡' : r.challengerDefended ? '🛡️' : '⚔️';
-    const oMark = r.opponentCrit ? '⚡' : r.opponentDefended ? '🛡️' : '⚔️';
-    return `**Hiệp ${r.round}:** ${cMark} ${cName} −${r.opponentDamage} HP · ${oMark} ${oName} −${r.challengerDamage} HP   _(${r.challengerHpAfter} vs ${r.opponentHpAfter})_`;
-  });
-
+  // Challenge embed with accept/decline buttons. Public message so
+  // spectators see the throw-down.
   const cRank = rankById(cUser.cultivation_rank).name;
   const oRank = rankById(oUser.cultivation_rank).name;
 
-  const embed = new EmbedBuilder()
-    .setColor(
-      result.winner === 'challenger'
-        ? 0x2ecc71
-        : result.winner === 'opponent'
-          ? 0xe74c3c
-          : 0x95a5a6,
-    )
-    .setTitle(`⚔️ Duel: ${cName} vs ${oName}`)
+  const challengeEmbed = new EmbedBuilder()
+    .setColor(0xb09bd3)
+    .setTitle('⚔️ Lời thách đấu')
     .setDescription(
       [
-        `**${cName}** (${cRank} · ${result.challengerLc} LC) ⚔️ **${oName}** (${oRank} · ${result.opponentLc} LC)`,
+        `**${challenger.username}** (${cRank}) thách đấu **${opponent.username}** (${oRank}).`,
         `Stake: 💊 ${stake} đan dược`,
         '',
-        ...roundLines,
-        '',
-        `${winnerEmoji} **Thắng: ${winnerName}**`,
-        `HP cuối: ${cName} ${result.challengerHpEnd} / ${oName} ${result.opponentHpEnd}`,
-        result.winner === 'challenger'
-          ? `${cName} +${stake} 💊 · ${oName} −${stake} 💊`
-          : result.winner === 'opponent'
-            ? `${oName} +${stake} 💊 · ${cName} −${stake} 💊`
-            : 'Hoà — không ai mất đan dược.',
+        `${opponent} có **60 giây** để chấp nhận hoặc từ chối.`,
       ].join('\n'),
     )
-    .setFooter({ text: '⚔️ tấn công · 🛡️ thủ · ⚡ chí mạng · Phase 12' });
+    .setFooter({ text: 'Chỉ đối thủ được bấm. Caller không tự accept giùm.' });
 
-  await interaction.reply({ embeds: [embed], allowedMentions: { users: [opponent.id] } });
+  const acceptBtn = new ButtonBuilder()
+    .setCustomId(`duel:accept:${challenger.id}:${opponent.id}:${stake}`)
+    .setLabel('Chấp nhận')
+    .setEmoji('✅')
+    .setStyle(ButtonStyle.Success);
+  const declineBtn = new ButtonBuilder()
+    .setCustomId(`duel:decline:${challenger.id}:${opponent.id}:${stake}`)
+    .setLabel('Từ chối')
+    .setEmoji('❌')
+    .setStyle(ButtonStyle.Secondary);
+  const row = new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
+    acceptBtn,
+    declineBtn,
+  );
+
+  const challengeMsg = (await interaction.reply({
+    content: `${opponent}, ${challenger} thách đấu bạn!`,
+    embeds: [challengeEmbed],
+    components: [row],
+    allowedMentions: { users: [opponent.id] },
+    fetchReply: true,
+  })) as Message;
+
+  try {
+    const click = await challengeMsg.awaitMessageComponent({
+      filter: (i) => i.user.id === opponent.id,
+      componentType: ComponentType.Button,
+      time: ACCEPT_WINDOW_MS,
+    });
+
+    if (click.customId.startsWith('duel:decline:')) {
+      await click.update({
+        content: `❌ ${opponent.username} đã từ chối lời thách đấu của ${challenger.username}.`,
+        embeds: [],
+        components: [],
+      });
+      return;
+    }
+
+    // Accept path — re-validate state in case currency changed.
+    const cUserNow = store.users.get(challenger.id);
+    const oUserNow = store.users.get(opponent.id);
+    if (!cUserNow || !oUserNow) {
+      await click.update({
+        content: '⚠️ User record vanished mid-duel — abort.',
+        embeds: [],
+        components: [],
+      });
+      return;
+    }
+    if ((cUserNow.pills ?? 0) < stake || (oUserNow.pills ?? 0) < stake) {
+      await click.update({
+        content: '💊 Một bên đã tiêu đan dược trong thời gian chờ — duel bị huỷ.',
+        embeds: [],
+        components: [],
+      });
+      return;
+    }
+
+    const cEquipped = cUserNow.equipped_cong_phap_slug
+      ? (store.congPhapCatalog.get(cUserNow.equipped_cong_phap_slug) ?? null)
+      : null;
+    const oEquipped = oUserNow.equipped_cong_phap_slug
+      ? (store.congPhapCatalog.get(oUserNow.equipped_cong_phap_slug) ?? null)
+      : null;
+
+    const result = simulateDuel(
+      { user: cUserNow, displayName: challenger.username, equippedCongPhap: cEquipped },
+      { user: oUserNow, displayName: opponent.username, equippedCongPhap: oEquipped },
+      Date.now() & 0xffffffff,
+    );
+
+    const cDelta = result.winner === 'challenger' ? stake : -stake;
+    const oDelta = result.winner === 'opponent' ? stake : -stake;
+    await store.users.set({
+      ...cUserNow,
+      pills: Math.max(0, (cUserNow.pills ?? 0) + cDelta),
+    });
+    await store.users.set({
+      ...oUserNow,
+      pills: Math.max(0, (oUserNow.pills ?? 0) + oDelta),
+    });
+
+    duelMetadata.set(challenger.id, {
+      lastDuelAt: Date.now(),
+      duelsToday: cMeta.duelsToday + 1,
+      todayStart: cMeta.todayStart,
+    });
+
+    const winnerName =
+      result.winner === 'challenger'
+        ? challenger.username
+        : result.winner === 'opponent'
+          ? opponent.username
+          : 'Hòa';
+    const winnerEmoji = result.winner === 'tie' ? '🤝' : '🏆';
+
+    const roundLines = result.rounds.map((r) => {
+      const cMark = r.challengerCrit ? '⚡' : r.challengerDefended ? '🛡️' : '⚔️';
+      const oMark = r.opponentCrit ? '⚡' : r.opponentDefended ? '🛡️' : '⚔️';
+      return `**Hiệp ${r.round}:** ${cMark} ${challenger.username} −${r.opponentDamage} · ${oMark} ${opponent.username} −${r.challengerDamage}   _(${r.challengerHpAfter} vs ${r.opponentHpAfter})_`;
+    });
+
+    const resultEmbed = new EmbedBuilder()
+      .setColor(
+        result.winner === 'challenger'
+          ? 0x2ecc71
+          : result.winner === 'opponent'
+            ? 0xe74c3c
+            : 0x95a5a6,
+      )
+      .setTitle(`⚔️ Duel: ${challenger.username} vs ${opponent.username}`)
+      .setDescription(
+        [
+          `**${challenger.username}** (${cRank} · ${result.challengerLc} LC) ⚔️ **${opponent.username}** (${oRank} · ${result.opponentLc} LC)`,
+          `Stake: 💊 ${stake} đan dược`,
+          '',
+          ...roundLines,
+          '',
+          `${winnerEmoji} **Thắng: ${winnerName}**`,
+          `HP cuối: ${challenger.username} ${result.challengerHpEnd} / ${opponent.username} ${result.opponentHpEnd}`,
+          result.winner === 'challenger'
+            ? `${challenger.username} +${stake} 💊 · ${opponent.username} −${stake} 💊`
+            : result.winner === 'opponent'
+              ? `${opponent.username} +${stake} 💊 · ${challenger.username} −${stake} 💊`
+              : 'Hoà — không ai mất đan dược.',
+        ].join('\n'),
+      )
+      .setFooter({ text: '⚔️ tấn công · 🛡️ thủ · ⚡ chí mạng · Phase 12' });
+
+    await click.update({ content: '', embeds: [resultEmbed], components: [] });
+
+    logger.info(
+      {
+        challenger: challenger.id,
+        opponent: opponent.id,
+        stake,
+        winner: result.winner,
+        c_lc: result.challengerLc,
+        o_lc: result.opponentLc,
+      },
+      'duel: settled',
+    );
+  } catch (err) {
+    // Timeout — opponent never clicked. Discord throws on collector timeout.
+    const isTimeout = (err as { code?: string })?.code === 'InteractionCollectorError';
+    try {
+      await challengeMsg.edit({
+        content: isTimeout
+          ? `⏱️ ${opponent.username} không phản hồi trong 60 giây — duel bị huỷ.`
+          : '⚠️ Lỗi khi xử lý duel.',
+        embeds: [],
+        components: [],
+      });
+    } catch {
+      // Message gone — ignore.
+    }
+    if (!isTimeout) {
+      logger.error({ err, challenger: challenger.id, opponent: opponent.id }, 'duel: failed');
+    }
+  }
 }
 
 export const __for_testing = { duelMetadata, DUEL_COOLDOWN_MS, DUELS_PER_DAY_MAX };

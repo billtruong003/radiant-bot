@@ -61,8 +61,9 @@ function freshUser(input: Pick<AwardXpInput, 'discordId' | 'username' | 'display
     pills: 0,
     contribution_points: 0,
     equipped_cong_phap_slug: null,
-    combat_power_cache: null,
     last_quest_assigned_at: null,
+    premium_boosted_at_ms: null,
+    aki_memory_opt_in: false,
   };
 }
 

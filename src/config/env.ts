@@ -50,6 +50,14 @@ const envSchema = z.object({
 
   /** Groq API key (LLM router primary provider). Free tier 30 RPM / 14.4K RPD for 8B. Empty = router falls back to Gemini. */
   GROQ_API_KEY: z.string().default(''),
+
+  // --- Phase 12 Lát 9 — docs threads pipeline ---
+  /**
+   * HMAC secret for POST /api/contribute endpoint. Empty disables the
+   * REST endpoint entirely (only /contribute-doc slash works). Bill's
+   * personal website signs requests with this secret + sha256.
+   */
+  DOCS_HMAC_SECRET: z.string().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;

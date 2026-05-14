@@ -56,10 +56,21 @@ export interface User extends Record<string, unknown> {
   contribution_points?: number;
   /** Slug of the công pháp currently equipped, or null. */
   equipped_cong_phap_slug?: string | null;
-  /** Cached lực chiến score; null until first computation. Recomputed on stat change. */
-  combat_power_cache?: number | null;
   /** Timestamp of the most recent daily quest the cron assigned. */
   last_quest_assigned_at?: number | null;
+  /**
+   * Phase 12 — Server boost reward tracking. Set on the first null→set
+   * premium transition we observe; lets us detect a re-boost (after an
+   * unboost) and skip duplicate reward grants.
+   */
+  premium_boosted_at_ms?: number | null;
+  /**
+   * Phase 12 B7 — User opted in to having Aki remember their previous
+   * /ask questions across calls. Defaults false. When true, AkiCallLog
+   * stores question_text for this user; client.ts reads last 3 and
+   * embeds in Grok system prompt for continuity.
+   */
+  aki_memory_opt_in?: boolean;
 }
 
 export interface XpLog extends Record<string, unknown> {
@@ -163,6 +174,13 @@ export interface AkiCallLog extends Record<string, unknown> {
   filter_cost_usd?: number;
   /** True if filter rejected and Grok was NOT called. */
   filter_rejected?: boolean;
+  /**
+   * Phase 12 B7 — question text. ONLY stored when the user has opted
+   * in via `User.aki_memory_opt_in`. Default null (back-compat + privacy
+   * default). Used by client.ts to feed recent question history into
+   * Grok system prompt for continuity. Bounded to 500 chars.
+   */
+  question_text?: string | null;
 }
 
 // ============================================================================
@@ -209,6 +227,60 @@ export type DailyQuestType =
   | 'voice_minutes'
   | 'reaction_count'
   | 'daily_streak_check';
+
+// ============================================================================
+// Phase 12 Lát 9 — Docs threads pipeline
+// ============================================================================
+
+export type DocContributionStatus = 'pending' | 'approved' | 'rejected';
+export type DocDifficulty = 'easy' | 'medium' | 'hard';
+export type DocSource = 'slash' | 'api';
+
+/**
+ * User-submitted document/article. Created when a member runs
+ * `/contribute-doc` or hits the `POST /api/contribute` HMAC endpoint.
+ * Aki validates via LLM, classifies difficulty + tags + section, and
+ * either approves (publish to forum thread) or rejects with reason.
+ */
+export interface DocContribution extends Record<string, unknown> {
+  id: string;
+  /** Discord thread id once created; null until publish step. */
+  thread_id: string | null;
+  author_id: string;
+  title: string;
+  /** Full body — capped 4000 chars at submission time. */
+  body: string;
+  status: DocContributionStatus;
+  /** Combined LLM score 0-100. null until validated. */
+  score: number | null;
+  difficulty: DocDifficulty | null;
+  /** Tags as plain string[]. Validated against the per-channel allowed list. */
+  tags: string[];
+  /** Section slug ('tech' | 'cultivation' | 'lore' | 'dev' | etc). */
+  section: string | null;
+  source: DocSource;
+  /** Editor-friendly notes from the LLM judge — shown when status='rejected'. */
+  rejection_reason: string | null;
+  submitted_at: number;
+  decided_at: number | null;
+}
+
+/**
+ * Append-only review log — every LLM judgment attempt + cost. Lets Bill
+ * audit / debug the validation pipeline without scraping the LLM router.
+ */
+export interface DocReviewLog extends Record<string, unknown> {
+  id: string;
+  contribution_id: string;
+  llm_provider: string;
+  llm_model: string;
+  llm_tokens_in: number;
+  llm_tokens_out: number;
+  llm_cost_usd: number;
+  raw_response: string;
+  approved: boolean;
+  created_at: number;
+}
 
 /**
  * Per-user daily quest. One quest is generated per active user at the

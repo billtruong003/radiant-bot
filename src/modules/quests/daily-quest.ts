@@ -169,21 +169,32 @@ export async function incrementProgress(
         pills: (user.pills ?? 0) + quest.reward_pills,
         contribution_points: (user.contribution_points ?? 0) + quest.reward_contribution,
       });
-      // Note: XP reward intentionally NOT auto-added here — XP path
-      // owns the awardXp pipeline including level-up promotion. Caller
-      // (event handlers) can choose to also awardXp on completion if
-      // desired. For Lát 4 v1 we surface reward_xp in the completion
-      // message but skip auto-XP to keep this module side-effect-bounded.
+      // Phase 12 polish — auto-grant reward_xp through awardXp pipeline
+      // so it can trigger level-up + rank promotion if the bonus tips
+      // the user over a threshold. Lazy-imported to avoid circular dep
+      // (tracker → quests → tracker).
+      if (quest.reward_xp > 0) {
+        const { awardXp } = await import('../leveling/tracker.js');
+        await awardXp({
+          discordId,
+          username: user.username,
+          displayName: user.display_name,
+          amount: quest.reward_xp,
+          source: 'event',
+          metadata: { quest_id: quest.id, quest_type: type },
+        });
+      }
       logger.info(
         {
           discord_id: discordId,
           quest_id: quest.id,
           type,
           target: quest.target,
+          reward_xp: quest.reward_xp,
           reward_pills: quest.reward_pills,
           reward_contribution: quest.reward_contribution,
         },
-        'quest: completed',
+        'quest: completed + rewards granted',
       );
     }
   }

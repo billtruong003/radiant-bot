@@ -181,6 +181,8 @@ async function main(): Promise<void> {
   await smokeDuelSimulation();
   await smokeQuestPool();
   await smokeNpcPersonas();
+  // --- Phase 12 Lát 9 ---
+  await smokeDocsValidator();
 
   // Summary
   const pass = results.filter((r) => r.ok).length;
@@ -1270,6 +1272,33 @@ async function smokeNpcPersonas(): Promise<void> {
     !/[一-鿿]/.test(AKIRA_SYSTEM_PROMPT.replace(/アキラ|美鳳/g, '')) &&
       !/[一-鿿]/.test(MEIFENG_SYSTEM_PROMPT.replace(/アキラ|美鳳/g, '')),
   );
+}
+
+// --- Phase 12 Lát 9: docs validator parser ----------------------------
+
+async function smokeDocsValidator(): Promise<void> {
+  group('Phase 12 · docs validator (LLM JSON parser)');
+  const { __for_testing } = await import('../src/modules/docs/validator.js');
+  const { parseLlmResponse, ALLOWED_SECTIONS, APPROVE_SCORE_THRESHOLD } = __for_testing;
+
+  expectEq(APPROVE_SCORE_THRESHOLD, 60, 'approval threshold = 60');
+  check(
+    'ALLOWED_SECTIONS includes tech + cultivation',
+    ALLOWED_SECTIONS.includes('tech') && ALLOWED_SECTIONS.includes('cultivation'),
+  );
+  const happy = parseLlmResponse(
+    '{"approved":true,"combined_score":80,"clarity":80,"technical_correctness":80,"safety":100,"relevance":70,"difficulty":"medium","section":"tech","tags":["a","b"],"rejection_reason":null}',
+  );
+  check('parses approved JSON', happy?.approved === true);
+  expectEq(happy?.combined_score, 80, 'combined_score=80');
+
+  const fenced = parseLlmResponse(
+    '```json\n{"approved":false,"combined_score":40,"difficulty":"easy","section":"dev","tags":[]}\n```',
+  );
+  check('strips markdown fence', fenced !== null && fenced.approved === false);
+
+  const broken = parseLlmResponse('not json at all');
+  expectEq(broken, null, 'broken JSON → null');
 }
 
 main().catch((err) => {

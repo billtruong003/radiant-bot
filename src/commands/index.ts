@@ -1,13 +1,16 @@
 import type { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { command as akiMemory } from './aki-memory.js';
 import { command as askAkira } from './ask-akira.js';
 import { command as askMeifeng } from './ask-meifeng.js';
 import { command as ask } from './ask.js';
 import { command as automodConfig } from './automod-config.js';
 import { command as breakthrough } from './breakthrough.js';
 import { command as congPhap } from './cong-phap.js';
+import { command as contributeDoc } from './contribute-doc.js';
 import { command as daily } from './daily.js';
 import { command as duel } from './duel.js';
 import { command as grant } from './grant.js';
+import { command as help } from './help.js';
 import { command as inventory } from './inventory.js';
 import { command as leaderboard } from './leaderboard.js';
 import { command as linkWhitelist } from './link-whitelist.js';
@@ -57,6 +60,9 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [askMeifeng.data.name, askMeifeng as SlashCommand],
   [duel.data.name, duel as SlashCommand],
   [trade.data.name, trade as SlashCommand],
+  [help.data.name, help as SlashCommand],
+  [akiMemory.data.name, akiMemory as SlashCommand],
+  [contributeDoc.data.name, contributeDoc as SlashCommand],
 ]);
 
 export function findCommand(name: string): SlashCommand | undefined {

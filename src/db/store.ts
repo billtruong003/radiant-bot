@@ -11,6 +11,8 @@ import type {
   AutomodLog,
   CongPhap,
   DailyQuest,
+  DocContribution,
+  DocReviewLog,
   RaidState,
   ReactionRolesConfig,
   SectEvent,
@@ -42,6 +44,9 @@ interface SnapshotShape {
   cong_phap_catalog?: CongPhap[];
   user_cong_phap?: UserCongPhap[];
   daily_quests?: DailyQuest[];
+  // Phase 12 Lát 9 — docs threads pipeline.
+  doc_contributions?: DocContribution[];
+  doc_review_logs?: DocReviewLog[];
 }
 
 const DEFAULT_RAID_STATE: RaidState = {
@@ -89,6 +94,9 @@ export class Store {
   readonly congPhapCatalog: Collection<CongPhap>;
   readonly userCongPhap: Collection<UserCongPhap>;
   readonly dailyQuests: Collection<DailyQuest>;
+  // Phase 12 Lát 9 — docs threads pipeline.
+  readonly docContributions: Collection<DocContribution>;
+  readonly docReviewLogs: AppendOnlyCollection<DocReviewLog>;
 
   private readonly log: AppendOnlyLog;
   private readonly walPath: string;
@@ -135,6 +143,13 @@ export class Store {
     this.congPhapCatalog = new Collection<CongPhap>('cong_phap_catalog', this.log, (c) => c.slug);
     this.userCongPhap = new Collection<UserCongPhap>('user_cong_phap', this.log, (u) => u.id);
     this.dailyQuests = new Collection<DailyQuest>('daily_quests', this.log, (q) => q.id);
+    // Phase 12 Lát 9 — docs.
+    this.docContributions = new Collection<DocContribution>(
+      'doc_contributions',
+      this.log,
+      (d) => d.id,
+    );
+    this.docReviewLogs = new AppendOnlyCollection<DocReviewLog>('doc_review_logs', this.log);
 
     const map = new Map<string, WalApplicable>();
     for (const c of [
@@ -150,6 +165,8 @@ export class Store {
       this.congPhapCatalog,
       this.userCongPhap,
       this.dailyQuests,
+      this.docContributions,
+      this.docReviewLogs,
     ]) {
       map.set(c.name, c);
     }
@@ -182,6 +199,8 @@ export class Store {
       this.congPhapCatalog._bulkLoad(snapshot.cong_phap_catalog ?? []);
       this.userCongPhap._bulkLoad(snapshot.user_cong_phap ?? []);
       this.dailyQuests._bulkLoad(snapshot.daily_quests ?? []);
+      this.docContributions._bulkLoad(snapshot.doc_contributions ?? []);
+      this.docReviewLogs._bulkLoad(snapshot.doc_review_logs ?? []);
       logger.info(
         {
           version: snapshot.version,
@@ -297,6 +316,8 @@ export class Store {
         cong_phap_catalog: this.congPhapCatalog._serialize(),
         user_cong_phap: this.userCongPhap._serialize(),
         daily_quests: this.dailyQuests._serialize(),
+        doc_contributions: this.docContributions._serialize(),
+        doc_review_logs: this.docReviewLogs._serialize(),
       };
 
       const tmpPath = `${this.snapshotPath}.tmp`;
