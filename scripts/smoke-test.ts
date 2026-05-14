@@ -193,6 +193,8 @@ async function main(): Promise<void> {
   await smokeDivineJudgment();
   // --- Phase 12.5 — Aki auto-defense ---
   await smokeAkiDefense();
+  // --- Phase 12.6 — Pinned messages + docs ---
+  await smokePinnedMessages();
 
   // Summary
   const pass = results.filter((r) => r.ok).length;
@@ -1751,6 +1753,97 @@ async function smokeAkiDefense(): Promise<void> {
   expectEq(isOnCooldown('u-def', 1_000_000 + 3_600_001), false, 'cooldown: expires after 1h+1ms');
   expectEq(isOnCooldown('u-other', 1_000_500), false, 'cooldown: per-user isolation');
   reset();
+}
+
+async function smokePinnedMessages(): Promise<void> {
+  group('Phase 12.6 · Pinned messages config + sync helpers');
+  const { PINNED_MESSAGES, BOT_PIN_MARKER } = await import('../src/config/pinned-messages.js');
+
+  expectEq(PINNED_MESSAGES.length, 6, 'pinned: 6 canonical channel entries defined');
+  check('pinned: BOT_PIN_MARKER is non-empty', BOT_PIN_MARKER.length > 0);
+
+  const expectedCanonical = new Set([
+    'rules',
+    'announcements',
+    'introductions',
+    'leveling-guide',
+    'tribulation',
+    'bot-commands',
+  ]);
+  for (const def of PINNED_MESSAGES) {
+    check(
+      `pinned: '${def.canonicalChannel}' is in expected set`,
+      expectedCanonical.has(def.canonicalChannel),
+    );
+    check(`pinned: '${def.canonicalChannel}' has non-empty title`, def.title.length > 0);
+    check(
+      `pinned: '${def.canonicalChannel}' description fits embed limit (≤4096)`,
+      def.description.length > 0 && def.description.length <= 4096,
+      `len=${def.description.length}`,
+    );
+    check(
+      `pinned: '${def.canonicalChannel}' has 4-6 themed reactions`,
+      def.reactions.length >= 4 && def.reactions.length <= 6,
+      `n=${def.reactions.length}`,
+    );
+    check(`pinned: '${def.canonicalChannel}' footer non-empty`, def.footer.length > 0);
+
+    // 3rd-person voice rule (locked by Bill 2026-05-14). Body must not lead
+    // with first-person voice — "tôi yêu cầu", "em yêu cầu", "Aki yêu cầu".
+    const lowered = def.description.toLowerCase();
+    const forbiddenFirstPerson = [
+      'tôi yêu cầu',
+      'em yêu cầu',
+      'aki yêu cầu',
+      'em sẽ trừng phạt',
+      'tôi sẽ trừng phạt',
+    ];
+    for (const phrase of forbiddenFirstPerson) {
+      check(
+        `pinned: '${def.canonicalChannel}' free of first-person phrase '${phrase}'`,
+        !lowered.includes(phrase),
+      );
+    }
+  }
+
+  // Sync helpers — pure / synchronous parts only (no Discord client).
+  const pinnedSync = await import('../src/modules/admin/pinned-sync.js');
+  check(
+    'pinned-sync: __for_testing exports isBotPin + findChannel',
+    typeof pinnedSync.__for_testing.isBotPin === 'function' &&
+      typeof pinnedSync.__for_testing.findChannel === 'function',
+  );
+
+  const fakeBotId = 'bot-id-xxx';
+  const botPinWithMarker = {
+    author: { id: fakeBotId },
+    content: '',
+    embeds: [{ title: 'whatever', footer: { text: `something · ${BOT_PIN_MARKER}` } }],
+  } as unknown as import('discord.js').Message;
+  check(
+    'pinned-sync: isBotPin recognises footer marker',
+    pinnedSync.__for_testing.isBotPin(botPinWithMarker, fakeBotId),
+  );
+
+  const userPin = {
+    author: { id: 'some-user' },
+    content: 'hello pinned msg',
+    embeds: [],
+  } as unknown as import('discord.js').Message;
+  check(
+    'pinned-sync: isBotPin returns false for user pin',
+    !pinnedSync.__for_testing.isBotPin(userPin, fakeBotId),
+  );
+
+  const legacyBotPin = {
+    author: { id: fakeBotId },
+    content: '',
+    embeds: [{ title: '📜 Luật Tông Môn — old', footer: { text: 'no marker yet' } }],
+  } as unknown as import('discord.js').Message;
+  check(
+    'pinned-sync: isBotPin recognises legacy 📜 Luật Tông Môn title',
+    pinnedSync.__for_testing.isBotPin(legacyBotPin, fakeBotId),
+  );
 }
 
 main().catch((err) => {

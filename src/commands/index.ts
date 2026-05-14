@@ -20,6 +20,7 @@ import { command as rank } from './rank.js';
 import { command as shop } from './shop.js';
 import { command as stat } from './stat.js';
 import { command as stats } from './stats.js';
+import { command as syncPinned } from './sync-pinned.js';
 import { command as thienDao } from './thien-dao.js';
 import { command as title } from './title.js';
 import { command as trade } from './trade.js';
@@ -65,6 +66,7 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [akiMemory.data.name, akiMemory as SlashCommand],
   [contributeDoc.data.name, contributeDoc as SlashCommand],
   [thienDao.data.name, thienDao as SlashCommand],
+  [syncPinned.data.name, syncPinned as SlashCommand],
 ]);
 
 export function findCommand(name: string): SlashCommand | undefined {

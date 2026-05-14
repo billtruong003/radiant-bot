@@ -24,6 +24,7 @@
     "deploy-commands": "tsx scripts/deploy-commands.ts",
     "deploy-commands:global": "tsx scripts/deploy-commands.ts -- --global",
     "cleanup-old-structure": "tsx scripts/cleanup-old-structure.ts",
+    "audit-server": "tsx scripts/audit-server.ts",
     "smoke-test": "tsx scripts/smoke-test.ts"
   },
   "dependencies": {
