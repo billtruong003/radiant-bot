@@ -674,7 +674,11 @@ code for users (anti-spam policy).
 
 ## Phase 11 — Verify hardening + UX richness + LLM provider abstraction
 
-**Status:** `1A done`, `1B in_progress`, `2 designed`
+> **Full doc + deploy runbook: [`docs/PHASE_11.md`](docs/PHASE_11.md)** —
+> single-doc source of truth, checklist-driven. Read that first when
+> resuming work; this section is a high-level pointer.
+
+**Status:** `1A done + sync applied`, `1B done`, `2 designed`
 **Estimated complexity:** L (3 sessions)
 **Goal:** Address verify pain points (re-join captcha replay, DM-blocked
 button-spam in public, 5-min timeout too tight), introduce a free-tier
@@ -727,18 +731,23 @@ Gemini narration (Thiên Đạo punishment + level-up prose).
 **Live sync verified:** 2026-05-14, 33 channels renamed in-place,
 sync-server output `channelsCreated: 1 · channelsUpdated: 33`.
 
-### Commit 1B — Verify thread + auto-react (next)
+### Commit 1B — Verify thread + auto-react (DONE 2026-05-14, `df69f8d` + `c80d7eb`)
 
-- [ ] **A2 · Per-user verify thread on DM blocked** — when DM fails,
-      create a public thread `verify-<username>` in `#verify`, post
-      the challenge button inside. Replaces public-channel button
-      so multiple pending users don't see each other's buttons.
-- [ ] **B1 · Verify thread cleanup cron** — sweep archived
-      verify-named threads older than 24h, delete them.
-- [ ] **B3 · First-message auto-react** — after verification pass,
-      first message a user sends in `#general` gets a `🌟` from Aki +
-      a "Tân đệ tử nhập môn ٩(◕‿◕)۶" reply. One-shot per user;
-      tracked via a new flag on User entity.
+- [x] **A2 · Per-user verify thread on DM blocked** — `verify-<slug>`
+      thread created in `🔒-verify-🔒` (24h auto-archive). Thread ID
+      persisted on `Verification.fallback_thread_id`. Pass / fail /
+      timeout cleans the thread. Falls back to legacy channel post
+      if thread create fails (graceful).
+- [x] **B1 · Verify thread cleanup cron** — hourly sweep of archived
+      `verify-*` threads > 24h old. Wired into `scheduler/index.ts`.
+- [x] **B3 · First-message auto-react** — verified user's first
+      message in `#general` (canonical match works after icon rename)
+      gets 🌟 + "Tân đệ tử nhập môn ٩(◕‿◕)۶". One-shot via
+      `User.first_message_greeted_at` timestamp, set BEFORE the
+      react/reply attempts to race-protect concurrent messages.
+
+Tests: 298 unit (+8 threadNameFor) + 118 smoke (+14 1B coverage).
+Awaiting Bill live deploy → see `docs/PHASE_11.md` sanity checklist.
 
 ### Commit 2 — Gemini narration (designed)
 
