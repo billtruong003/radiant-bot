@@ -20,7 +20,14 @@ const TEST_CONFIG: AutomodConfig = {
     spamWindowMs: 300_000,
     timeoutDurationMs: 600_000,
   },
+  // Tests for the warn-path use the strict legacy policy so a plain
+  // `evil.com/free` still fires (in permissive mode it would skip — .com
+  // isn't a suspect TLD).
+  linkPolicy: 'strict',
   linkWhitelist: ['github.com', 'youtube.com'],
+  linkBlacklist: [],
+  linkShorteners: [],
+  linkSuspectTlds: [],
   profanityWords: ['fuck', 'shit', 'địt'],
 };
 
@@ -207,7 +214,9 @@ describe('automod engine integration', () => {
       const log = store.automodLogs.recent(1)[0];
       expect(log?.context).toMatchObject({
         hosts: ['evil.com'],
-        reason: expect.stringContaining('non-whitelisted'),
+        // Phase 11.2 post-deploy: reason changed from 'non-whitelisted link(s)'
+        // to 'link flagged: <host>(<reason>)' to carry the heuristic reason.
+        reason: expect.stringContaining('link flagged'),
         message_id: 'msg-test-1',
         channel_id: 'channel-test',
       });

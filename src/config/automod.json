@@ -8,7 +8,9 @@
     "spamWindowMs": 300000,
     "timeoutDurationMs": 600000
   },
+  "linkPolicy": "permissive",
   "linkWhitelist": [
+    "billthedev.com",
     "discord.com",
     "discord.gg",
     "github.com",

@@ -26,7 +26,11 @@ const TEST_CONFIG: AutomodConfig = {
     spamWindowMs: 300_000,
     timeoutDurationMs: 600_000,
   },
+  linkPolicy: 'permissive',
   linkWhitelist: ['github.com'],
+  linkBlacklist: [],
+  linkShorteners: [],
+  linkSuspectTlds: [],
   profanityWords: ['fuck', 'shit', 'địt'],
 };
 

@@ -171,6 +171,7 @@ async function main(): Promise<void> {
   await smokeAkiNudgePersona();
   await smokeAutomodNarration();
   await smokeLevelingNarration();
+  await smokeLinkPolicy();
 
   // Summary
   const pass = results.filter((r) => r.ok).length;
@@ -340,13 +341,24 @@ async function smokeAutomod(): Promise<void> {
     check('5 mentions → no decision (below threshold of 6)', d === null);
   }
 
-  // Link whitelist — non-whitelisted
+  // Phase 11.2 post-deploy: default link policy switched to 'permissive'.
+  // Random `.com` no longer fires; only suspicious links (shorteners,
+  // suspect TLDs, IP literals, blacklist) do. Test with a shortener.
   {
-    const d = await automodEngine.evaluate(mockMessage({ content: 'check evil.example.com/free' }));
-    expectEq(d?.rule.id, 'link', 'non-whitelisted link → rule=link');
+    const d = await automodEngine.evaluate(mockMessage({ content: 'click bit.ly/abc123' }));
+    expectEq(d?.rule.id, 'link', 'shortener (bit.ly) → rule=link in permissive mode');
   }
 
-  // Link whitelist — whitelisted github.com is clean
+  // Permissive: regular new domain passes
+  {
+    spamTracker.reset('u-author');
+    const d = await automodEngine.evaluate(
+      mockMessage({ content: 'check https://www.billthedev.com/portfolio' }),
+    );
+    expectEq(d, null, 'permissive: billthedev.com → no decision (whitelisted + benign)');
+  }
+
+  // Whitelisted github.com still passes
   {
     spamTracker.reset('u-author');
     const d = await automodEngine.evaluate(
@@ -1013,6 +1025,74 @@ async function smokeLevelingNarration(): Promise<void> {
   );
 
   mod.clearCacheForTesting();
+}
+
+// --- Phase 11.2 (post-deploy): link policy modes ----------------------
+
+async function smokeLinkPolicy(): Promise<void> {
+  group('Phase 11.2 · link policy (permissive default + strict raid mode)');
+  const { findSuspiciousLinks } = await import('../src/modules/automod/rules/link-whitelist.js');
+  const { loadAutomodConfig } = await import('../src/config/automod.js');
+  const config = await loadAutomodConfig();
+
+  expectEq(config.linkPolicy, 'permissive', 'default linkPolicy = permissive');
+  check(
+    'billthedev.com is whitelisted (Bill personal site)',
+    config.linkWhitelist.includes('billthedev.com'),
+  );
+  check('linkShorteners defaults populated', config.linkShorteners.length >= 5);
+  check('linkSuspectTlds defaults populated', config.linkSuspectTlds.length >= 5);
+
+  const permissive = {
+    policy: 'permissive' as const,
+    whitelist: ['github.com', 'billthedev.com'],
+    blacklist: ['known-bad.example'],
+    shorteners: ['bit.ly', 'tinyurl.com'],
+    suspectTlds: ['tk', 'click'],
+  };
+
+  expectEq(
+    findSuspiciousLinks('https://www.billthedev.com/portfolio', permissive).length,
+    0,
+    'permissive: billthedev.com → allowed (whitelist fast-pass)',
+  );
+  expectEq(
+    findSuspiciousLinks('check foo.com/blog', permissive).length,
+    0,
+    'permissive: arbitrary .com → allowed (no heuristic trip)',
+  );
+  expectEq(
+    findSuspiciousLinks('click bit.ly/abc', permissive)[0]?.reason,
+    'shortener',
+    'permissive: bit.ly → flagged (shortener)',
+  );
+  expectEq(
+    findSuspiciousLinks('go to shady.tk/free', permissive)[0]?.reason,
+    'suspect-tld',
+    'permissive: .tk → flagged (suspect-tld)',
+  );
+  expectEq(
+    findSuspiciousLinks('visit http://1.2.3.4/x', permissive)[0]?.reason,
+    'ip-host',
+    'permissive: IP-only → flagged',
+  );
+  expectEq(
+    findSuspiciousLinks('check known-bad.example/x', permissive)[0]?.reason,
+    'blacklist',
+    'permissive: blacklist domain → flagged',
+  );
+
+  const strict = { ...permissive, policy: 'strict' as const };
+  expectEq(
+    findSuspiciousLinks('foo.com/x', strict)[0]?.reason,
+    'not-whitelisted',
+    'strict: arbitrary .com → flagged (not whitelisted)',
+  );
+  expectEq(
+    findSuspiciousLinks('billthedev.com/blog', strict).length,
+    0,
+    'strict: whitelisted host still passes',
+  );
 }
 
 main().catch((err) => {

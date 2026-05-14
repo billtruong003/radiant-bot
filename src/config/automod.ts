@@ -11,6 +11,20 @@ import { z } from 'zod';
  * list is a Phase 9 polish task with iteration based on real traffic.
  */
 
+/**
+ * Link policy (Phase 11.2 post-deploy 2026-05-14 — Bill request):
+ *   - 'permissive' (default): users free-post any link. Block only when
+ *     the host is in `linkBlacklist`, is a known URL shortener, or its
+ *     TLD is in `linkSuspectTlds`. Whitelisted hosts always pass.
+ *     Fits a server where the moderation overhead of a strict allowlist
+ *     felt heavier than the spam risk.
+ *   - 'strict': legacy mode — only whitelisted hosts pass; everything
+ *     else is deleted. Use when raid risk spikes.
+ *
+ * `linkBlacklist`, `linkShorteners`, `linkSuspectTlds` default to a
+ * conservative built-in list when the JSON omits them, so an existing
+ * config file without these keys still works.
+ */
 const automodSchema = z.object({
   thresholds: z.object({
     massMentionCount: z.number().int().positive(),
@@ -20,7 +34,28 @@ const automodSchema = z.object({
     spamWindowMs: z.number().int().positive(),
     timeoutDurationMs: z.number().int().positive(),
   }),
+  linkPolicy: z.enum(['permissive', 'strict']).default('permissive'),
   linkWhitelist: z.array(z.string()),
+  linkBlacklist: z.array(z.string()).default([]),
+  linkShorteners: z
+    .array(z.string())
+    .default([
+      'bit.ly',
+      'tinyurl.com',
+      't.co',
+      'ow.ly',
+      'is.gd',
+      'goo.gl',
+      'buff.ly',
+      'rebrand.ly',
+      'shorturl.at',
+      'cutt.ly',
+      'rb.gy',
+      's.id',
+    ]),
+  linkSuspectTlds: z
+    .array(z.string())
+    .default(['tk', 'ml', 'ga', 'cf', 'gq', 'top', 'click', 'download', 'work', 'loan', 'review']),
   profanityWords: z.array(z.string()),
 });
 
