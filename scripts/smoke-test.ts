@@ -1759,7 +1759,7 @@ async function smokePinnedMessages(): Promise<void> {
   group('Phase 12.6 · Pinned messages config + sync helpers');
   const { PINNED_MESSAGES, BOT_PIN_MARKER } = await import('../src/config/pinned-messages.js');
 
-  expectEq(PINNED_MESSAGES.length, 6, 'pinned: 6 canonical channel entries defined');
+  expectEq(PINNED_MESSAGES.length, 13, 'pinned: 13 canonical channel entries defined');
   check('pinned: BOT_PIN_MARKER is non-empty', BOT_PIN_MARKER.length > 0);
 
   const expectedCanonical = new Set([
@@ -1769,6 +1769,13 @@ async function smokePinnedMessages(): Promise<void> {
     'leveling-guide',
     'tribulation',
     'bot-commands',
+    'verify',
+    'general',
+    'daily-checkin',
+    'help-me',
+    'docs',
+    'meme',
+    'level-up',
   ]);
   for (const def of PINNED_MESSAGES) {
     check(

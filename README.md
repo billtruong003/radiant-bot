@@ -2,7 +2,7 @@
 
 > Discord bot quản lý cộng đồng **tech + tu tiên** — verification gate, leveling system với cảnh giới tu tiên, automod rule-based, game mechanics (PvP, công pháp, daily quest), AI helpers (Aki / Akira / Meifeng) qua LLM router, và full admin tools.
 
-[![Tests](https://img.shields.io/badge/unit-484%20passing-brightgreen)]() [![Smoke](https://img.shields.io/badge/smoke-320%20passing-brightgreen)]() [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)]() [![Node](https://img.shields.io/badge/Node-20%20LTS-green)]() [![License](https://img.shields.io/badge/license-private-lightgrey)]()
+[![Tests](https://img.shields.io/badge/unit-484%20passing-brightgreen)]() [![Smoke](https://img.shields.io/badge/smoke-456%20passing-brightgreen)]() [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)]() [![Node](https://img.shields.io/badge/Node-20%20LTS-green)]() [![License](https://img.shields.io/badge/license-private-lightgrey)]()
 
 ---
 
@@ -58,7 +58,7 @@ cp .env.example .env  # hoặc tạo từ tay
 
 npm run build
 npm run sync-server          # tạo channels + roles
-npm run deploy-commands      # đăng ký 28 slash commands
+npm run deploy-commands      # đăng ký 26 slash commands
 npm run dev                  # hoặc node dist/src/index.js cho prod
 ```
 
@@ -76,11 +76,12 @@ Xem [`docs/SETUP.md`](docs/SETUP.md) — đầy đủ checklist clone-and-run, P
 | [`HANDOFF.md`](HANDOFF.md) | Trạng thái cuối + roadmap tương lai (anchor doc) |
 | [`docs/SETUP.md`](docs/SETUP.md) | Hướng dẫn clone + deploy + customize cho Discord khác |
 | [`docs/BACKUP.md`](docs/BACKUP.md) | Backup strategy + disaster recovery |
+| [`docs/UX_FLOW.md`](docs/UX_FLOW.md) | Hành trình đệ tử: new arrival → endgame, channel-by-channel + pinned-message matrix |
 | [`docs/PHASE_12.md`](docs/PHASE_12.md) | Game mechanics design (latest major phase) |
 | [`docs/PHASE_11.md`](docs/PHASE_11.md) | LLM router + verify hardening |
 | [`docs/PHASE_10_AKI.md`](docs/PHASE_10_AKI.md) | Aki AI design |
-| [`docs/NEXT_SESSION_PROMPT.md`](docs/NEXT_SESSION_PROMPT.md) | Prompt cho session kế (Phase 12.6 polish bundle) |
-| [`PROGRESS.md`](PROGRESS.md) | Full phase log (Phase 0-12.5) |
+| [`docs/NEXT_SESSION_PROMPT.md`](docs/NEXT_SESSION_PROMPT.md) | _Archival_ — prompt cũ cho Phase 12.6 (đã ship) |
+| [`PROGRESS.md`](PROGRESS.md) | Full phase log (Phase 0-12.6) |
 | [`SPEC.md`](SPEC.md) | Architecture spec |
 
 ---
@@ -148,7 +149,7 @@ src/
 ├── index.ts                    # Bootstrap: storage → bot → graceful shutdown
 ├── bot.ts                      # Discord client + event registration
 ├── config/                     # Static config (env, channels, roles, automod)
-├── commands/                   # 1 file = 1 slash command (28 total)
+├── commands/                   # 1 file = 1 slash command (26 total)
 ├── events/                     # Discord event handlers
 ├── modules/
 │   ├── verification/           # Captcha gate + audit + raid mode
@@ -192,7 +193,7 @@ Same pattern as Postgres WAL / Redis AOF / Kafka log. ~100MB RAM cho 10K users +
 npm run typecheck      # tsc --noEmit
 npm run lint           # biome check
 npm test               # vitest — 484 unit tests
-npm run smoke-test     # standalone production-path smoke — 320 assertions
+npm run smoke-test     # standalone production-path smoke — 456 assertions
 npm run build          # tsc -p tsconfig.build.json
 ```
 
@@ -242,8 +243,9 @@ Health check: `GET <vps-ip>:3030/health` → JSON `{ status: 'ok', uptime_ms, di
 
 ## 📊 Live Stats (current production)
 
-- **Tests**: 484 unit / 320 smoke / 0 lint err / build clean
-- **Slash commands**: 28
+- **Tests**: 484 unit / 456 smoke / 0 new lint err / build clean
+- **Slash commands**: 26
+- **Pinned canonical channels**: 13 (via `/sync-pinned` admin slash)
 - **LLM tasks**: 5 (aki-filter, aki-nudge, narration, doc-validate, divine-judgment)
 - **Cost**: ~$0/day expected (Groq free tier covers filter/narration/judgment; Grok only `/ask` at ~$0.05-0.50/day capped at $2.0)
 - **Memory**: ~100MB on Oracle VM (handles 10K users)

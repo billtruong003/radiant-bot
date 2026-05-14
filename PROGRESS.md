@@ -5,7 +5,7 @@
 > Khi blocked, ghi rõ lý do ở section "Blockers" cuối file.
 
 **Last updated:** 2026-05-14
-**Current phase:** `ALL DONE — Phase 0-12 complete + handoff documented`. 27 slash commands. 417 unit / 216 smoke / 0 lint err / build clean. Lát 9 docs pipeline shipped: `/contribute-doc` + `POST /api/contribute` HMAC + LLM `doc-validate` + auto-classify. All polish items done (`/help`, /breakthrough pill consume, quest auto-XP, boost double-reward gate, /duel accept window, /aki-memory opt-in). Role color palette refreshed to "Ethereal Mystic". `HANDOFF.md` + `docs/SETUP.md` written for project clone/revival. See `HANDOFF.md` §"Future direction" for Tier A/B/C roadmap.
+**Current phase:** `ALL DONE — Phase 0-12.6 complete + handoff documented`. 26 slash commands. 484 unit / 456 smoke / 0 new lint err / build clean. Phase 12.6 shipped: README.md + docs/BACKUP.md + docs/UX_FLOW.md + canonical pinned messages cho 13 kênh (`rules`, `announcements`, `introductions`, `leveling-guide`, `tribulation`, `bot-commands`, `verify`, `general`, `daily-checkin`, `help-me`, `docs`, `meme`, `level-up`) — 3rd-person impersonal voice + themed emoji palette + `BOT_PIN_MARKER` để safe re-sync. `/sync-pinned` admin slash + `npm run audit-server` script. Lát 9 docs pipeline shipped: `/contribute-doc` + `POST /api/contribute` HMAC + LLM `doc-validate` + auto-classify. All polish items done (`/help`, /breakthrough pill consume, quest auto-XP, boost double-reward gate, /duel accept window, /aki-memory opt-in). Role color palette refreshed to "Ethereal Mystic". `HANDOFF.md` + `docs/SETUP.md` + `docs/UX_FLOW.md` written for project clone/revival. See `HANDOFF.md` §"Future direction" for Tier A/B/C roadmap.
 
 ---
 

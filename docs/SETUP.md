@@ -2,8 +2,8 @@
 
 > Complete clone-and-run guide. Follow top to bottom for a fresh Discord server.
 
-**Bot version**: Phase 12 complete (Lát 1-9, all features shipped).
-**Test status**: 417 unit / 216 smoke / 0 lint err / build clean.
+**Bot version**: Phase 12.6 complete (Lát 1-9, security + visual polish, public docs + canonical pinned messages).
+**Test status**: 484 unit / 456 smoke / 0 new lint err / build clean.
 
 ---
 
@@ -130,7 +130,25 @@ Sync-server idempotent — chạy lại an toàn, chỉ tạo/sửa cái còn th
 npm run deploy-commands
 ```
 
-Đẩy 27 slash commands lên Discord. Lần đầu mất ~30s cho global propagation; dev guild commands tức thì.
+Đẩy 26 slash commands lên Discord. Lần đầu mất ~30s cho global propagation; dev guild commands tức thì.
+
+### 4.3.1 Sync canonical pinned messages
+
+Sau khi bot online và slash commands registered, trong Discord chạy:
+
+```
+/sync-pinned
+```
+
+Admin-only slash. Đẩy 13 pinned messages chính thức (verify · rules · announcements · introductions · general · daily-checkin · meme · help-me · leveling-guide · tribulation · level-up · docs · bot-commands) — content + emoji palette định nghĩa ở `src/config/pinned-messages.ts`. Idempotent: re-run chỉ thay bot pin, không bao giờ unpin user pin.
+
+Verify từ VPS:
+
+```bash
+npm run audit-server
+```
+
+→ Báo cáo per-channel bot-pin count + total/user pin count + missing channels.
 
 ### 4.4 First run
 
@@ -183,7 +201,7 @@ Trong Discord, theo thứ tự:
 
 | Step | Command | Expected |
 |---|---|---|
-| 1 | `/help` | Embed list 27 commands, ephemeral |
+| 1 | `/help` | Embed list 26 commands, ephemeral |
 | 2 | Member mới join | Quarantined role "Chưa Xác Minh", DM captcha hoặc verify thread |
 | 3 | Pass captcha | Roles swap → Phàm Nhân, welcome embed ở #general |
 | 4 | Chat 5+ chars trong #general | +15-25 XP, +1-2 contribution_points |
@@ -297,7 +315,7 @@ src/
 ├── index.ts                # Bootstrap: storage → bot → graceful shutdown
 ├── bot.ts                  # Discord client + event registration
 ├── config/                 # Static config (env, channels, roles, automod)
-├── commands/               # 1 file = 1 slash command (27 total)
+├── commands/               # 1 file = 1 slash command (26 total)
 ├── events/                 # Discord event handlers
 ├── modules/
 │   ├── verification/       # Captcha gate + audit + raid mode

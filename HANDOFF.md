@@ -8,7 +8,7 @@
 
 ## TL;DR
 
-**Status**: All phases shipped. **417 unit / 216 smoke / 0 lint err / build clean**.
+**Status**: All phases shipped (Phase 0-12.6). **484 unit / 456 smoke / 0 new lint err / build clean**.
 
 **Live URL** (current host): VPS Vietnix — `14.225.255.73`, PM2 process `radiant-tech-sect-bot`.
 
@@ -79,9 +79,22 @@
 ### Phase 12.1 — Role palette refresh
 - Ethereal Mystic — pastel + cosmic dreamy progression. Each rank distinct hue family (no more grey-vs-grey, yellow-vs-gold collisions).
 
+### Phase 12.2-12.5 — Security + visual + admin tools
+- Display-name sanitization (`src/utils/sanitize.ts`) + `allowedMentions: { parse: [] }` lock on every reply path.
+- Elder Lounge voice channel + tiered aura visual + 5-frame rainbow animation for legendary tier breakthroughs.
+- `/thien-dao` — Áp Chế Thiên Đạo (LLM-judged punishment menu).
+- Aki auto-defense — auto-triggers Thiên Đạo when chửi Aki/Akira/Meifeng (1h per-user cooldown).
+
+### Phase 12.6 — Public docs + canonical pinned messages
+- `README.md` (project overview), `docs/BACKUP.md` (3-tier strategy + 6 disaster scenarios), `docs/UX_FLOW.md` (full new-arrival → endgame journey).
+- 13 canonical pinned messages (`src/config/pinned-messages.ts`) covering: verify · rules · announcements · introductions · general · daily-checkin · meme · help-me · leveling-guide · tribulation · level-up · docs · bot-commands.
+- 3rd-person impersonal voice + themed emoji palette per channel + `BOT_PIN_MARKER` footer.
+- `/sync-pinned` admin slash (replaces bot pins only — user pins untouched).
+- `npm run audit-server` — read-only scan reporting members / roles / channels / pinned msg counts / channel activity.
+
 ---
 
-## Slash command surface (27 commands)
+## Slash command surface (26 commands)
 
 | Command | Group | Description |
 |---|---|---|
@@ -109,6 +122,8 @@
 | `/link-whitelist` | admin 🛡️ | Manage link whitelist runtime |
 | `/grant` | admin 🛡️ | Grant/deduct currency |
 | `/raid-mode` | admin 🛡️ | Toggle raid mode |
+| `/thien-dao` | admin 🛡️ | Áp Chế Thiên Đạo — LLM-judged punishment |
+| `/sync-pinned` | admin 🛡️ | Re-publish canonical pinned messages |
 
 ---
 

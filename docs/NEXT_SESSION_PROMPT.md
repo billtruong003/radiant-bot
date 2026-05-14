@@ -1,6 +1,6 @@
 # Prompt cho session tiếp theo — Phase 12.6 polish bundle (10 features)
 
-> **Paste toàn bộ file này làm message đầu tiên trong Claude Code session sau.**
+> ⚠️ **ARCHIVAL** — Phase 12.6 đã ship hoàn chỉnh trong commits `1a218a7` + sau đó (canonical pinned messages cho 13 kênh + `/sync-pinned` + `audit-server` script + README + `docs/BACKUP.md` + `docs/UX_FLOW.md`). Tài liệu này giữ lại để tham khảo prompt cũ, KHÔNG paste lại cho session sau. Đọc `HANDOFF.md` § "Future direction" để biết hướng đi kế tiếp (Tier A/B/C roadmap).
 
 ---
 
