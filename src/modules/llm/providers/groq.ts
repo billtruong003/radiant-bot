@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import type { ChatCompletion } from 'openai/resources/chat/completions';
 import { env } from '../../../config/env.js';
 import {
   type CompletionInput,
@@ -47,16 +48,26 @@ export const groqProvider: LlmProvider = {
     const started = Date.now();
 
     try {
-      const resp = await client.chat.completions.create({
+      // Groq-specific: `reasoning_format: 'hidden'` suppresses the
+      // `<think>…</think>` chain-of-thought trace that Qwen 3 32B (and
+      // gpt-oss-120b) emit by default in `raw` mode. Without this,
+      // reasoning leaks into output and broke prod narration / filter
+      // JSON parsing on 2026-05-14. Non-reasoning models (Llama 3.x, 4)
+      // silently ignore this field, so it's safe to send unconditionally.
+      // `reasoning_format` is a Groq-only extension not in the OpenAI
+      // typedef. Cast to a wider record to slip it past the type-checker.
+      const createArgs = {
         model: input.model,
         messages: [
-          { role: 'system', content: input.systemPrompt },
-          { role: 'user', content: input.userPrompt },
+          { role: 'system' as const, content: input.systemPrompt },
+          { role: 'user' as const, content: input.userPrompt },
         ],
         max_tokens: input.maxOutputTokens ?? 400,
         temperature: input.temperature ?? 0.7,
         ...(input.responseFormat === 'json' ? { response_format: { type: 'json_object' } } : {}),
-      });
+        reasoning_format: 'hidden',
+      } as unknown as Parameters<typeof client.chat.completions.create>[0];
+      const resp = (await client.chat.completions.create(createArgs)) as ChatCompletion;
 
       const text = resp.choices[0]?.message?.content?.trim() ?? '';
       const tokensIn = resp.usage?.prompt_tokens ?? 0;

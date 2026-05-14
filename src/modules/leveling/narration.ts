@@ -96,7 +96,7 @@ export async function narrateRankPromotion(input: RankNarrationInput): Promise<s
   const result = await llm.complete('narration', {
     systemPrompt: SYSTEM_PROMPT,
     userPrompt,
-    maxOutputTokens: 220,
+    maxOutputTokens: 400,
     temperature: 0.85,
     responseFormat: 'text',
   });
@@ -105,7 +105,7 @@ export async function narrateRankPromotion(input: RankNarrationInput): Promise<s
   if (!result) {
     text = staticFallback(input.oldRank, input.newRank);
   } else {
-    const cleaned = result.text.trim().replace(/^["'`]+|["'`]+$/g, '');
+    const cleaned = stripReasoning(result.text);
     text =
       cleaned && cleaned.length >= 30
         ? cleaned.replace(/\s*\n+\s*/g, ' ')
@@ -124,6 +124,22 @@ function staticFallback(oldRank: CultivationRankId, newRank: CultivationRankId):
   return `**__USER__** đã đột phá từ **${oldName}** lên **${newName}** — đạo tâm tăng tiến, đường tu càng vững.`;
 }
 
+/**
+ * Strip `<think>…</think>` chain-of-thought blocks emitted by reasoning
+ * models (Qwen 3 32B, gpt-oss-120b). Belt-and-suspenders defense — the
+ * Groq provider already passes `reasoning_format: 'hidden'` but on
+ * 2026-05-14 we observed raw thinking leaking into prod narration.
+ */
+function stripReasoning(raw: string): string {
+  let text = raw;
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  const openIdx = text.toLowerCase().indexOf('<think>');
+  if (openIdx !== -1) {
+    text = text.slice(0, openIdx).trim();
+  }
+  return text.trim().replace(/^["'`]+|["'`]+$/g, '');
+}
+
 export function clearCacheForTesting(): void {
   cache.clear();
 }
@@ -134,4 +150,5 @@ export const __for_testing = {
   CACHE_TTL_MS,
   cache,
   staticFallback,
+  stripReasoning,
 };

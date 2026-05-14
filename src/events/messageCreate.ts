@@ -113,10 +113,16 @@ async function handleGuildMessage(message: Message): Promise<void> {
   if (!message.member) return;
 
   // Automod first — runs in ALL channels (including no-XP ones like
-  // #bot-commands) but skips staff (Chưởng Môn / Trưởng Lão / Chấp Pháp).
-  if (!isStaff(message.member)) {
-    const decision = await automodEngine.evaluate(message);
-    if (decision) {
+  // #bot-commands). Staff (Chưởng Môn / Trưởng Lão / Chấp Pháp) are
+  // exempt from destructive rules (mass mention, link, spam, caps) but
+  // PROFANITY still evaluates so Phase 11.2's graduated nudge path can
+  // remind them with respectful tone — per Bill: "kể cả Tông Chủ cũng
+  // được nhắc, chỉ tone softer". applyDecision itself keeps staff in
+  // the nudge tier regardless of count, so no message is ever deleted.
+  const memberIsStaff = isStaff(message.member);
+  const decision = await automodEngine.evaluate(message);
+  if (decision) {
+    if (!memberIsStaff || decision.rule.id === 'profanity') {
       await applyDecision(message, decision);
       return; // violating message earns no XP
     }

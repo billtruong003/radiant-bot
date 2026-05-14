@@ -30,7 +30,10 @@ import type { AutomodDecision } from './types.js';
  */
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
-const NUDGE_COOLDOWN_MS = 30_000;
+// Per-user 30s nudge cooldown felt dead in live testing (Bill saw 1 reply
+// then silence). Dropped to 10s so persistent offenders get nudge cadence
+// matching their spam rate without burning the free-tier LLM quota.
+const NUDGE_COOLDOWN_MS = 10_000;
 const STERN_THRESHOLD = 5;
 const DELETE_THRESHOLD = 15;
 
@@ -126,6 +129,27 @@ async function trySendNudge(
   }
 }
 
+async function tryPostCleanupLine(
+  message: Message,
+  ruleId: 'profanity' | 'spam',
+  offenderName: string,
+): Promise<void> {
+  const line =
+    ruleId === 'profanity'
+      ? `🧹 Aki dọn dẹp giùm tông môn nha — **${offenderName}** lặp lại vong ngôn quá nhiều, em đã thu hồi ✿`
+      : `🧹 Aki dọn rác chút — **${offenderName}** lặp lại tin nhắn quá nhiều, em đã thu hồi ✿`;
+  try {
+    const channel = message.channel as unknown as
+      | { send?: (c: string) => Promise<unknown> }
+      | undefined;
+    if (channel && typeof channel.send === 'function') {
+      await channel.send(line);
+    }
+  } catch (err) {
+    logger.warn({ err, discord_id: message.author.id }, 'automod: cleanup line failed');
+  }
+}
+
 async function handleProfanityNudge(message: Message, count: number): Promise<void> {
   const now = Date.now();
   const last = lastNudgeAt.get(message.author.id) ?? 0;
@@ -156,14 +180,22 @@ export async function applyDecision(message: Message, decision: AutomodDecision)
 
   // Phase 11.2 / A6 — graduated profanity branch. Sub-15 counts in the
   // 60s window get a nudge instead of a destructive action. Counter is
-  // already incremented inside the profanity rule.
+  // already incremented inside the profanity rule. Staff (Chưởng Môn /
+  // Trưởng Lão / Chấp Pháp) stay in the nudge tier no matter how high
+  // the count climbs — they get respectful-tone reminders but their
+  // messages are NEVER deleted.
   if (rule.id === 'profanity') {
     const count = typeof hit.context?.profanityCount === 'number' ? hit.context.profanityCount : 0;
-    if (count < DELETE_THRESHOLD) {
+    const memberIsStaff = isStaff(message.member);
+    if (memberIsStaff || count < DELETE_THRESHOLD) {
       await handleProfanityNudge(message, count);
       return;
     }
   }
+
+  // Phase 11.2 — capture display name BEFORE delete (after delete the
+  // message ref still works but member may be gone if action=kick).
+  const offenderName = resolveDisplayName(message);
 
   // Side-effects per action type. Delete is implicit for all except 'kick'.
   switch (rule.action) {
@@ -182,6 +214,15 @@ export async function applyDecision(message: Message, decision: AutomodDecision)
     case 'kick':
       await tryKick(message, reason);
       break;
+  }
+
+  // Phase 11.2 — public-channel cleanup line. Bill: "Aki dọn dẹp rác
+  // rồi xoá các tin nhắn chửi tục thì sẽ thú vị hơn". Without this
+  // line the deletion looks silent and other members can't tell who
+  // disappeared or why. Profanity-at-delete-tier and spam are the
+  // two places this matters most — both repeat-offender flows.
+  if (rule.id === 'profanity' || rule.id === 'spam') {
+    await tryPostCleanupLine(message, rule.id, offenderName);
   }
 
   // Persist + announce.

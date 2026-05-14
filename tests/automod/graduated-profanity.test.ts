@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { type AutomodConfig } from '../../src/config/automod.js';
+import type { AutomodConfig } from '../../src/config/automod.js';
 import { Store } from '../../src/db/store.js';
 import { mkTmpDir } from '../helpers/tmp-dir.js';
 
@@ -243,6 +243,47 @@ describe('graduated profanity flow (Phase 11.2 / A6)', () => {
     await applyDecision(message, d);
 
     expect(replySpy).not.toHaveBeenCalled();
+    expect(store.automodLogs.count()).toBe(0);
+  });
+
+  it('staff at count=15+ stays in nudge tier (never deleted)', async () => {
+    const { applyDecision, automodEngine, makeMockMessage, counter } = await loadWithLlmMock(
+      store,
+      TEST_CONFIG,
+      () =>
+        Promise.resolve({
+          text: 'Tông Chủ ơi đệ tử mạn phép nhắc (◕‿◕) Lời lẽ kiềm chế chút.',
+          tokensIn: 50,
+          tokensOut: 15,
+          costUsd: 0,
+          provider: 'groq',
+          model: 'llama-3.1-8b-instant',
+          durationMs: 30,
+          routeIndex: 0,
+        }),
+    );
+
+    // Pre-fill 20 hits — well past the 15-count delete threshold.
+    for (let i = 0; i < 20; i++) counter.recordHit('u-staff');
+    const { message, spies } = makeMockMessage({ content: 'shit staff', authorId: 'u-staff' });
+    // Inject staff role on the mock member.
+    (message as unknown as { member: { roles: { cache: Map<string, { name: string }> } } }).member =
+      {
+        ...(message.member ?? {}),
+        roles: { cache: new Map([['role-cm', { name: 'Chưởng Môn' }]]) },
+      } as never;
+    (message as unknown as { reply: ReturnType<typeof vi.fn> }).reply = vi
+      .fn()
+      .mockResolvedValue(undefined);
+
+    const d = await automodEngine.evaluate(message);
+    if (!d || d.rule.id !== 'profanity') throw new Error('expected profanity decision');
+    expect(d.hit.context?.profanityCount).toBe(21);
+    await applyDecision(message, d);
+
+    // Staff path: no delete, no DM, no log, no Thiên Đạo. Just nudge.
+    expect(spies.delete).not.toHaveBeenCalled();
+    expect(spies.dmSend).not.toHaveBeenCalled();
     expect(store.automodLogs.count()).toBe(0);
   });
 });

@@ -86,7 +86,7 @@ export async function narratePunishment(input: NarrationInput): Promise<string> 
   const result = await llm.complete('narration', {
     systemPrompt: SYSTEM_PROMPT,
     userPrompt,
-    maxOutputTokens: 200,
+    maxOutputTokens: 400,
     temperature: 0.8,
     responseFormat: 'text',
   });
@@ -95,12 +95,35 @@ export async function narratePunishment(input: NarrationInput): Promise<string> 
     return staticFallback(input);
   }
 
-  const text = result.text.trim().replace(/^["'`]+|["'`]+$/g, '');
+  const text = stripReasoning(result.text);
   if (!text || text.length < 20) {
     return staticFallback(input);
   }
   // Single-line guard — narration is supposed to be 1–2 sentences flat.
   return text.replace(/\s*\n+\s*/g, ' ');
+}
+
+/**
+ * Strip `<think>…</think>` chain-of-thought blocks. Belt-and-suspenders
+ * defense — the Groq provider already passes `reasoning_format: 'hidden'`
+ * but on 2026-05-14 we observed Qwen 3 32B leaking raw thinking traces
+ * into prod #bot-log narration. If a model still emits them, we drop
+ * them here. Also handles models that emit `<think>` without a closing
+ * tag (truncated by max_tokens) — in that case we drop everything from
+ * `<think>` onward and let the caller's length/static-fallback path
+ * catch the result.
+ */
+function stripReasoning(raw: string): string {
+  let text = raw;
+  // Closed `<think>...</think>` blocks (greedy across any whitespace).
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  // Unclosed `<think>` — output was cut mid-reasoning. Drop from the tag
+  // to end of string.
+  const openIdx = text.toLowerCase().indexOf('<think>');
+  if (openIdx !== -1) {
+    text = text.slice(0, openIdx).trim();
+  }
+  return text.trim().replace(/^["'`]+|["'`]+$/g, '');
 }
 
 function staticFallback(input: NarrationInput): string {
@@ -112,4 +135,5 @@ export const __for_testing = {
   RULE_LABEL,
   ACTION_LABEL,
   staticFallback,
+  stripReasoning,
 };

@@ -686,7 +686,11 @@ async function smokeLlmRouter(): Promise<void> {
   );
   expectEq(routes['aki-nudge'][0]?.model, 'llama-3.1-8b-instant', 'aki-nudge[0] = 8B (short text)');
   expectEq(routes.narration[0]?.provider, 'groq', 'narration[0] = groq');
-  expectEq(routes.narration[0]?.model, 'qwen/qwen3-32b', 'narration[0] = Qwen 3 32B (VN xianxia)');
+  expectEq(
+    routes.narration[0]?.model,
+    'llama-3.3-70b-versatile',
+    'narration[0] = Llama 3.3 70B (non-reasoning, no <think> overhead)',
+  );
 
   // Modern model coverage
   const allFilterModels = routes['aki-filter'].map((r) => r.model);
@@ -957,6 +961,23 @@ async function smokeAutomodNarration(): Promise<void> {
   check('static fallback embeds **<user>**', fb.includes('**Bach**'));
   check('static fallback mentions Thiên Đạo', fb.includes('Thiên Đạo'));
   check('static fallback uses VN rule label, not raw id', fb.includes('ngôn từ ô uế'));
+
+  // <think> reasoning leak stripping (Qwen 3 32B + gpt-oss-120b emit
+  // <think>...</think> blocks even though Groq is told to hide them;
+  // this is the safety net).
+  const { stripReasoning } = mod.__for_testing;
+  check(
+    'stripReasoning drops closed <think>...</think>',
+    !stripReasoning('<think>foo</think>\nactual line').includes('foo'),
+  );
+  check(
+    'stripReasoning drops unclosed <think> (truncated CoT)',
+    stripReasoning('<think> truncated thinking with no end').trim() === '',
+  );
+  check(
+    'stripReasoning leaves clean prose unchanged',
+    stripReasoning('⚡ Thiên Đạo phong ấn **X**.').includes('Thiên Đạo'),
+  );
 }
 
 // --- Phase 11.2 / A8: chronicler level-up narration --------------------

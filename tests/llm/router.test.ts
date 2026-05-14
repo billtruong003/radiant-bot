@@ -97,7 +97,7 @@ describe('LLM router', () => {
       await router.complete('narration', { systemPrompt: 's', userPrompt: 'u' });
 
       expect(completeSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ model: 'qwen/qwen3-32b' }),
+        expect.objectContaining({ model: 'llama-3.3-70b-versatile' }),
       );
     });
   });
@@ -200,11 +200,17 @@ describe('LLM router', () => {
       expect(groqModels).toContain('meta-llama/llama-4-scout-17b-16e-instruct');
     });
 
-    it('narration primary (index 0) = qwen3-32b (best VN xianxia prose)', async () => {
+    it('narration primary (index 0) = Llama 3.3 70B (non-reasoning prose)', async () => {
+      // Qwen 3 32B was primary briefly but emitted <think> chain-of-thought
+      // even with reasoning_format=hidden, truncating prod narration on
+      // 2026-05-14. Swapped to Llama 3.3 70B which has no reasoning step.
       const { router } = await loadRouterWith({});
       const chain = router.__for_testing.TASK_ROUTES.narration;
       expect(chain[0]?.provider).toBe('groq');
-      expect(chain[0]?.model).toBe('qwen/qwen3-32b');
+      expect(chain[0]?.model).toBe('llama-3.3-70b-versatile');
+      // Qwen still in chain as a fallback for diversity.
+      const allModels = chain.map((r) => r.model);
+      expect(allModels).toContain('qwen/qwen3-32b');
     });
 
     it('narration chain includes gpt-oss-120b (biggest model)', async () => {

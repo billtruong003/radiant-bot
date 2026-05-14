@@ -140,6 +140,113 @@ describe('automod narration (Thiên Đạo persona)', () => {
   });
 });
 
+describe('automod narration · <think> reasoning leak stripping', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it('strips closed <think>...</think> blocks', async () => {
+    const mod = await import('../../src/modules/automod/narration.js');
+    const out = mod.__for_testing.stripReasoning(
+      '<think>let me think about this carefully</think>\n⚡ Thiên Đạo phong ấn **X**.',
+    );
+    expect(out).not.toContain('<think>');
+    expect(out).not.toContain('think about');
+    expect(out).toContain('Thiên Đạo');
+  });
+
+  it('drops unclosed <think> when output truncated mid-reasoning', async () => {
+    const mod = await import('../../src/modules/automod/narration.js');
+    const out = mod.__for_testing.stripReasoning(
+      '<think> Okay, let me see. The user wants a short narrative...',
+    );
+    expect(out).toBe('');
+  });
+
+  it('preserves prose when no <think> present', async () => {
+    const mod = await import('../../src/modules/automod/narration.js');
+    const out = mod.__for_testing.stripReasoning(
+      '⚡ Thiên Đạo đã giáng cảnh báo **Bach** vì vong ngôn ô uế.',
+    );
+    expect(out).toContain('Bach');
+    expect(out).toContain('Thiên Đạo');
+  });
+
+  it('case-insensitive tag match', async () => {
+    const mod = await import('../../src/modules/automod/narration.js');
+    const out = mod.__for_testing.stripReasoning('<THINK>reasoning</THINK>\nactual narration here');
+    expect(out).toBe('actual narration here');
+  });
+});
+
+describe('automod narration · narrate with <think> in LLM output', () => {
+  afterEach(() => {
+    vi.doUnmock('../../src/modules/llm/index.js');
+    vi.restoreAllMocks();
+  });
+
+  it('strips <think> block before checking length, returns real prose', async () => {
+    vi.resetModules();
+    vi.doMock('../../src/modules/llm/index.js', () => ({
+      llm: {
+        complete: vi.fn(() =>
+          Promise.resolve({
+            text: '<think>I need to write a cosmic line about Bach</think>\n⚡ Thiên Đạo phong ấn **Bach** vì vong ngôn ô uế — đạo tâm đã bị thu hồi.',
+            tokensIn: 50,
+            tokensOut: 50,
+            costUsd: 0,
+            provider: 'groq',
+            model: 'qwen/qwen3-32b',
+            durationMs: 100,
+            routeIndex: 2,
+          }),
+        ),
+      },
+    }));
+    const mod = await import('../../src/modules/automod/narration.js');
+    const out = await mod.narratePunishment({
+      userDisplayName: 'Bach',
+      ruleId: 'profanity',
+      action: 'warn',
+    });
+    expect(out).not.toContain('<think>');
+    expect(out).not.toContain('I need to write');
+    expect(out).toContain('Bach');
+    expect(out).toContain('Thiên Đạo');
+  });
+
+  it('LLM output is ONLY a <think> block → falls back to static', async () => {
+    vi.resetModules();
+    vi.doMock('../../src/modules/llm/index.js', () => ({
+      llm: {
+        complete: vi.fn(() =>
+          Promise.resolve({
+            text: '<think> Okay, let me figure this out by considering the rules carefully and choosing the right tone for the disciple',
+            tokensIn: 50,
+            tokensOut: 200,
+            costUsd: 0,
+            provider: 'groq',
+            model: 'qwen/qwen3-32b',
+            durationMs: 100,
+            routeIndex: 2,
+          }),
+        ),
+      },
+    }));
+    const mod = await import('../../src/modules/automod/narration.js');
+    const out = await mod.narratePunishment({
+      userDisplayName: 'Bach',
+      ruleId: 'profanity',
+      action: 'warn',
+    });
+    expect(out).not.toContain('<think>');
+    // Static fallback returned
+    expect(out).toContain('Bach');
+    expect(out).toContain('Thiên Đạo');
+    expect(out).toContain('ngôn từ ô uế');
+  });
+});
+
 describe('automod narration · static fallback', () => {
   beforeEach(() => {
     vi.resetModules();

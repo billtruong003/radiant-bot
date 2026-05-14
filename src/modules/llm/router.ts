@@ -62,14 +62,17 @@ const TASK_ROUTES: Record<TaskId, readonly Route[]> = {
     { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
     { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
   ],
-  // NARRATION — cultivation-themed prose. Qwen 3 first because Alibaba
-  // trained heavily on Chinese xianxia + VN; gpt-oss-120b biggest for
-  // heavy lifting; Llama 4 Scout newer arch.
+  // NARRATION — cultivation-themed prose. Llama 3.3 70B first because it
+  // is non-reasoning (no `<think>` overhead, every token goes to prose)
+  // and gives strong VN xianxia output. Qwen 3 32B + gpt-oss-120b are
+  // reasoning models — kept in chain as fallback but they burn output
+  // budget on chain-of-thought even with `reasoning_format: 'hidden'`,
+  // which on 2026-05-14 caused empty/truncated narration in prod.
   narration: [
-    { provider: 'groq', model: 'qwen/qwen3-32b' },
     { provider: 'groq', model: 'llama-3.3-70b-versatile' },
-    { provider: 'groq', model: 'openai/gpt-oss-120b' },
     { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
+    { provider: 'groq', model: 'qwen/qwen3-32b' },
+    { provider: 'groq', model: 'openai/gpt-oss-120b' },
     { provider: 'gemini', model: 'gemini-2.5-flash' },
     { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
     { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
