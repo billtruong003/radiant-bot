@@ -34,8 +34,13 @@ cp /path/to/radiant-tech-sect-bot/docs/RADIANT_ARENA_UNITY.md Docs/
 cp /path/to/radiant-tech-sect-bot/docs/RADIANT_ARENA_ARCHITECTURE.md Docs/
 cp /path/to/radiant-tech-sect-bot/docs/RADIANT_ARENA_COLYSEUS.md Docs/
 
-# 3. Paste BillGameCore API reference từ session context
+# 3. BillGameCore API reference (KHÔNG có trong monorepo)
+# Bill paste từ nguồn riêng (Notion / Drive / file local):
 nano Docs/BILLGAMECORE_API.md  # paste full content
+#
+# Nếu KHÔNG có doc sẵn: skip file này. Agent sẽ fallback đọc
+# source code trong Assets/BillGameCore/ trực tiếp (nhưng noisy hơn
+# nhiều — viết doc API trước khi bắt đầu Lát D.U3 tiết kiệm thời gian).
 
 # 4. Git init (separate repo)
 git init
@@ -126,11 +131,14 @@ arena-server (Vietnix VPS :2567)
 
 ## Status hiện tại
 
-**Lát D.U1 chưa start** — Unity project chưa được tạo. Steps đầu tiên ở "Setup khi tạo Unity project" section trên.
+**Server side** (arena-server):
+- Lát D.1 (scaffold) ✅ shipped.
+- Lát D.2 (DuelRoom + HMAC auth + Colyseus schemas) ✅ shipped — commit `d701968`.
+- Lát D.3 (admin POST /create-room + seed-room.ts) ⏳ pending — Unity D.U2 smoke phụ thuộc cái này, có thể workaround bằng DevTokenSigner.cs trong Editor.
 
-Khi Unity project đã có:
-- Lát D.U1 = bootstrap (install packages, GameBootstrap.cs).
-- Lát D.U2+ = build features per `TASKS.md`.
+**Unity side**:
+- Lát D.U1 chưa start — Unity project chưa được tạo. Steps đầu tiên ở "Setup khi tạo Unity project" section trên.
+- Khi Unity project đã có: Lát D.U1 = bootstrap, Lát D.U2+ = build features per `TASKS.md`.
 
 ---
 

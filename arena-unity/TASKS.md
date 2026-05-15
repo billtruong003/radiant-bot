@@ -4,7 +4,11 @@
 >
 > **Đọc trước:** `SKILL.md`, `README.md`, `Docs/RADIANT_ARENA_UNITY.md`, `Docs/BILLGAMECORE_API.md`.
 >
-> **Hiện trạng:** chưa setup project Unity. Lát D.U1 = bootstrap.
+> **Hiện trạng (server side):** arena-server đã ship Lát D.1 (scaffold) + Lát D.2 (DuelRoom skeleton + HMAC auth + Colyseus schemas, commit `d701968`). Unity work bắt đầu được từ D.U1; nhưng D.U2 cần `scripts/seed-room.ts` của arena-server (Lát D.3, chưa ship) để smoke 2-client local. Workaround: dùng dev token tự sign trong Unity Editor — xem D.U2 scope.
+>
+> **Hiện trạng (Unity side):** chưa setup project Unity. Lát D.U1 = bootstrap.
+>
+> **BillGameCore API doc:** repo này KHÔNG chứa `BILLGAMECORE_API.md`. Bill paste vào `Docs/BILLGAMECORE_API.md` từ nguồn riêng (Notion / file local) lúc setup Unity project. Nếu không có doc sẵn → fallback: agent đọc BillGameCore source code trực tiếp trong `Assets/BillGameCore/` để nắm API surface.
 
 ---
 
@@ -36,13 +40,20 @@
 
 **Scope:**
 - `NetClient.cs` — `Connect(ConnectionInfo)`, `room.OnStateChange`, `room.OnLeave`.
-- `NetMessageTypes.cs` — DTOs matching server messages.
-- `ArenaContext.cs` — static singleton holding match snapshot + hydration.
+- `MessageSchemas.cs` — C# schema classes mirroring `arena-server/src/rooms/schemas.ts`. **2 chiến lược:**
+  - **Option A (recommended)** — hand-mirror: 7 plain C# classes (or Colyseus's `Schema` subclasses if SDK version requires) tương ứng `DuelState`, `PlayerSchema`, `WeaponSchema`, `WeaponStatsSchema`, `WeaponVisualSchema`, `WeaponSkillSchema`, `TrajectoryPointSchema`. Khi server schema thay đổi → manual sync. Pros: control + clarity.
+  - **Option B** — Colyseus `schema-codegen` CLI tự generate C# từ `.fbs` file. Pros: 0 manual sync. Cons: cần generate `.fbs` từ TS schema (Colyseus SDK có script). Bỏ qua nếu Option A đủ — server schemas chỉ có 7 class, hand-mirror nhanh.
+- `MessageTypes.cs` — outbound message payload structs (`SelectWeaponMsg { string slug }`, `ShootMsg { float angle; float power }`, etc.).
+- `ArenaContext.cs` — static singleton holding match snapshot + hydration helpers.
 - `ManualRoomConnect.cs` (Editor-only) — paste ws URL + token + room ID, right-click → Connect for testing.
-- `BootState.cs` — parse URL query (`?room=X&t=Y`) on WebGL build.
+- `BootState.cs` — parse URL query (`?room=X&t=Y`) on WebGL build via JS interop hoặc `Application.absoluteURL`.
 - `ConnectingState.cs` — show ConnectingPanel, await Connect, transition to LobbyState on success.
 
-**DoD:** Run `arena-server` locally + `npm run smoke` to get 2 tokens; paste in 2 Editor instances via ParrelSync; both join successfully.
+**Token workaround (until arena-server D.3 ships):**
+- D.3 sẽ ship `arena-server/scripts/seed-room.ts` để gen 2 dev token + spawn room qua admin endpoint.
+- Tạm thời: viết `DevTokenSigner.cs` (Editor-only) tự sign HMAC token bằng shared secret (Bill hardcode trong Editor PlayerPrefs, không commit). Test connect tới room mà bot/seed-room đã tạo. Khi D.3 ship thì delete DevTokenSigner.
+
+**DoD:** Run `arena-server` locally + `scripts/seed-room.ts` (after D.3) hoặc DevTokenSigner (interim) để get 2 token; paste vào 2 Editor instances qua ParrelSync; cả 2 join thành công, log `state.phase=lobby`.
 
 ---
 

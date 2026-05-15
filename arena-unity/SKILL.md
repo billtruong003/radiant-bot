@@ -194,7 +194,7 @@ A Lát is done when:
 | `./README.md` | Quickstart + project setup |
 
 **Note for Bill when setting up the Unity project:**
-Copy these 4 docs from the parent monorepo (`radiant-tech-sect-bot/docs/`) into `radiant-arena-unity/Docs/` so Claude session has them locally without needing to reach outside the Unity project.
+Copy these docs from the parent monorepo (`radiant-tech-sect-bot/docs/`) into `radiant-arena-unity/Docs/` so Claude session has them locally without needing to reach outside the Unity project. `BILLGAMECORE_API.md` is the ONE exception — it's not in the monorepo. Bill provides it from his own source (Notion / Drive / local file). If unavailable: agent falls back to reading `Assets/BillGameCore/` source code directly — noisier but workable.
 
 ---
 
