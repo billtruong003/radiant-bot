@@ -24,6 +24,10 @@ backup-repo/
 .DS_Store
 Thumbs.db
 
+# Claude Code local state (skills/ + plans/ ARE committed — only local settings excluded)
+.claude/settings.local.json
+.claude/projects/
+
 # Test coverage
 coverage/
 *.lcov
