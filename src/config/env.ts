@@ -58,6 +58,32 @@ const envSchema = z.object({
    * personal website signs requests with this secret + sha256.
    */
   DOCS_HMAC_SECRET: z.string().default(''),
+
+  // --- Phase 13 Lát A — Radiant Arena bridge ---
+  /**
+   * Master feature flag. When false (default), `/arena` slash returns a
+   * "not yet enabled" notice, `requestRoom()` returns a mock OK without
+   * touching Colyseus, and `/api/arena/result` returns 503. Flip to true
+   * only after Colyseus is reachable at ARENA_COLYSEUS_URL.
+   */
+  ARENA_ENABLED: z
+    .string()
+    .default('false')
+    .transform((s) => s.toLowerCase() === 'true'),
+  /** Internal HTTP(S) URL where the Colyseus admin endpoint listens. */
+  ARENA_COLYSEUS_URL: z.string().default('http://localhost:2567'),
+  /**
+   * Shared HMAC secret between bot and Colyseus. Used to sign join tokens
+   * (player → Colyseus) AND admin requests (bot → Colyseus). Empty
+   * disables outbound calls when ARENA_ENABLED=true (returns error).
+   */
+  ARENA_TOKEN_SECRET: z.string().default(''),
+  /**
+   * Shared HMAC secret for inbound result callback (Colyseus → bot's
+   * /api/arena/result). Distinct from ARENA_TOKEN_SECRET so a leak on one
+   * side doesn't compromise both. Empty disables the endpoint with 503.
+   */
+  ARENA_RESULT_SECRET: z.string().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;

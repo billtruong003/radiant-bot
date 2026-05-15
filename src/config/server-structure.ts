@@ -223,6 +223,8 @@ export const CATEGORIES: readonly CategoryDef[] = [
       { name: '⚡-level-up-⚡', type: 'text', perm: 'verified_read' },
       { name: '🏆-leaderboard-🏆', type: 'text', perm: 'verified_read' },
       { name: '🌩️-tribulation-🌩️', type: 'text', perm: 'verified_full' },
+      // Phase 13 Lát A — Radiant Arena match log + announcements.
+      { name: '🗡️-arena-🗡️', type: 'text', perm: 'verified_read' },
     ],
   },
   {

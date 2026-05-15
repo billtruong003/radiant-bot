@@ -8,6 +8,7 @@ import type { StoreOp } from './operations.js';
 import { SingletonCollection } from './singleton-collection.js';
 import type {
   AkiCallLog,
+  ArenaSession,
   AutomodLog,
   CongPhap,
   DailyQuest,
@@ -18,8 +19,10 @@ import type {
   SectEvent,
   User,
   UserCongPhap,
+  UserWeapon,
   Verification,
   VoiceSession,
+  Weapon,
   XpLog,
 } from './types.js';
 
@@ -47,6 +50,10 @@ interface SnapshotShape {
   // Phase 12 Lát 9 — docs threads pipeline.
   doc_contributions?: DocContribution[];
   doc_review_logs?: DocReviewLog[];
+  // Phase 13 Lát A — Radiant Arena bridge.
+  weapon_catalog?: Weapon[];
+  user_weapons?: UserWeapon[];
+  arena_sessions?: ArenaSession[];
 }
 
 const DEFAULT_RAID_STATE: RaidState = {
@@ -97,6 +104,10 @@ export class Store {
   // Phase 12 Lát 9 — docs threads pipeline.
   readonly docContributions: Collection<DocContribution>;
   readonly docReviewLogs: AppendOnlyCollection<DocReviewLog>;
+  // Phase 13 Lát A — Radiant Arena bridge.
+  readonly weaponCatalog: Collection<Weapon>;
+  readonly userWeapons: Collection<UserWeapon>;
+  readonly arenaSessions: Collection<ArenaSession>;
 
   private readonly log: AppendOnlyLog;
   private readonly walPath: string;
@@ -151,6 +162,15 @@ export class Store {
     );
     this.docReviewLogs = new AppendOnlyCollection<DocReviewLog>('doc_review_logs', this.log);
 
+    // Phase 13 Lát A — Arena weapon catalog + user inventory + session log.
+    this.weaponCatalog = new Collection<Weapon>('weapon_catalog', this.log, (w) => w.slug);
+    this.userWeapons = new Collection<UserWeapon>('user_weapons', this.log, (uw) => uw.id);
+    this.arenaSessions = new Collection<ArenaSession>(
+      'arena_sessions',
+      this.log,
+      (s) => s.session_id,
+    );
+
     const map = new Map<string, WalApplicable>();
     for (const c of [
       this.users,
@@ -167,6 +187,9 @@ export class Store {
       this.dailyQuests,
       this.docContributions,
       this.docReviewLogs,
+      this.weaponCatalog,
+      this.userWeapons,
+      this.arenaSessions,
     ]) {
       map.set(c.name, c);
     }
@@ -201,6 +224,9 @@ export class Store {
       this.dailyQuests._bulkLoad(snapshot.daily_quests ?? []);
       this.docContributions._bulkLoad(snapshot.doc_contributions ?? []);
       this.docReviewLogs._bulkLoad(snapshot.doc_review_logs ?? []);
+      this.weaponCatalog._bulkLoad(snapshot.weapon_catalog ?? []);
+      this.userWeapons._bulkLoad(snapshot.user_weapons ?? []);
+      this.arenaSessions._bulkLoad(snapshot.arena_sessions ?? []);
       logger.info(
         {
           version: snapshot.version,
@@ -318,6 +344,9 @@ export class Store {
         daily_quests: this.dailyQuests._serialize(),
         doc_contributions: this.docContributions._serialize(),
         doc_review_logs: this.docReviewLogs._serialize(),
+        weapon_catalog: this.weaponCatalog._serialize(),
+        user_weapons: this.userWeapons._serialize(),
+        arena_sessions: this.arenaSessions._serialize(),
       };
 
       const tmpPath = `${this.snapshotPath}.tmp`;

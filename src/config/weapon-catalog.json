@@ -1,0 +1,219 @@
+{
+  "$schema": "weapon-catalog-v1",
+  "items": [
+    {
+      "slug": "thiet-con-pham-pham",
+      "display_name": "Thiết Côn Phàm Phẩm",
+      "category": "blunt",
+      "tier": "pham",
+      "stats": {
+        "power": 1.05,
+        "hitbox": 1.1,
+        "bounce": 0.55,
+        "damage_base": 22,
+        "pierce_count": 0,
+        "crit_chance": 0.05,
+        "crit_multi": 1.5
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_thiet_con_01",
+        "particle_fx_key": "",
+        "trail_fx_key": "",
+        "hue": "#a89b8d"
+      },
+      "lore": "Thiết côn rèn từ sắt thường, khởi đầu của mọi tu sĩ học đập.",
+      "shop": {
+        "cost_pills": 0,
+        "cost_contribution": 300,
+        "unlock_realm": null
+      }
+    },
+    {
+      "slug": "tru-thien-chuy-dia-pham",
+      "display_name": "Trụ Thiên Chuỳ",
+      "category": "blunt",
+      "tier": "dia",
+      "stats": {
+        "power": 1.2,
+        "hitbox": 1.15,
+        "bounce": 0.6,
+        "damage_base": 30,
+        "pierce_count": 0,
+        "crit_chance": 0.08,
+        "crit_multi": 1.7
+      },
+      "skills": [
+        {
+          "skill_id": "passive_corner_combo_15",
+          "trigger": "on_hit",
+          "magnitude": 0.15,
+          "cooldown": 0,
+          "fx_key": "fx_dust_burst"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_chuy_01",
+        "particle_fx_key": "fx_iron_aura",
+        "trail_fx_key": "",
+        "hue": "#6890b8"
+      },
+      "lore": "Chuỳ nặng chấn động địa mạch — đập vào góc tường, dư chấn dồn vào đối thủ.",
+      "shop": {
+        "cost_pills": 3,
+        "cost_contribution": 1200,
+        "unlock_realm": "truc_co"
+      }
+    },
+    {
+      "slug": "thanh-kiem-pham-pham",
+      "display_name": "Thanh Kiếm Phàm Phẩm",
+      "category": "pierce",
+      "tier": "pham",
+      "stats": {
+        "power": 1.1,
+        "hitbox": 0.95,
+        "bounce": 0.35,
+        "damage_base": 28,
+        "pierce_count": 1,
+        "crit_chance": 0.1,
+        "crit_multi": 1.8
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_kiem_01",
+        "particle_fx_key": "",
+        "trail_fx_key": "",
+        "hue": "#8d9ba8"
+      },
+      "lore": "Kiếm rèn theo lối cổ — sắc bén, xuyên qua hộ thể yếu.",
+      "shop": {
+        "cost_pills": 0,
+        "cost_contribution": 400,
+        "unlock_realm": null
+      }
+    },
+    {
+      "slug": "thiet-phien-phong-luu-thien-pham",
+      "display_name": "Thiết Phiến Phong Lưu",
+      "category": "pierce",
+      "tier": "thien",
+      "stats": {
+        "power": 1.3,
+        "hitbox": 0.95,
+        "bounce": 0.4,
+        "damage_base": 38,
+        "pierce_count": 2,
+        "crit_chance": 0.15,
+        "crit_multi": 2.0
+      },
+      "skills": [
+        {
+          "skill_id": "passive_lifesteal_10",
+          "trigger": "on_hit",
+          "magnitude": 0.1,
+          "cooldown": 0,
+          "fx_key": "fx_lifesteal_drain"
+        },
+        {
+          "skill_id": "signature_thiet_phien_quet",
+          "trigger": "active",
+          "magnitude": 1.8,
+          "cooldown": 8.0,
+          "fx_key": "fx_phong_arc"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_thiet_phien_01",
+        "particle_fx_key": "fx_wind_aura",
+        "trail_fx_key": "trail_thien_pham_gold",
+        "hue": "#d4af37"
+      },
+      "lore": "Thiết phiến rèn từ tinh hoa Phong Lưu Đảo, mỗi vết quét đều mang theo gió.",
+      "shop": {
+        "cost_pills": 12,
+        "cost_contribution": 5000,
+        "unlock_realm": "kim_dan"
+      }
+    },
+    {
+      "slug": "di-hoa-linh-khi-dia-pham",
+      "display_name": "Dị Hoả Linh Châu",
+      "category": "spirit",
+      "tier": "dia",
+      "stats": {
+        "power": 1.0,
+        "hitbox": 1.0,
+        "bounce": 0.45,
+        "damage_base": 24,
+        "pierce_count": 0,
+        "crit_chance": 0.05,
+        "crit_multi": 1.6
+      },
+      "skills": [
+        {
+          "skill_id": "passive_burning_path",
+          "trigger": "on_round_start",
+          "magnitude": 5,
+          "cooldown": 0,
+          "fx_key": "fx_burning_zone"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_di_hoa_01",
+        "particle_fx_key": "fx_flame_corona",
+        "trail_fx_key": "trail_di_hoa_burn",
+        "hue": "#ff7e3c"
+      },
+      "lore": "Linh châu chứa dị hoả — quỹ đạo đi qua để lại vùng cháy 4 giây.",
+      "shop": {
+        "cost_pills": 4,
+        "cost_contribution": 1500,
+        "unlock_realm": "truc_co"
+      }
+    },
+    {
+      "slug": "le-bang-linh-thien-pham",
+      "display_name": "Lệ Băng Châu",
+      "category": "spirit",
+      "tier": "thien",
+      "stats": {
+        "power": 0.95,
+        "hitbox": 1.05,
+        "bounce": 0.5,
+        "damage_base": 26,
+        "pierce_count": 0,
+        "crit_chance": 0.1,
+        "crit_multi": 2.0
+      },
+      "skills": [
+        {
+          "skill_id": "passive_freeze_miss_30",
+          "trigger": "on_hit",
+          "magnitude": 0.3,
+          "cooldown": 0,
+          "fx_key": "fx_ice_burst"
+        },
+        {
+          "skill_id": "signature_le_bang_freeze_pulse",
+          "trigger": "active",
+          "magnitude": 2.2,
+          "cooldown": 10,
+          "fx_key": "fx_ice_pulse"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_le_bang_01",
+        "particle_fx_key": "fx_ice_mist",
+        "trail_fx_key": "trail_thien_pham_cyan",
+        "hue": "#7fc7d6"
+      },
+      "lore": "Châu băng tinh khiết — đập trúng làm đối thủ rét cóng, 30% trượt lượt kế.",
+      "shop": {
+        "cost_pills": 14,
+        "cost_contribution": 5500,
+        "unlock_realm": "kim_dan"
+      }
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { startBot, stopBot } from './bot.js';
 import { loadCongPhapCatalog } from './config/cong-phap-catalog.js';
+import { loadWeaponCatalog } from './config/weapon-catalog.js';
 import { getStore, initStore, shutdownStore } from './db/index.js';
 import { logger } from './utils/logger.js';
 
@@ -33,6 +34,23 @@ async function main(): Promise<void> {
     }
   } catch (err) {
     logger.error({ err }, 'store: failed to seed công pháp catalog (continuing)');
+  }
+
+  // Phase 13 Lát A — seed weapon catalog from JSON if Store has none.
+  try {
+    const weapons = await loadWeaponCatalog();
+    let seeded = 0;
+    for (const w of weapons) {
+      if (!getStore().weaponCatalog.get(w.slug)) {
+        await getStore().weaponCatalog.set(w);
+        seeded++;
+      }
+    }
+    if (seeded > 0) {
+      logger.info({ seeded, total: weapons.length }, 'store: weapon catalog seeded');
+    }
+  } catch (err) {
+    logger.error({ err }, 'store: failed to seed weapon catalog (continuing)');
   }
 
   const client = await startBot();

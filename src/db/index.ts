@@ -60,5 +60,16 @@ export type {
   ReactionRoleMapping,
   AkiCallLog,
   CultivationRankId,
+  Weapon,
+  WeaponCategory,
+  WeaponTier,
+  WeaponStats,
+  WeaponSkillRef,
+  WeaponVisual,
+  WeaponShop,
+  UserWeapon,
+  ArenaSession,
+  ArenaSessionStatus,
+  ArenaOutcome,
 } from './types.js';
 export type { StoreOp } from './operations.js';

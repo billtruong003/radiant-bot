@@ -197,6 +197,8 @@ async function main(): Promise<void> {
   await smokePinnedMessages();
   // --- Phase 12.6/3 — Docs auto-publish ---
   await smokeDocsPublish();
+  // --- Phase 13 Lát A — Arena bot-side bridge ---
+  await smokeArenaBridge();
 
   // Summary
   const pass = results.filter((r) => r.ok).length;
@@ -1761,7 +1763,7 @@ async function smokePinnedMessages(): Promise<void> {
   group('Phase 12.6 · Pinned messages config + sync helpers');
   const { PINNED_MESSAGES, BOT_PIN_MARKER } = await import('../src/config/pinned-messages.js');
 
-  expectEq(PINNED_MESSAGES.length, 13, 'pinned: 13 canonical channel entries defined');
+  expectEq(PINNED_MESSAGES.length, 14, 'pinned: 14 canonical channel entries defined');
   check('pinned: BOT_PIN_MARKER is non-empty', BOT_PIN_MARKER.length > 0);
 
   const expectedCanonical = new Set([
@@ -1778,6 +1780,7 @@ async function smokePinnedMessages(): Promise<void> {
     'docs',
     'meme',
     'level-up',
+    'arena',
   ]);
   for (const def of PINNED_MESSAGES) {
     check(
@@ -1919,6 +1922,115 @@ async function smokeDocsPublish(): Promise<void> {
   for (const mime of allowedMimes) {
     check(`publish-input: '${mime}' is in allowed image MIME set`, allowedMimes.includes(mime));
   }
+}
+
+async function smokeArenaBridge(): Promise<void> {
+  group('Phase 13 Lát A · Arena bridge (forge + tokens + catalog)');
+
+  // 1. Bản mệnh forge determinism
+  const { previewBanMenh, deriveBanMenhSlug, BAN_MENH_SLUG_PREFIX } = await import(
+    '../src/modules/arena/forge.js'
+  );
+  const a = previewBanMenh('123456789012345');
+  const b = previewBanMenh('123456789012345');
+  expectEq(a.stats.power, b.stats.power, 'forge: same discord_id → same power');
+  expectEq(a.stats.damage_base, b.stats.damage_base, 'forge: same discord_id → same damage_base');
+  expectEq(a.visual.hue, b.visual.hue, 'forge: same discord_id → same hue');
+  const c = previewBanMenh('999888777666555');
+  check('forge: different discord_id likely different power/hue', a.stats.power !== c.stats.power || a.visual.hue !== c.visual.hue);
+
+  // Stat range constraints
+  check('forge: power ∈ [1.0, 1.2]', a.stats.power >= 1.0 && a.stats.power <= 1.2);
+  check('forge: hitbox ∈ [1.0, 1.15]', a.stats.hitbox >= 1.0 && a.stats.hitbox <= 1.15);
+  check('forge: bounce ∈ [0.45, 0.55]', a.stats.bounce >= 0.45 && a.stats.bounce <= 0.55);
+  check('forge: damage_base ∈ [18, 22]', a.stats.damage_base >= 18 && a.stats.damage_base <= 22);
+  expectEq(a.stats.pierce_count, 0, 'forge: pierce_count is 0 for bản mệnh');
+  expectEq(a.stats.crit_multi, 1.5, 'forge: crit_multi locked at 1.5');
+  check('forge: crit_chance ∈ [0.02, 0.08]', a.stats.crit_chance >= 0.02 && a.stats.crit_chance <= 0.08);
+  check(
+    'forge: slug uses BAN_MENH_SLUG_PREFIX',
+    deriveBanMenhSlug('xyz').startsWith(BAN_MENH_SLUG_PREFIX),
+  );
+  check(
+    'forge: hue hex format',
+    /^#[0-9a-fA-F]{6}$/.test(a.visual.hue),
+  );
+
+  // 2. HMAC token round-trip
+  const { signToken, verifyToken, signBody, verifyBody } = await import('../src/modules/arena/tokens.js');
+  const secret = 'test-secret-32-bytes-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+  const payload = {
+    session_id: 'sess-abc',
+    discord_id: '111222333',
+    expires_at: Date.now() + 60_000,
+  };
+  const token = signToken(payload, secret);
+  check('token: format has single "." separator', token.split('.').length === 2);
+  const decoded = verifyToken(token, secret);
+  check('token: verifyToken roundtrip returns payload', decoded !== null);
+  expectEq(decoded?.session_id, 'sess-abc', 'token: payload.session_id preserved');
+  expectEq(decoded?.discord_id, '111222333', 'token: payload.discord_id preserved');
+
+  // Wrong secret rejects
+  expectEq(verifyToken(token, 'other-secret-xxxxxxxxxxxxxxxxxxxx'), null, 'token: wrong secret rejected');
+  // Expired rejects
+  const expired = signToken({ ...payload, expires_at: Date.now() - 1 }, secret);
+  expectEq(verifyToken(expired, secret), null, 'token: expired rejected');
+  // Tampered rejects
+  const tampered = token.slice(0, -2) + 'XX';
+  expectEq(verifyToken(tampered, secret), null, 'token: tampered signature rejected');
+
+  // Body HMAC round-trip
+  const body = Buffer.from(JSON.stringify({ session_id: 'sess-abc', outcome: 'win' }));
+  const sig = signBody(body, secret);
+  check('body: signBody starts with sha256=', sig.startsWith('sha256='));
+  check('body: verifyBody accepts matching sig', verifyBody(body, sig, secret));
+  check('body: verifyBody rejects wrong sig', !verifyBody(body, 'sha256=00', secret));
+  check('body: verifyBody rejects empty header', !verifyBody(body, '', secret));
+
+  // 3. Weapon catalog seed
+  const { loadWeaponCatalog, __resetWeaponCatalogCacheForTesting } = await import(
+    '../src/config/weapon-catalog.js'
+  );
+  __resetWeaponCatalogCacheForTesting();
+  const catalog = await loadWeaponCatalog();
+  expectEq(catalog.length, 6, 'catalog: 6 weapons seeded');
+  const categories = new Set(catalog.map((w) => w.category));
+  check('catalog: covers all 3 categories', categories.has('blunt') && categories.has('pierce') && categories.has('spirit'));
+  const tiers = new Set(catalog.map((w) => w.tier));
+  check('catalog: covers tiers pham + dia + thien', tiers.has('pham') && tiers.has('dia') && tiers.has('thien'));
+  for (const w of catalog) {
+    check(`catalog: '${w.slug}' has positive damage_base`, w.stats.damage_base > 0);
+    check(`catalog: '${w.slug}' has valid hue`, /^#[0-9a-fA-F]{6}$/.test(w.visual.hue));
+  }
+
+  // 4. weaponToRoomData
+  const { weaponToRoomData } = await import('../src/modules/arena/client.js');
+  const w0 = catalog[0];
+  if (!w0) throw new Error('expected catalog[0]');
+  const rd = weaponToRoomData(w0);
+  check('client: weaponToRoomData maps catalog entry', rd !== null && rd.slug === w0.slug);
+
+  const banMenhUW = {
+    weapon_slug: deriveBanMenhSlug('888'),
+    custom_stats: a.stats,
+    custom_visual: a.visual,
+  };
+  const rd2 = weaponToRoomData(banMenhUW);
+  check(
+    'client: weaponToRoomData synthesises bản mệnh entry',
+    rd2 !== null && rd2.tier === 'ban_menh' && rd2.slug.startsWith(BAN_MENH_SLUG_PREFIX),
+  );
+  const banMenhNoStats = {
+    weapon_slug: deriveBanMenhSlug('888'),
+    custom_stats: null,
+    custom_visual: null,
+  };
+  expectEq(
+    weaponToRoomData(banMenhNoStats),
+    null,
+    'client: weaponToRoomData returns null when custom stats missing',
+  );
 }
 
 main().catch((err) => {

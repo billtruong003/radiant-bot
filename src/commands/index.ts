@@ -1,5 +1,6 @@
 import type { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import { command as akiMemory } from './aki-memory.js';
+import { command as arena } from './arena.js';
 import { command as askAkira } from './ask-akira.js';
 import { command as askMeifeng } from './ask-meifeng.js';
 import { command as ask } from './ask.js';
@@ -67,6 +68,8 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [contributeDoc.data.name, contributeDoc as SlashCommand],
   [thienDao.data.name, thienDao as SlashCommand],
   [syncPinned.data.name, syncPinned as SlashCommand],
+  // Phase 13 Lát A
+  [arena.data.name, arena as SlashCommand],
 ]);
 
 export function findCommand(name: string): SlashCommand | undefined {
