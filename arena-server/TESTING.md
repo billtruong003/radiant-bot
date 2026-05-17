@@ -26,11 +26,26 @@ Vitest configured in [`vitest.config.ts`](./vitest.config.ts). Tests live under 
 
 - `tests/auth.test.ts` — HMAC token sign/verify round-trips (Lát D.2 baseline, 12 cases).
 - `tests/admin-create.test.ts` — `/admin/create-room` handler (Lát D.3, 4 cases — happy / 401 bad sig / 503 over-limit / 400 invalid body).
+- `tests/turn-loop.test.ts` — DuelRoom message handlers + state machine (Lát D.4, 12 cases). Uses `@colyseus/testing` to boot an in-memory server and connect mock WS clients, then drives select_weapon → ready → countdown → active → shoot → animating → animation_complete → next turn → concede → ended.
 
 ### Env stubbing
 `vitest.config.ts` sets `test.env.*` with safe defaults (test secrets + dummy port). `src/env.ts` runs `parseEnv()` at module load and would otherwise `process.exit(1)` during test import — vitest's `env` block satisfies the Zod schema before any test file resolves its imports.
 
 If you need a test to assert env-failure behavior, override per-test with `process.env.X = ''` in `beforeEach` and re-import the module via dynamic `await import()` after each override.
+
+### `@colyseus/testing` quirks
+The harness's `boot()` import at module top crashes vitest's worker-IPC
+serializer (`TypeError: Buffer.from on Object`). Workaround: lazy-load via
+dynamic `await import('@colyseus/testing')` inside `beforeAll`. See
+`tests/turn-loop.test.ts` for the pattern.
+
+`pool: 'threads'` is also required in `vitest.config.ts` — the default
+`forks` pool hits the same serializer bug.
+
+`vitest.config.ts` shortens timer envs (`COUNTDOWN_MS=300`,
+`TURN_DEADLINE_MS=1500`, `ANIMATION_TIMEOUT_MS=1000`,
+`RESULT_DISPOSE_DELAY_MS=200`) so turn-loop tests complete in ~6s instead
+of waiting the real spec values (3s/30s/8s/10s).
 
 ### Mocking Colyseus `matchMaker`
 `matchMaker.createRoom` is a non-configurable getter on the `@colyseus/core` singleton — `vi.spyOn` fails on it. The admin-create test demonstrates the workaround: module-level `vi.mock('@colyseus/core', async (importOriginal) => { ... })` with `importOriginal` to keep `Room`, `Client`, etc. intact (DuelRoom needs them).
