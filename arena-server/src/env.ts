@@ -12,6 +12,17 @@ const envSchema = z.object({
 
   BOT_RESULT_URL: z.string().default('http://localhost:3030/api/arena/result'),
 
+  /**
+   * Public WebSocket URL that clients should connect to. Server returns this
+   * in POST /admin/create-room responses so the bot can hand the right value
+   * to Discord users. Override per-environment via ARENA_PUBLIC_WS:
+   *   dev:  ws://localhost:2567 (default)
+   *   prod: ws://<vm-ip>:2567   or   wss://arena.<your-domain>  (behind reverse proxy)
+   * The hardcoded "billthedev.com" URLs from older docs are explicitly
+   * deprecated — pick a domain when the VM lands.
+   */
+  ARENA_PUBLIC_WS: z.string().default('ws://localhost:2567'),
+
   MAX_CONCURRENT_ROOMS: z.coerce.number().int().positive().default(5),
   JOIN_DEADLINE_MS: z.coerce.number().int().positive().default(300_000),
   TURN_DEADLINE_MS: z.coerce.number().int().positive().default(30_000),

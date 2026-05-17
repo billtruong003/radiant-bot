@@ -3,18 +3,35 @@ import { createServer } from 'node:http';
 import { Server } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import express from 'express';
+import type { Request } from 'express';
+import { createRoomHandler } from './admin/create-room.js';
 import { env } from './env.js';
 import { logger } from './logger.js';
 import { DuelRoom } from './rooms/DuelRoom.js';
 
 /**
  * Express health + admin endpoints + Colyseus WSS transport.
- * Rooms: 'duel' (DuelRoom) — spawned programmatically by /admin/create-room
- * after Lát D.3 lands; clients then JoinById with HMAC token.
+ * Rooms: 'duel' (DuelRoom) — spawned programmatically by /admin/create-room.
+ * Clients then JoinById with HMAC token from bot.
  */
 
+interface RequestWithRawBody extends Request {
+  rawBody?: Buffer;
+}
+
 const app = express();
-app.use(express.json({ limit: '64kb' }));
+
+// raw-body capture for HMAC verify on /admin/create-room.
+// express.json's verify callback gives us the original bytes before JSON.parse,
+// so we can re-hash exactly what the bot signed.
+app.use(
+  express.json({
+    limit: '64kb',
+    verify: (req, _res, buf) => {
+      (req as RequestWithRawBody).rawBody = buf;
+    },
+  }),
+);
 
 app.get('/health', (_req, res) => {
   res.json({
@@ -24,10 +41,7 @@ app.get('/health', (_req, res) => {
   });
 });
 
-app.post('/admin/create-room', (_req, res) => {
-  // TODO Lát D.3 — real HMAC handler + matchMaker.createRoom
-  res.status(501).json({ error: 'not implemented yet (Lát D.3)' });
-});
+app.post('/admin/create-room', createRoomHandler);
 
 const httpServer = createServer(app);
 const gameServer = new Server({
