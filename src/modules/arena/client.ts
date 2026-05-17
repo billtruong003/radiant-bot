@@ -18,20 +18,40 @@ import { signBody } from './tokens.js';
  *   - true  → real fetch with 5s timeout.
  */
 
+/**
+ * Single weapon entry shape exchanged with the Colyseus server. Mirrors
+ * `WeaponOptSchema` in `radiant-arena-server/src/rooms/DuelRoom.ts`.
+ */
+export interface RoomWeapon {
+  slug: string;
+  display_name: string;
+  category: 'blunt' | 'pierce' | 'spirit';
+  tier: 'ban_menh' | 'pham' | 'dia' | 'thien' | 'tien';
+  stats: WeaponStats;
+  visual: WeaponVisual;
+  /** Optional skill list — Colyseus accepts an empty array. */
+  skills?: Array<{
+    skill_id: string;
+    trigger?: string;
+    magnitude?: number;
+    cooldown?: number;
+    fx_key?: string;
+  }>;
+}
+
 export interface RoomPlayer {
   discord_id: string;
   display_name: string;
   /** HMAC join token issued by tokens.signToken. */
   token: string;
-  /** Weapon catalog entry OR bản mệnh synthesised entry. */
-  weapon_data: {
-    slug: string;
-    display_name: string;
-    category: string;
-    tier: string;
-    stats: WeaponStats;
-    visual: WeaponVisual;
-  };
+  /**
+   * Weapons the player can pick from in the lobby. Server's PlayerSchema
+   * keeps these as `available_weapons: ArraySchema<WeaponSchema>` and locks
+   * `selected_weapon_slug` at countdown — the client picks one of these
+   * at runtime. Bot may send a 1-element array if only one weapon is
+   * relevant (forced bản mệnh), or multiple for normal duels.
+   */
+  available_weapons: RoomWeapon[];
 }
 
 export interface CreateRoomRequest {
@@ -151,10 +171,16 @@ export async function probeColyseus(): Promise<
 }
 
 /**
- * Convert a Weapon catalog entry or bản mệnh UserWeapon into the
- * `weapon_data` shape Colyseus expects.
+ * Convert a Weapon catalog entry or bản mệnh UserWeapon into a `RoomWeapon`
+ * entry suitable for inclusion in `RoomPlayer.available_weapons`. Returns
+ * null if the input bản mệnh is missing custom stats/visual.
+ *
+ * Naming: this helper produces a single `RoomWeapon`; callers wrap the
+ * result in an array — `available_weapons: [weaponToRoomWeapon(w)!]` — for
+ * the `/admin/create-room` body. When the duel format eventually offers
+ * multiple weapon picks per player, the caller assembles the array directly.
  */
-export function weaponToRoomData(
+export function weaponToRoomWeapon(
   w:
     | Weapon
     | {
@@ -163,7 +189,7 @@ export function weaponToRoomData(
         custom_visual: WeaponVisual | null;
       },
   fallbackDisplay?: string,
-): RoomPlayer['weapon_data'] | null {
+): RoomWeapon | null {
   if ('display_name' in w) {
     return {
       slug: w.slug,
@@ -183,4 +209,16 @@ export function weaponToRoomData(
     stats: w.custom_stats,
     visual: w.custom_visual,
   };
+}
+
+/**
+ * @deprecated Use {@link weaponToRoomWeapon} + wrap result in an array.
+ * Retained for callers still in transition; will be removed once `/arena duel`
+ * slash command (Phase 13 Lát A) lands a real call site using the new shape.
+ */
+export function weaponToRoomData(
+  w: Parameters<typeof weaponToRoomWeapon>[0],
+  fallbackDisplay?: string,
+): RoomWeapon | null {
+  return weaponToRoomWeapon(w, fallbackDisplay);
 }
