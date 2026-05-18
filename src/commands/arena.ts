@@ -1,18 +1,23 @@
 import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   type ChatInputCommandInteraction,
+  ComponentType,
   EmbedBuilder,
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js';
 import { env } from '../config/env.js';
 import { getStore } from '../db/index.js';
-import type { WeaponStats, WeaponVisual } from '../db/types.js';
+import type { Weapon, WeaponStats, WeaponVisual } from '../db/types.js';
 import {
   BAN_MENH_SLUG_PREFIX,
   forgeBanMenh,
   previewBanMenh,
   probeColyseus,
 } from '../modules/arena/index.js';
+import { describeSkill } from '../modules/arena/skill-descriptions.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -58,6 +63,9 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand((sc) =>
     sc.setName('debug').setDescription('Probe Colyseus health + report feature flag state'),
+  )
+  .addSubcommand((sc) =>
+    sc.setName('catalog').setDescription('Duyệt catalog 12 pháp khí — stats + kỹ năng + truyền thuyết'),
   );
 
 function statsBlock(stats: WeaponStats): string {
@@ -165,9 +173,13 @@ async function handleInspect(interaction: ChatInputCommandInteraction): Promise<
     category = 'blunt';
     // Phase 13 Lát B: show the rolled "mạch" skill if present. Old rows
     // missing custom_skills hint user to re-forge for backfill.
+    // Phase 13 Lát C: skill copy now via shared describeSkill() lookup.
     const skill = owned.custom_skills?.[0];
     if (skill) {
-      banMenhSkillLine = banMenhSkillDescription(skill.skill_id);
+      const desc = describeSkill(skill.skill_id);
+      banMenhSkillLine = desc
+        ? `${desc.icon} **${desc.name}** — ${desc.short}`
+        : `_(Mạch chưa định danh: \`${skill.skill_id}\`)_`;
     } else {
       banMenhSkillLine = '_(Pháp khí cũ — chạy `/arena forge` lại để cập nhật mạch.)_';
     }
@@ -210,24 +222,141 @@ async function handleInspect(interaction: ChatInputCommandInteraction): Promise<
 }
 
 /**
- * Phase 13 Lát B — short Vietnamese description per bản mệnh skill_id.
- * Renders below the bản mệnh weapon's stat embed on /arena inspect.
+ * Phase 13 Lát C — /arena catalog handler.
+ * Paginated browse over `weaponCatalog` collection: 1 weapon per embed,
+ * navigated via ⬅/➡ Buttons. Sorted by tier (phẩm → tiên) then category
+ * (blunt → pierce → spirit). Author-only button collector with 5-min timeout.
  */
-function banMenhSkillDescription(skillId: string): string {
-  switch (skillId) {
-    case 'ban_menh_phong_mach':
-      return '🌬️ **Phong mạch** — phát đầu mỗi trận **+30% sát thương**.';
-    case 'ban_menh_huyet_mach':
-      return '🩸 **Huyết mạch** — hồi **5 sinh lực** mỗi lượt khởi đầu.';
-    case 'ban_menh_loi_mach':
-      return '⚡ **Lôi mạch** — base tỷ lệ chí mạng **+5%**.';
-    case 'ban_menh_kim_mach':
-      return '⚔️ **Kim mạch** — uy lực **+10%**, độ nảy **−10%** (xu hướng xuyên).';
-    case 'ban_menh_moc_mach':
-      return '🌿 **Mộc mạch** — mỗi 2 lượt cộng 1 stack "mộc khí". Đủ 3 stack hồi **15 hp**.';
-    default:
-      return `_(Mạch chưa định danh: \`${skillId}\`)_`;
+async function handleCatalog(interaction: ChatInputCommandInteraction): Promise<void> {
+  const store = getStore();
+  const tierOrder: Record<string, number> = { pham: 0, dia: 1, thien: 2, tien: 3, ban_menh: 4 };
+  const catOrder: Record<string, number> = { blunt: 0, pierce: 1, spirit: 2 };
+  const weapons = store.weaponCatalog
+    .all()
+    .slice()
+    .sort((a, b) => {
+      const ta = tierOrder[a.tier] ?? 99;
+      const tb = tierOrder[b.tier] ?? 99;
+      if (ta !== tb) return ta - tb;
+      return (catOrder[a.category] ?? 9) - (catOrder[b.category] ?? 9);
+    });
+
+  if (weapons.length === 0) {
+    await interaction.reply({ content: '📜 Catalog rỗng — chưa load weapon-catalog.json.', ephemeral: true });
+    return;
   }
+
+  let idx = 0;
+  const buildRow = (): ActionRowBuilder<ButtonBuilder> =>
+    new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId('arena-cat-prev')
+        .setLabel('⬅ Trước')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId('arena-cat-next')
+        .setLabel('Sau ➡')
+        .setStyle(ButtonStyle.Secondary),
+    );
+
+  const reply = await interaction.reply({
+    embeds: [buildCatalogEmbed(weapons[idx]!, idx + 1, weapons.length)],
+    components: [buildRow()],
+    ephemeral: true,
+    fetchReply: true,
+  });
+
+  const collector = reply.createMessageComponentCollector({
+    componentType: ComponentType.Button,
+    time: 5 * 60 * 1000,
+  });
+  collector.on('collect', async (btn) => {
+    if (btn.user.id !== interaction.user.id) {
+      await btn.reply({ content: 'Pages này chỉ dành cho người gọi lệnh.', ephemeral: true });
+      return;
+    }
+    if (btn.customId === 'arena-cat-next') idx = (idx + 1) % weapons.length;
+    else if (btn.customId === 'arena-cat-prev') idx = (idx - 1 + weapons.length) % weapons.length;
+    await btn.update({
+      embeds: [buildCatalogEmbed(weapons[idx]!, idx + 1, weapons.length)],
+      components: [buildRow()],
+    });
+  });
+  collector.on('end', async () => {
+    try {
+      await interaction.editReply({ components: [] });
+    } catch {
+      // Reply may have been dismissed by user; ignore.
+    }
+  });
+}
+
+const TIER_COLOR: Record<string, number> = {
+  pham: 0x8a8d92,
+  dia: 0xb88c5a,
+  thien: 0xd4af37,
+  tien: 0x9b6dc7,
+  ban_menh: 0xa89bce,
+};
+const TIER_NAME_VN: Record<string, string> = {
+  pham: 'Phàm Phẩm',
+  dia: 'Địa Phẩm',
+  thien: 'Thiên Phẩm',
+  tien: 'Tiên Phẩm',
+  ban_menh: 'Bản Mệnh',
+};
+const CATEGORY_NAME_VN: Record<string, string> = {
+  blunt: 'Cường Công',
+  pierce: 'Xuyên Thủng',
+  spirit: 'Linh Khí',
+};
+
+function buildCatalogEmbed(w: Weapon, page: number, total: number): EmbedBuilder {
+  const e = new EmbedBuilder()
+    .setColor(TIER_COLOR[w.tier] ?? 0x8a8d92)
+    .setTitle(`🗡️ ${w.display_name}`)
+    .setDescription(
+      [
+        `**Tier:** ${TIER_NAME_VN[w.tier] ?? w.tier} · **Loại:** ${CATEGORY_NAME_VN[w.category] ?? w.category}`,
+        `Slug: \`${w.slug}\``,
+      ].join('\n'),
+    )
+    .addFields(
+      { name: '📊 Chỉ số', value: statsBlock(w.stats), inline: true },
+      { name: '🎨 Visual', value: visualBlock(w.visual), inline: true },
+    );
+
+  if (w.skills.length > 0) {
+    const skillLines = w.skills
+      .map((s) => {
+        const desc = describeSkill(s.skill_id);
+        return desc
+          ? `${desc.icon} **${desc.name}** — ${desc.short}`
+          : `❓ \`${s.skill_id}\``;
+      })
+      .join('\n');
+    e.addFields({ name: '✨ Kỹ năng', value: skillLines, inline: false });
+  } else {
+    e.addFields({ name: '✨ Kỹ năng', value: '_(Không có — pure stat stick.)_', inline: false });
+  }
+
+  if (w.lore) {
+    e.addFields({ name: '📜 Truyền thuyết', value: w.lore, inline: false });
+  }
+
+  if (w.shop) {
+    const unlockText = w.shop.unlock_realm ? ` · 🔒 ${w.shop.unlock_realm}` : '';
+    e.addFields({
+      name: '🏪 Mua tại đan tiệm',
+      value: `💊 ${w.shop.cost_pills} đan + 🪙 ${w.shop.cost_contribution} cống hiến${unlockText}`,
+      inline: false,
+    });
+  } else {
+    e.addFields({ name: '🏪 Mua', value: '_(Không bán — drop / sự kiện.)_', inline: false });
+  }
+
+  e.setFooter({ text: `Trang ${page}/${total} · ⬅ Trước · Sau ➡` });
+  return e;
 }
 
 async function handleDebug(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -297,6 +426,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     }
     if (sub === 'debug') {
       await handleDebug(interaction);
+      return;
+    }
+    if (sub === 'catalog') {
+      await handleCatalog(interaction);
       return;
     }
     await interaction.reply({
