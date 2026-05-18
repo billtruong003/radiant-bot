@@ -22,7 +22,7 @@
         "trail_fx_key": "",
         "hue": "#a89b8d"
       },
-      "lore": "Thiết côn rèn từ sắt thường, khởi đầu của mọi tu sĩ học đập.",
+      "lore": "Thiết côn rèn từ sắt thường — không phép, không khí. Chỉ có trọng lượng và người cầm. Tu sĩ Luyện Khí ai cũng tự rèn được một cây, học từ nhát đầu đến nhát chính xác cuối cùng. Khởi đầu của vạn đạo đập.",
       "shop": {
         "cost_pills": 0,
         "cost_contribution": 300,
@@ -30,8 +30,64 @@
       }
     },
     {
+      "slug": "thanh-kiem-pham-pham",
+      "display_name": "Thanh Kiếm Phàm Phẩm",
+      "category": "pierce",
+      "tier": "pham",
+      "stats": {
+        "power": 1.1,
+        "hitbox": 0.95,
+        "bounce": 0.35,
+        "damage_base": 28,
+        "pierce_count": 1,
+        "crit_chance": 0.1,
+        "crit_multi": 1.8
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_kiem_01",
+        "particle_fx_key": "",
+        "trail_fx_key": "",
+        "hue": "#8d9ba8"
+      },
+      "lore": "Kiếm trắng rèn theo lối cổ — lưỡi mỏng, sắc đủ xuyên hộ thể yếu. Không bùa, không trận; thắng-bại quyết bởi góc kiếm và sự kiên định. Phàm Phẩm, nhưng là khởi đầu của mọi đạo kiếm khí.",
+      "shop": {
+        "cost_pills": 0,
+        "cost_contribution": 400,
+        "unlock_realm": null
+      }
+    },
+    {
+      "slug": "linh-phu-chau-pham-pham",
+      "display_name": "Linh Phù Châu Phàm Phẩm",
+      "category": "spirit",
+      "tier": "pham",
+      "stats": {
+        "power": 0.9,
+        "hitbox": 1.05,
+        "bounce": 0.5,
+        "damage_base": 18,
+        "pierce_count": 0,
+        "crit_chance": 0.06,
+        "crit_multi": 1.5
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_di_hoa_01",
+        "particle_fx_key": "",
+        "trail_fx_key": "",
+        "hue": "#bfb6d4"
+      },
+      "lore": "Châu nhỏ khắc một phù trận giản đơn — chứa linh khí thuần khiết, không nguyên tố. Tu sĩ mới tu Linh Pháp ai cũng được sư phụ giao một viên để cảm linh khí. Phàm Phẩm, nhưng là cánh cửa đầu tiên dẫn vào linh đạo.",
+      "shop": {
+        "cost_pills": 1,
+        "cost_contribution": 500,
+        "unlock_realm": null
+      }
+    },
+    {
       "slug": "tru-thien-chuy-dia-pham",
-      "display_name": "Trụ Thiên Chuỳ",
+      "display_name": "Trụ Thiên Chuỳ Địa Phẩm",
       "category": "blunt",
       "tier": "dia",
       "stats": {
@@ -58,7 +114,7 @@
         "trail_fx_key": "",
         "hue": "#6890b8"
       },
-      "lore": "Chuỳ nặng chấn động địa mạch — đập vào góc tường, dư chấn dồn vào đối thủ.",
+      "lore": "Đúc từ một mảnh thiên thạch rơi xuống Bắc Vực ba ngàn năm trước. Đạo Long phái nung lại bằng địa hỏa suốt chín năm, khắc lên thân chuỳ chín đạo phù trận chấn. Đập trúng góc tường, dư chấn dồn về phía kẻ địch đứng cạnh — chấn thêm 15% sát thương.",
       "shop": {
         "cost_pills": 3,
         "cost_contribution": 1200,
@@ -66,36 +122,123 @@
       }
     },
     {
-      "slug": "thanh-kiem-pham-pham",
-      "display_name": "Thanh Kiếm Phàm Phẩm",
+      "slug": "pha-van-kiem-dia-pham",
+      "display_name": "Phá Vân Kiếm Địa Phẩm",
       "category": "pierce",
-      "tier": "pham",
+      "tier": "dia",
       "stats": {
-        "power": 1.1,
-        "hitbox": 0.95,
+        "power": 1.15,
+        "hitbox": 0.92,
         "bounce": 0.35,
-        "damage_base": 28,
+        "damage_base": 30,
         "pierce_count": 1,
+        "crit_chance": 0.12,
+        "crit_multi": 1.9
+      },
+      "skills": [
+        {
+          "skill_id": "passive_armor_pierce_dia",
+          "trigger": "on_crit",
+          "magnitude": 0.5,
+          "cooldown": 0,
+          "fx_key": "fx_armor_split"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_kiem_01",
+        "particle_fx_key": "fx_wind_streak",
+        "trail_fx_key": "",
+        "hue": "#a8c5b2"
+      },
+      "lore": "Tu sĩ Vân Mộng Cốc đoạt kiếm này từ một con yêu nhân ẩn trong mây. Khi crit, kiếm khí tự tách thành hai sợi — một đâm thẳng, sợi kia xuyên hộ thể đối thủ giảm 50%. Hộ thể yếu của kẻ địch — như giấy trước Phá Vân.",
+      "shop": {
+        "cost_pills": 5,
+        "cost_contribution": 1800,
+        "unlock_realm": "truc_co"
+      }
+    },
+    {
+      "slug": "di-hoa-linh-khi-dia-pham",
+      "display_name": "Dị Hoả Linh Châu Địa Phẩm",
+      "category": "spirit",
+      "tier": "dia",
+      "stats": {
+        "power": 1.0,
+        "hitbox": 1.0,
+        "bounce": 0.45,
+        "damage_base": 24,
+        "pierce_count": 0,
+        "crit_chance": 0.05,
+        "crit_multi": 1.6
+      },
+      "skills": [
+        {
+          "skill_id": "passive_burning_path",
+          "trigger": "on_round_start",
+          "magnitude": 5,
+          "cooldown": 0,
+          "fx_key": "fx_burning_zone"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_di_hoa_01",
+        "particle_fx_key": "fx_flame_corona",
+        "trail_fx_key": "trail_di_hoa_burn",
+        "hue": "#ff7e3c"
+      },
+      "lore": "Châu chứa dị hoả từ Hoả Sơn của Nam Hoang — ngọn lửa không bao giờ tắt. Khi vào trận, châu tự bắn ra một đường lửa thẳng vào đầu lượt, cháy bốn giây — kẻ đi qua mất 5 sinh lực.",
+      "shop": {
+        "cost_pills": 4,
+        "cost_contribution": 1500,
+        "unlock_realm": "truc_co"
+      }
+    },
+    {
+      "slug": "thien-loi-chuy-thien-pham",
+      "display_name": "Thiên Lôi Chuỳ Thiên Phẩm",
+      "category": "blunt",
+      "tier": "thien",
+      "stats": {
+        "power": 1.25,
+        "hitbox": 1.2,
+        "bounce": 0.65,
+        "damage_base": 34,
+        "pierce_count": 0,
         "crit_chance": 0.1,
         "crit_multi": 1.8
       },
-      "skills": [],
+      "skills": [
+        {
+          "skill_id": "passive_thunder_chain",
+          "trigger": "on_hit",
+          "magnitude": 0.2,
+          "cooldown": 0,
+          "fx_key": "fx_thunder_arc"
+        },
+        {
+          "skill_id": "signature_thunder_drop",
+          "trigger": "active",
+          "magnitude": 1.9,
+          "cooldown": 9.0,
+          "fx_key": "fx_thunder_strike"
+        }
+      ],
       "visual": {
-        "model_prefab_key": "weapon_kiem_01",
-        "particle_fx_key": "",
-        "trail_fx_key": "",
-        "hue": "#8d9ba8"
+        "model_prefab_key": "weapon_chuy_01",
+        "particle_fx_key": "fx_thunder_aura",
+        "trail_fx_key": "trail_thien_pham_violet",
+        "hue": "#9a7fd6"
       },
-      "lore": "Kiếm rèn theo lối cổ — sắc bén, xuyên qua hộ thể yếu.",
+      "lore": "Đúc từ một viên lôi tinh rơi xuống đỉnh Bắc Vực — chuỳ tự chứa sấm sét. Đập trúng đối thủ, 20% xác suất một tia điện phụ phóng sang một góc khác, chấn nửa sát thương. Khi tu sĩ giận, chuỳ tự hô 'Thiên Lôi Trảo' — sấm từ thiên ngoại giáng xuống vị trí đối thủ, không trượt.",
       "shop": {
-        "cost_pills": 0,
-        "cost_contribution": 400,
-        "unlock_realm": null
+        "cost_pills": 10,
+        "cost_contribution": 4500,
+        "unlock_realm": "kim_dan"
       }
     },
     {
       "slug": "thiet-phien-phong-luu-thien-pham",
-      "display_name": "Thiết Phiến Phong Lưu",
+      "display_name": "Thiết Phiến Phong Lưu Thiên Phẩm",
       "category": "pierce",
       "tier": "thien",
       "stats": {
@@ -129,7 +272,7 @@
         "trail_fx_key": "trail_thien_pham_gold",
         "hue": "#d4af37"
       },
-      "lore": "Thiết phiến rèn từ tinh hoa Phong Lưu Đảo, mỗi vết quét đều mang theo gió.",
+      "lore": "Thiết phiến rèn từ tinh hoa Phong Lưu Đảo — mỗi vết quét đều mang theo gió. Đập trúng đối thủ, 10% sát thương tự dẫn thành linh khí về tu sĩ. Khi tu sĩ muốn dứt điểm, phiến hô 'Phong Vũ Quét' — một đường cong rộng, xé màn không khí giữa hai bên.",
       "shop": {
         "cost_pills": 12,
         "cost_contribution": 5000,
@@ -137,44 +280,8 @@
       }
     },
     {
-      "slug": "di-hoa-linh-khi-dia-pham",
-      "display_name": "Dị Hoả Linh Châu",
-      "category": "spirit",
-      "tier": "dia",
-      "stats": {
-        "power": 1.0,
-        "hitbox": 1.0,
-        "bounce": 0.45,
-        "damage_base": 24,
-        "pierce_count": 0,
-        "crit_chance": 0.05,
-        "crit_multi": 1.6
-      },
-      "skills": [
-        {
-          "skill_id": "passive_burning_path",
-          "trigger": "on_round_start",
-          "magnitude": 5,
-          "cooldown": 0,
-          "fx_key": "fx_burning_zone"
-        }
-      ],
-      "visual": {
-        "model_prefab_key": "weapon_di_hoa_01",
-        "particle_fx_key": "fx_flame_corona",
-        "trail_fx_key": "trail_di_hoa_burn",
-        "hue": "#ff7e3c"
-      },
-      "lore": "Linh châu chứa dị hoả — quỹ đạo đi qua để lại vùng cháy 4 giây.",
-      "shop": {
-        "cost_pills": 4,
-        "cost_contribution": 1500,
-        "unlock_realm": "truc_co"
-      }
-    },
-    {
       "slug": "le-bang-linh-thien-pham",
-      "display_name": "Lệ Băng Châu",
+      "display_name": "Lệ Băng Châu Thiên Phẩm",
       "category": "spirit",
       "tier": "thien",
       "stats": {
@@ -208,11 +315,161 @@
         "trail_fx_key": "trail_thien_pham_cyan",
         "hue": "#7fc7d6"
       },
-      "lore": "Châu băng tinh khiết — đập trúng làm đối thủ rét cóng, 30% trượt lượt kế.",
+      "lore": "Châu băng tinh khiết, đúc từ lệ băng của tiên nữ tu hành thất bại. Đập trúng kẻ địch, 30% xác suất đối thủ trượt lượt kế — rét cóng không kịp ra chiêu. Khi tu sĩ muốn áp chế, châu hô 'Lệ Băng Trận' — sóng băng lan toàn trường, đóng cứng mọi quỹ đạo trong giây lát.",
       "shop": {
         "cost_pills": 14,
         "cost_contribution": 5500,
         "unlock_realm": "kim_dan"
+      }
+    },
+    {
+      "slug": "diet-the-bang-tien-pham",
+      "display_name": "Diệt Thế Bang Tiên Phẩm",
+      "category": "blunt",
+      "tier": "tien",
+      "stats": {
+        "power": 1.4,
+        "hitbox": 1.25,
+        "bounce": 0.7,
+        "damage_base": 44,
+        "pierce_count": 0,
+        "crit_chance": 0.15,
+        "crit_multi": 2.0
+      },
+      "skills": [
+        {
+          "skill_id": "passive_armor_break",
+          "trigger": "on_hit",
+          "magnitude": 0.25,
+          "cooldown": 0,
+          "fx_key": "fx_armor_crack"
+        },
+        {
+          "skill_id": "signature_world_break",
+          "trigger": "active",
+          "magnitude": 2.5,
+          "cooldown": 12,
+          "fx_key": "fx_world_break"
+        },
+        {
+          "skill_id": "passive_iron_will",
+          "trigger": "on_low_hp",
+          "magnitude": 0.25,
+          "cooldown": 0,
+          "fx_key": "fx_iron_aura"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_thiet_con_01",
+        "particle_fx_key": "fx_void_aura",
+        "trail_fx_key": "trail_tien_pham_void",
+        "hue": "#4a3a5e"
+      },
+      "lore": "Bang dùng để đập vỡ thiên cấm — tu sĩ Hỗn Độn cuối kỷ nguyên rèn từ tinh khí của bảy ngôi sao chết. Đập trúng đối thủ, hộ thể họ vỡ 25% trong một lượt. Khi cần dứt điểm, bang xé một đường thẳng xuyên qua tường, không bị bật ngược. Khi tu sĩ máu yếu dưới 30%, bang tự cộng hưởng — sức đập tăng 25%, càng yếu càng mạnh.",
+      "shop": {
+        "cost_pills": 25,
+        "cost_contribution": 12000,
+        "unlock_realm": "nguyen_anh"
+      }
+    },
+    {
+      "slug": "tram-tien-kiem-tien-pham",
+      "display_name": "Trảm Tiên Kiếm Tiên Phẩm",
+      "category": "pierce",
+      "tier": "tien",
+      "stats": {
+        "power": 1.4,
+        "hitbox": 0.85,
+        "bounce": 0.3,
+        "damage_base": 42,
+        "pierce_count": 3,
+        "crit_chance": 0.18,
+        "crit_multi": 2.2
+      },
+      "skills": [
+        {
+          "skill_id": "passive_pierce_through",
+          "trigger": "on_crit",
+          "magnitude": 1,
+          "cooldown": 0,
+          "fx_key": "fx_pierce_burst"
+        },
+        {
+          "skill_id": "signature_immortal_slash",
+          "trigger": "active",
+          "magnitude": 2.8,
+          "cooldown": 11,
+          "fx_key": "fx_phantom_slash"
+        },
+        {
+          "skill_id": "passive_executioner",
+          "trigger": "on_hit",
+          "magnitude": 0.5,
+          "cooldown": 0,
+          "fx_key": "fx_execute_glow"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_kiem_01",
+        "particle_fx_key": "fx_silver_aura",
+        "trail_fx_key": "trail_tien_pham_silver",
+        "hue": "#d0d8e8"
+      },
+      "lore": "Rèn từ tinh huyết của một tiên nhân thất bại trong Thiên Kiếp — kiếm linh chưa nguôi báo thù. Khi crit, kiếm khí tự +1 pierce xuyên qua mọi hộ thể. Khi tu sĩ muốn kết liễu, kiếm hô 'Trảm Linh' — quỹ đạo biến giữa đường, dịch về phía đối thủ, không thể tránh. Khi máu địch dưới 30%, kiếm hân hoan tự gấp đôi sát ý — một nhát quyết định, đúng cái tên.",
+      "shop": {
+        "cost_pills": 30,
+        "cost_contribution": 15000,
+        "unlock_realm": "nguyen_anh"
+      }
+    },
+    {
+      "slug": "van-linh-chau-tien-pham",
+      "display_name": "Vạn Linh Châu Tiên Phẩm",
+      "category": "spirit",
+      "tier": "tien",
+      "stats": {
+        "power": 1.3,
+        "hitbox": 1.1,
+        "bounce": 0.5,
+        "damage_base": 38,
+        "pierce_count": 1,
+        "crit_chance": 0.16,
+        "crit_multi": 2.3
+      },
+      "skills": [
+        {
+          "skill_id": "passive_soul_drain",
+          "trigger": "on_crit",
+          "magnitude": 0.2,
+          "cooldown": 0,
+          "fx_key": "fx_soul_drain"
+        },
+        {
+          "skill_id": "signature_mass_freeze",
+          "trigger": "active",
+          "magnitude": 2.6,
+          "cooldown": 14,
+          "fx_key": "fx_soul_fragments"
+        },
+        {
+          "skill_id": "passive_soul_taint",
+          "trigger": "on_hit",
+          "magnitude": 0.15,
+          "cooldown": 0,
+          "fx_key": "fx_linh_ta"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_le_bang_01",
+        "particle_fx_key": "fx_soul_swarm",
+        "trail_fx_key": "trail_tien_pham_purple",
+        "hue": "#9b4dca"
+      },
+      "lore": "Châu chứa vạn linh hồn chưa siêu thoát — tu sĩ Vạn Linh Tông luyện trong trăm năm. Khi crit, hồn linh rỉa máu kẻ địch hồi 20% sát thương về cho tu sĩ. Khi tu sĩ ý muốn áp chế toàn trận, châu tách thành ba mảnh hồn bay tỏa — đông đối thủ ở mọi góc. Đập trúng cũng có 15% xác suất dây 'linh tà' vào kẻ địch — ba chồng linh tà sẽ khiến họ trượt lượt và mất khả năng hồi máu trong một lượt.",
+      "shop": {
+        "cost_pills": 28,
+        "cost_contribution": 13000,
+        "unlock_realm": "nguyen_anh"
       }
     }
   ]

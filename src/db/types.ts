@@ -551,6 +551,12 @@ export interface UserWeapon extends Record<string, unknown> {
   custom_stats: WeaponStats | null;
   /** Only set for bản mệnh weapons. null otherwise. */
   custom_visual: WeaponVisual | null;
+  /**
+   * Only set for bản mệnh weapons — 1-element array carrying the deterministic
+   * skill rolled at forge time (from a fixed pool of 5 ban_menh skill IDs).
+   * null for catalog weapon refs (skills resolved via catalog lookup).
+   */
+  custom_skills: WeaponSkillRef[] | null;
   acquired_at: number;
 }
 

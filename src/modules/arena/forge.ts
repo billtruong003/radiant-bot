@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
 import { getStore } from '../../db/index.js';
-import type { UserWeapon, WeaponStats, WeaponVisual } from '../../db/types.js';
+import type { UserWeapon, WeaponSkillRef, WeaponStats, WeaponVisual } from '../../db/types.js';
 import { logger } from '../../utils/logger.js';
 
 /**
@@ -82,6 +82,65 @@ function genVisual(discordId: string, ints: number[]): WeaponVisual {
   };
 }
 
+/**
+ * Fixed pool of 5 deterministic bản mệnh skills, picked via hash. The 5 "mạch"
+ * (veins) each map to a distinct passive trait — chosen by `ints[6] % 5` so
+ * the same Discord ID always rolls the same skill.
+ *
+ * Server-side `skills.ts` (Phase D.7+) consumes these skill_ids to wire actual
+ * gameplay effects; here we just emit the skill ref.
+ */
+function pickBanMenhSkill(ints: number[]): WeaponSkillRef {
+  const idx = (ints[6] ?? 0) % 5;
+  switch (idx) {
+    case 0:
+      // Phong mạch — wind vein. First shot per match +30% damage.
+      return {
+        skill_id: 'ban_menh_phong_mach',
+        trigger: 'passive',
+        magnitude: 0.3,
+        cooldown: 0,
+        fx_key: 'fx_phong_aura',
+      };
+    case 1:
+      // Huyết mạch — blood vein. Heal 5 hp at round start.
+      return {
+        skill_id: 'ban_menh_huyet_mach',
+        trigger: 'on_round_start',
+        magnitude: 5,
+        cooldown: 0,
+        fx_key: 'fx_huyet_aura',
+      };
+    case 2:
+      // Lôi mạch — thunder vein. Base crit_chance +0.05.
+      return {
+        skill_id: 'ban_menh_loi_mach',
+        trigger: 'passive',
+        magnitude: 0.05,
+        cooldown: 0,
+        fx_key: 'fx_loi_aura',
+      };
+    case 3:
+      // Kim mạch — metal vein. Bounce −10%, power +10% (pierce-leaning).
+      return {
+        skill_id: 'ban_menh_kim_mach',
+        trigger: 'passive',
+        magnitude: 0.1,
+        cooldown: 0,
+        fx_key: 'fx_kim_aura',
+      };
+    default:
+      // Mộc mạch — wood vein. Gain "mộc khí" stack every 2 rounds; 3 stacks → heal 15 hp.
+      return {
+        skill_id: 'ban_menh_moc_mach',
+        trigger: 'on_round_start',
+        magnitude: 15,
+        cooldown: 0,
+        fx_key: 'fx_moc_aura',
+      };
+  }
+}
+
 export function deriveBanMenhSlug(discordId: string): string {
   return `${BAN_MENH_SLUG_PREFIX}${discordId}`;
 }
@@ -105,6 +164,7 @@ export async function forgeBanMenh(discordId: string): Promise<UserWeapon> {
   const ints = hashToInts(discordId);
   const stats = genStats(ints);
   const visual = genVisual(discordId, ints);
+  const skill = pickBanMenhSkill(ints);
 
   const row: UserWeapon = {
     id: ulid(),
@@ -112,22 +172,35 @@ export async function forgeBanMenh(discordId: string): Promise<UserWeapon> {
     weapon_slug: slug,
     custom_stats: stats,
     custom_visual: visual,
+    custom_skills: [skill],
     acquired_at: Date.now(),
   };
 
   await store.userWeapons.set(row);
   logger.info(
-    { discord_id: discordId, slug, power: stats.power, damage_base: stats.damage_base },
+    {
+      discord_id: discordId,
+      slug,
+      power: stats.power,
+      damage_base: stats.damage_base,
+      ban_menh_skill: skill.skill_id,
+    },
     'arena: forged bản mệnh weapon',
   );
   return row;
 }
 
 /**
- * Compute deterministic stats WITHOUT persisting. Useful for tests and
- * preview UI. forgeBanMenh() is the side-effecting counterpart.
+ * Compute deterministic stats + skill WITHOUT persisting. Useful for tests
+ * and preview UI. forgeBanMenh() is the side-effecting counterpart.
  */
-export function previewBanMenh(discordId: string): { stats: WeaponStats; visual: WeaponVisual } {
+export function previewBanMenh(
+  discordId: string,
+): { stats: WeaponStats; visual: WeaponVisual; skill: WeaponSkillRef } {
   const ints = hashToInts(discordId);
-  return { stats: genStats(ints), visual: genVisual(discordId, ints) };
+  return {
+    stats: genStats(ints),
+    visual: genVisual(discordId, ints),
+    skill: pickBanMenhSkill(ints),
+  };
 }

@@ -1,5 +1,5 @@
 import { env } from '../../config/env.js';
-import type { Weapon, WeaponStats, WeaponVisual } from '../../db/types.js';
+import type { Weapon, WeaponSkillRef, WeaponStats, WeaponVisual } from '../../db/types.js';
 import { logger } from '../../utils/logger.js';
 import { signBody } from './tokens.js';
 
@@ -187,6 +187,7 @@ export function weaponToRoomWeapon(
         weapon_slug: string;
         custom_stats: WeaponStats | null;
         custom_visual: WeaponVisual | null;
+        custom_skills?: WeaponSkillRef[] | null;
       },
   fallbackDisplay?: string,
 ): RoomWeapon | null {
@@ -198,6 +199,7 @@ export function weaponToRoomWeapon(
       tier: w.tier,
       stats: w.stats,
       visual: w.visual,
+      skills: w.skills.map((s) => ({ ...s })),
     };
   }
   if (!w.custom_stats || !w.custom_visual) return null;
@@ -208,6 +210,7 @@ export function weaponToRoomWeapon(
     tier: 'ban_menh',
     stats: w.custom_stats,
     visual: w.custom_visual,
+    skills: w.custom_skills ? w.custom_skills.map((s) => ({ ...s })) : [],
   };
 }
 
