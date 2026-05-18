@@ -262,3 +262,53 @@ The codebase is opinionated:
 ---
 
 _Generated 2026-05-14. If you need to revive this bot 6 months from now: start with `docs/SETUP.md` §11 production checklist, then read this handoff §"Future direction"._
+
+---
+
+## 📜 Phase 13 — Radiant Arena module (post-handoff additions)
+
+> Bot side đã ship Phase 13 Lát A (bản mệnh forge) trước handoff `2026-05-14`.
+> Session `2026-05-18` chiều/tối thêm 3 sub-Lát mở rộng catalog + skill UI.
+
+### Phase 13 sub-Lát map (chronological)
+
+| Lát | Commit | What |
+|---|---|---|
+| **A** — Bản mệnh forge | (pre-handoff) | `forgeBanMenh(discordId)` deterministic stats + visual via SHA-256 hash |
+| **A.1** — Catalog 6→12 + skill pool | `a1466c2` | 12 weapons fill 4-tier × 3-cat matrix + 18 skill_ids + 5 bản mệnh skills + lore rewrite |
+| **B** Sub 1 — backfill | `7733063` | `forgeBanMenh` existing-row branch detects missing `custom_skills` + recomputes from hash + writes back |
+| **B** Sub 2 — `/arena inspect` mạch | `81d3e94` | Embed shows "🩸 Mạch bản mệnh" field via shared `describeSkill()` |
+| **C** — `/arena catalog` | `cf855e5` | Paginated 12-weapon browse (⬅/➡ Buttons, 5-min collector) + `skill-descriptions.ts` (23-entry shared lookup) |
+
+### New files
+- `src/modules/arena/skill-descriptions.ts` — authoritative VN player-facing copy for every skill_id (catalog + bản mệnh). Server-side `skills.ts` consumes the same IDs.
+- `docs/PHASE_13_LAT_B.md` — brief plan doc for Lát B.
+
+### Schema additions
+- `UserWeapon.custom_skills: WeaponSkillRef[] | null` — populated at forge; backfill on re-call for pre-`a1466c2` rows.
+
+### Pending (next session)
+- **arena-server Lát D.5 + D.7** — physics simulation (`simulateShot`) + skills execution engine. 23 skill_ids data lives in catalog/forge but no gameplay effect logic yet (no `simulateShot` to hook into). Combined or sequential? Bill chưa chốt.
+
+### Bot-side test recipes
+```bash
+# Online dev:
+npm run dev
+
+# Catalog browse (post deploy-commands):
+/arena catalog            # paginated 12 weapons
+
+# Bản mệnh forge + display:
+/arena forge              # first call: forge + custom_skills populated
+/arena forge              # second call: returns existing (idempotent)
+/arena inspect @user      # shows mạch bản mệnh field
+
+# Existing pre-a1466c2 bản mệnh:
+/arena forge              # backfill kicks in: log "backfilled bản mệnh skill"
+/arena inspect @user      # mạch field now shows
+```
+
+### Cross-repo notes
+ArenaPK Unity client unchanged for this session's bot work — `WeaponSchema` schema generic, reads `slug + skills[]` from server. Once arena-server Lát D.7 ships, Unity Lát D.U9 (weapon prefabs Stage 1 docs at `arena-unity/tasks/todo/D.U9-weapon-prefabs/`) will pick up server-sent skills for UI display.
+
+_Session log shipped 2026-05-18 18:00 ICT. See ArenaPK companion handoff at `arena-unity/HANDOFF-2026-05-18-pm.md`._
