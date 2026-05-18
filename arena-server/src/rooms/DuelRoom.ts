@@ -163,6 +163,7 @@ export class DuelRoom extends Room<DuelState> {
   private _turnTimer?: DelayedTimer;
   private _animationTimer?: DelayedTimer;
   private _disposeTimer?: DelayedTimer;
+  private _joinDeadlineTimer?: DelayedTimer;
 
   /**
    * Per-round set of discord_ids that have sent `animation_complete`.
@@ -180,7 +181,13 @@ export class DuelRoom extends Room<DuelState> {
     const options = parsed.data;
 
     this.maxClients = DuelRoom.MAX_PLAYERS;
-    this.autoDispose = true;
+    // Admin-created rooms are pre-created by the bot before either player
+    // joins. With autoDispose=true, an empty room is eligible for disposal
+    // ~immediately after onCreate — joinById would then return code 4212
+    // ("room not found") which the Unity SDK surfaces as "seat reservation
+    // expired". Disable auto-dispose and gate room lifetime on
+    // join_deadline_at + onLeave instead.
+    this.autoDispose = false;
 
     const state = new DuelState();
     state.session_id = options.session_id;
@@ -206,11 +213,26 @@ export class DuelRoom extends Room<DuelState> {
     this.setState(state);
     this.registerMessageHandlers();
 
+    // No-join timeout: if neither player has joined by `join_deadline_at`,
+    // dispose the room so a stale admin-created shell doesn't leak a slot.
+    const joinDeadlineMs = Math.max(0, options.join_deadline_at - Date.now());
+    this._joinDeadlineTimer = this.clock.setTimeout(() => {
+      this._joinDeadlineTimer = undefined;
+      if (this.clients.length === 0) {
+        logger.warn(
+          { session_id: this.state.session_id, deadline_at: options.join_deadline_at },
+          'duel-room: join deadline expired with no clients — disposing',
+        );
+        this.disconnect();
+      }
+    }, joinDeadlineMs);
+
     logger.info(
       {
         session_id: options.session_id,
         players: options.players.map((p) => p.discord_id),
         stake: options.stake,
+        join_deadline_in_ms: joinDeadlineMs,
       },
       'duel-room: created',
     );
@@ -604,6 +626,10 @@ export class DuelRoom extends Room<DuelState> {
     if (this._disposeTimer) {
       this._disposeTimer.clear();
       this._disposeTimer = undefined;
+    }
+    if (this._joinDeadlineTimer) {
+      this._joinDeadlineTimer.clear();
+      this._joinDeadlineTimer = undefined;
     }
   }
 }
