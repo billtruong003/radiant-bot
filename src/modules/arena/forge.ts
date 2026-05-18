@@ -158,6 +158,19 @@ export async function forgeBanMenh(discordId: string): Promise<UserWeapon> {
     .query((uw) => uw.discord_id === discordId && uw.weapon_slug === slug)
     .at(0);
   if (existing) {
+    // Phase 13 Lát B migration: rows forged before commit `a1466c2` lack
+    // `custom_skills`. Backfill in-place using the same deterministic hash —
+    // skill_id matches what a fresh forge would yield.
+    if (!existing.custom_skills || existing.custom_skills.length === 0) {
+      const skill = pickBanMenhSkill(hashToInts(discordId));
+      const patched: UserWeapon = { ...existing, custom_skills: [skill] };
+      await store.userWeapons.set(patched);
+      logger.info(
+        { discord_id: discordId, slug, ban_menh_skill: skill.skill_id },
+        'arena: backfilled bản mệnh skill on existing row',
+      );
+      return patched;
+    }
     return existing;
   }
 
