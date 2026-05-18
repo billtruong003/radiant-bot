@@ -78,6 +78,11 @@ export interface User extends Record<string, unknown> {
    * predating the arena bridge.
    */
   equipped_weapon_slug?: string | null;
+  // --- Phase 14 V2 — multi-slot equipment ---------------------------
+  /** Slug of the pháp khí (magic treasure) currently equipped, or null. Single slot. */
+  equipped_phap_khi_slug?: string | null;
+  /** Up to 2 nhẫn (rings) equipped. Each entry is a slug from nhan_catalog. */
+  equipped_ring_slugs?: string[] | null;
 }
 
 export interface XpLog extends Record<string, unknown> {
@@ -197,9 +202,30 @@ export interface AkiCallLog extends Record<string, unknown> {
 export type CongPhapRarity = 'common' | 'rare' | 'epic' | 'legendary';
 
 /**
+ * Cultivation school / lineage for a công pháp. Lets shop UI group/filter
+ * and lets passive effects target by school (e.g. "Hỏa Long Phiến +50 CP
+ * when equipped with Hỏa Long Chưởng" — both are phap_thuat school).
+ */
+export type CongPhapSchool =
+  | 'kiem_phap' // Kiếm Pháp — sword techniques
+  | 'than_phap' // Thân Pháp — movement/agility
+  | 'noi_cong' // Nội Công — internal energy
+  | 'luyen_the' // Luyện Thể — body tempering
+  | 'phap_thuat' // Pháp Thuật — spell arts
+  | 'am_duong' // Âm Dương — yin-yang balance
+  | 'ngu_hanh' // Ngũ Hành — five elements
+  | 'thien_ma' // Thiên Ma — demonic arts
+  | 'tuyen_sinh'; // Tuyền Sinh — life cultivation
+
+/**
  * Catalog entry for a công pháp (cultivation technique manual). Read-mostly:
  * seeded from a config JSON at startup, mutable only via admin slash later.
  * Indexed by `slug` (stable identifier referenced by UserCongPhap).
+ *
+ * Phase 14 V2: added `icon`, `school`, `lore`, `passive_text` for richer
+ * shop UI + lore-heavy display. All four are optional in the type for
+ * snapshot back-compat (old catalogs replayed from disk lack them), but
+ * the JSON catalog source-of-truth always provides them.
  */
 export interface CongPhap extends Record<string, unknown> {
   id: string;
@@ -212,21 +238,130 @@ export interface CongPhap extends Record<string, unknown> {
   stat_bonuses: {
     combat_power: number;
     xp_multiplier?: number;
+    pill_discount?: number;
   };
   min_rank_required: CultivationRankId | null;
   created_at: number;
+  // --- V2 fields (optional for snapshot back-compat) -----------------
+  icon?: string;
+  school?: CongPhapSchool;
+  lore?: string;
+  passive_text?: string;
 }
 
 /**
  * A user's owned copy of a công pháp. Equip state lives on User —
  * `User.equipped_cong_phap_slug` points at the slug of their currently
- * equipped manual (single-slot for now; multi-slot is a v2 design).
+ * equipped manual.
+ *
+ * Phase 14 V2: added `level` (0..10) for the Cường Hóa upgrade system.
+ * Optional for back-compat — callers read as `(ownership.level ?? 0)`.
  */
 export interface UserCongPhap extends Record<string, unknown> {
   id: string;
   discord_id: string;
   cong_phap_slug: string;
   acquired_at: number;
+  level?: number;
+}
+
+// ============================================================================
+// Phase 14 V2 — Pháp Khí (magic treasure) — single-slot equipment
+// ============================================================================
+
+export type PhapKhiRarity = 'rare' | 'epic' | 'legendary' | 'tien_khi';
+
+export type PhapKhiType =
+  | 'kiem' // kiếm — sword
+  | 'truc' // trượng/trục — staff/needle
+  | 'canh' // chuông/khánh — bell/chime
+  | 'dinh' // đỉnh/lư — cauldron
+  | 'phan' // phiến — fan
+  | 'bao'; // other treasure
+
+export interface PhapKhiStatBonuses {
+  combat_power: number;
+  xp_multiplier?: number;
+  pill_discount?: number;
+  /** Flat bonus damage applied in Arena Unity duels (server authoritative). */
+  duel_damage_bonus?: number;
+}
+
+/**
+ * Catalog entry for a pháp khí. Only ONE pháp khí can be equipped per user
+ * (User.equipped_phap_khi_slug). Seeded from `phap-khi-catalog.json` at
+ * startup, keyed by slug. Stat bonuses stack with công pháp + nhẫn into
+ * the V2 combat power formula.
+ */
+export interface PhapKhi extends Record<string, unknown> {
+  id: string;
+  slug: string;
+  name: string;
+  icon: string;
+  type: PhapKhiType;
+  description: string;
+  lore: string;
+  passive_text: string;
+  rarity: PhapKhiRarity;
+  cost_pills: number;
+  cost_contribution: number;
+  stat_bonuses: PhapKhiStatBonuses;
+  min_rank_required: CultivationRankId | null;
+  /** Optional decorative emoji shown around avatar in profile (e.g. '🔥'). */
+  visual_aura?: string | null;
+  created_at: number;
+}
+
+/**
+ * A user's owned pháp khí instance. Equip state lives on User. `level`
+ * 0..10 controlled by the Cường Hóa upgrade system.
+ */
+export interface UserPhapKhi extends Record<string, unknown> {
+  id: string;
+  discord_id: string;
+  phap_khi_slug: string;
+  acquired_at: number;
+  level?: number;
+}
+
+// ============================================================================
+// Phase 14 V2 — Nhẫn (rings) — up to 2 slots
+// ============================================================================
+
+export type NhanRarity = 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+export interface NhanStatBonuses {
+  combat_power: number;
+  xp_multiplier?: number;
+  pill_discount?: number;
+}
+
+/**
+ * Catalog entry for a nhẫn (ring). Up to 2 can be equipped concurrently
+ * via `User.equipped_ring_slugs`. Same slug cannot be equipped twice (one
+ * instance per slot enforced at equip time).
+ */
+export interface Nhan extends Record<string, unknown> {
+  id: string;
+  slug: string;
+  name: string;
+  icon: string;
+  description: string;
+  lore: string;
+  rarity: NhanRarity;
+  cost_pills: number;
+  cost_contribution: number;
+  stat_bonuses: NhanStatBonuses;
+  min_rank_required: CultivationRankId | null;
+  created_at: number;
+}
+
+export interface UserNhan extends Record<string, unknown> {
+  id: string;
+  discord_id: string;
+  nhan_slug: string;
+  acquired_at: number;
+  level?: number;
 }
 
 export type DailyQuestType =
@@ -234,6 +369,19 @@ export type DailyQuestType =
   | 'voice_minutes'
   | 'reaction_count'
   | 'daily_streak_check';
+
+/**
+ * Phase 14 V2 — probabilistic item drop attached to a quest. Rolled when
+ * the quest is marked completed. Multiple entries are independent rolls
+ * (one quest can drop several items in theory; in practice tiers contain
+ * 1–3 entries). See `src/modules/quests/drop-roller.ts`.
+ */
+export interface QuestItemDrop {
+  item_type: 'cong_phap' | 'phap_khi' | 'nhan';
+  slug: string;
+  /** 0..1 — independent roll probability. */
+  probability: number;
+}
 
 // ============================================================================
 // Phase 12 Lát 9 — Docs threads pipeline
@@ -313,6 +461,12 @@ export interface DailyQuest extends Record<string, unknown> {
   reward_contribution: number;
   assigned_at: number;
   completed_at: number | null;
+  /**
+   * Phase 14 V2 — optional item drop pool rolled on completion. Each entry
+   * is an independent probability check. Null/undefined = no item drops
+   * (old quests from before V2 + future quests that don't grant items).
+   */
+  reward_item_pool?: QuestItemDrop[] | null;
 }
 
 // ============================================================================
