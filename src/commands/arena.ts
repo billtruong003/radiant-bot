@@ -145,6 +145,7 @@ async function handleInspect(interaction: ChatInputCommandInteraction): Promise<
   let displayName: string;
   let tier: string;
   let category: string;
+  let banMenhSkillLine: string | null = null;
 
   if (isBanMenh) {
     const owned = store.userWeapons
@@ -162,6 +163,14 @@ async function handleInspect(interaction: ChatInputCommandInteraction): Promise<
     displayName = 'Pháp Khí Bản Mệnh';
     tier = 'ban_menh';
     category = 'blunt';
+    // Phase 13 Lát B: show the rolled "mạch" skill if present. Old rows
+    // missing custom_skills hint user to re-forge for backfill.
+    const skill = owned.custom_skills?.[0];
+    if (skill) {
+      banMenhSkillLine = banMenhSkillDescription(skill.skill_id);
+    } else {
+      banMenhSkillLine = '_(Pháp khí cũ — chạy `/arena forge` lại để cập nhật mạch.)_';
+    }
   } else {
     const w = store.weaponCatalog.get(equippedSlug);
     if (!w) {
@@ -193,7 +202,32 @@ async function handleInspect(interaction: ChatInputCommandInteraction): Promise<
       { name: '🎨 Visual', value: visualBlock(visual), inline: true },
     );
 
+  if (banMenhSkillLine !== null) {
+    embed.addFields({ name: '🩸 Mạch bản mệnh', value: banMenhSkillLine, inline: false });
+  }
+
   await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
+/**
+ * Phase 13 Lát B — short Vietnamese description per bản mệnh skill_id.
+ * Renders below the bản mệnh weapon's stat embed on /arena inspect.
+ */
+function banMenhSkillDescription(skillId: string): string {
+  switch (skillId) {
+    case 'ban_menh_phong_mach':
+      return '🌬️ **Phong mạch** — phát đầu mỗi trận **+30% sát thương**.';
+    case 'ban_menh_huyet_mach':
+      return '🩸 **Huyết mạch** — hồi **5 sinh lực** mỗi lượt khởi đầu.';
+    case 'ban_menh_loi_mach':
+      return '⚡ **Lôi mạch** — base tỷ lệ chí mạng **+5%**.';
+    case 'ban_menh_kim_mach':
+      return '⚔️ **Kim mạch** — uy lực **+10%**, độ nảy **−10%** (xu hướng xuyên).';
+    case 'ban_menh_moc_mach':
+      return '🌿 **Mộc mạch** — mỗi 2 lượt cộng 1 stack "mộc khí". Đủ 3 stack hồi **15 hp**.';
+    default:
+      return `_(Mạch chưa định danh: \`${skillId}\`)_`;
+  }
 }
 
 async function handleDebug(interaction: ChatInputCommandInteraction): Promise<void> {
