@@ -1,6 +1,150 @@
 {
-  "$schema": "weapon-catalog-v1",
+  "$schema": "weapon-catalog-v2",
   "items": [
+    {
+      "slug": "ban-menh-phong-linh-con",
+      "display_name": "Phong Linh Côn (Bản Mệnh)",
+      "category": "blunt",
+      "tier": "ban_menh",
+      "stats": {
+        "power": 1.0,
+        "hitbox": 1.08,
+        "bounce": 0.52,
+        "damage_base": 20,
+        "pierce_count": 0,
+        "crit_chance": 0.05,
+        "crit_multi": 1.5
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_ban_menh_phong",
+        "particle_fx_key": "fx_ban_menh_aura",
+        "trail_fx_key": "",
+        "hue": "#9ec1c4"
+      },
+      "lore": "Côn gió tự sinh từ Phong mạch của tu sĩ — thân côn nhẹ như sương, gió tự đi theo nhát đánh. Người được Phong mạch khi sinh, vũ khí hiện thân khi định tâm lần đầu — không cần rèn, không cần mua. Mộc mạc nhưng là khởi đạo bản nhân.",
+      "shop": null
+    },
+    {
+      "slug": "ban-menh-hoa-tam-kiem",
+      "display_name": "Hoả Tâm Kiếm (Bản Mệnh)",
+      "category": "pierce",
+      "tier": "ban_menh",
+      "stats": {
+        "power": 1.05,
+        "hitbox": 0.95,
+        "bounce": 0.35,
+        "damage_base": 22,
+        "pierce_count": 1,
+        "crit_chance": 0.07,
+        "crit_multi": 1.5
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_ban_menh_hoa",
+        "particle_fx_key": "fx_ban_menh_aura",
+        "trail_fx_key": "",
+        "hue": "#efb5a3"
+      },
+      "lore": "Kiếm khí từ Hoả mạch của tu sĩ — nhiệt huyết hoá lưỡi, lưỡi cháy lúc rút. Hoả thân tu sĩ không cần rèn lửa, vũ khí đã sẵn ngọn. Mỗi nhát chém kèm theo hơi nóng từ tâm — đối thủ chạm phải, tâm dao động trước cả thân.",
+      "shop": null
+    },
+    {
+      "slug": "ban-menh-thuy-tam-chau",
+      "display_name": "Thuỷ Tâm Châu (Bản Mệnh)",
+      "category": "spirit",
+      "tier": "ban_menh",
+      "stats": {
+        "power": 0.92,
+        "hitbox": 1.05,
+        "bounce": 0.5,
+        "damage_base": 18,
+        "pierce_count": 0,
+        "crit_chance": 0.06,
+        "crit_multi": 1.5
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_ban_menh_thuy",
+        "particle_fx_key": "fx_ban_menh_aura",
+        "trail_fx_key": "",
+        "hue": "#7c8db5"
+      },
+      "lore": "Châu thuỷ phản chiếu tâm trống — tu sĩ Thuỷ mạch nhìn vào châu thấy chính mình. Khi xuất chiêu, châu uốn theo tâm sóng, không cố định hình. Mạch thuỷ chủ về biến hoá — vũ khí cũng vô tướng.",
+      "shop": null
+    },
+    {
+      "slug": "ban-menh-tho-cuong-bang",
+      "display_name": "Thổ Cương Bang (Bản Mệnh)",
+      "category": "blunt",
+      "tier": "ban_menh",
+      "stats": {
+        "power": 1.05,
+        "hitbox": 1.15,
+        "bounce": 0.55,
+        "damage_base": 22,
+        "pierce_count": 0,
+        "crit_chance": 0.04,
+        "crit_multi": 1.5
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_ban_menh_tho",
+        "particle_fx_key": "fx_ban_menh_aura",
+        "trail_fx_key": "",
+        "hue": "#a89b8d"
+      },
+      "lore": "Bang đá do Thổ mạch của tu sĩ nuôi dưỡng từ huyết khí — thân bang trầm, nặng như núi. Người Thổ mạch không vội, vũ khí cũng không vội. Mỗi cú đập là một tảng đá rơi — không nhanh nhưng bất khả tránh.",
+      "shop": null
+    },
+    {
+      "slug": "ban-menh-loi-nha-thuong",
+      "display_name": "Lôi Nha Thương (Bản Mệnh)",
+      "category": "pierce",
+      "tier": "ban_menh",
+      "stats": {
+        "power": 1.0,
+        "hitbox": 0.9,
+        "bounce": 0.4,
+        "damage_base": 21,
+        "pierce_count": 1,
+        "crit_chance": 0.08,
+        "crit_multi": 1.55
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_ban_menh_loi",
+        "particle_fx_key": "fx_ban_menh_aura",
+        "trail_fx_key": "",
+        "hue": "#b09bd3"
+      },
+      "lore": "Thương sấm sét — mạch Lôi tu sĩ thiên sinh hiếm có. Mũi thương rít tia điện trước khi rời tay; đối thủ nghe tiếng nổ trước khi thấy mũi. Người Lôi mạch chớp giật như tính cách — vũ khí cũng vậy.",
+      "shop": null
+    },
+    {
+      "slug": "ban-menh-hon-nguyen-linh",
+      "display_name": "Hỗn Nguyên Linh (Bản Mệnh)",
+      "category": "spirit",
+      "tier": "ban_menh",
+      "stats": {
+        "power": 1.02,
+        "hitbox": 1.0,
+        "bounce": 0.48,
+        "damage_base": 20,
+        "pierce_count": 0,
+        "crit_chance": 0.06,
+        "crit_multi": 1.55
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_ban_menh_hon",
+        "particle_fx_key": "fx_ban_menh_aura",
+        "trail_fx_key": "",
+        "hue": "#a89bce"
+      },
+      "lore": "Linh vô hình — mạch hỗn nguyên hiếm có, ngàn năm gặp một. Tổng hoà ngũ hành trong một thân, vũ khí không cố định hình thái. Khi tu sĩ định tâm cách nào, linh hiện hình cách ấy. Bản mệnh khó hiểu nhất, cũng là mạch sâu nhất.",
+      "shop": null
+    },
     {
       "slug": "thiet-con-pham-pham",
       "display_name": "Thiết Côn Phàm Phẩm",
@@ -82,6 +226,202 @@
       "shop": {
         "cost_pills": 1,
         "cost_contribution": 500,
+        "unlock_realm": null
+      }
+    },
+    {
+      "slug": "thiet-dao-pham-pham",
+      "display_name": "Thiết Đao Phàm Phẩm",
+      "category": "pierce",
+      "tier": "pham",
+      "stats": {
+        "power": 1.08,
+        "hitbox": 0.98,
+        "bounce": 0.38,
+        "damage_base": 26,
+        "pierce_count": 1,
+        "crit_chance": 0.08,
+        "crit_multi": 1.7
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_dao_01",
+        "particle_fx_key": "",
+        "trail_fx_key": "",
+        "hue": "#7a6f5e"
+      },
+      "lore": "Đao sắt lưỡi cong — học theo lối Trảm Bạch sơn. Đao đường thô, nhát chém ngắn nhưng nặng. Tu sĩ mới rời sư môn ai cũng được phát một cây, đeo ngang hông. Phàm Phẩm, nhưng kiên cường.",
+      "shop": {
+        "cost_pills": 1,
+        "cost_contribution": 450,
+        "unlock_realm": null
+      }
+    },
+    {
+      "slug": "hac-suong-thuong-pham-pham",
+      "display_name": "Hắc Sương Thương Phàm Phẩm",
+      "category": "pierce",
+      "tier": "pham",
+      "stats": {
+        "power": 1.12,
+        "hitbox": 1.0,
+        "bounce": 0.32,
+        "damage_base": 27,
+        "pierce_count": 1,
+        "crit_chance": 0.07,
+        "crit_multi": 1.7
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_thuong_01",
+        "particle_fx_key": "",
+        "trail_fx_key": "",
+        "hue": "#4a4a52"
+      },
+      "lore": "Thương dài bảy thước — mũi nhọn bọc hắc sắt từ mỏ Hắc Sơn. Nhát đâm trầm, đối thủ trúng phải cảm như sương lạnh thấm vào xương. Tu sĩ thương đạo phàm phẩm ai cũng từng cầm một cây trước khi luyện đạo thương cao hơn.",
+      "shop": {
+        "cost_pills": 1,
+        "cost_contribution": 500,
+        "unlock_realm": null
+      }
+    },
+    {
+      "slug": "luu-tinh-phien-pham-pham",
+      "display_name": "Lưu Tinh Phiến Phàm Phẩm",
+      "category": "pierce",
+      "tier": "pham",
+      "stats": {
+        "power": 1.0,
+        "hitbox": 0.85,
+        "bounce": 0.3,
+        "damage_base": 24,
+        "pierce_count": 1,
+        "crit_chance": 0.12,
+        "crit_multi": 1.7
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_phien_01",
+        "particle_fx_key": "",
+        "trail_fx_key": "",
+        "hue": "#c5b3d4"
+      },
+      "lore": "Phiến nhỏ ném như sao băng — bay xa, không thu về tay. Tu sĩ Lưu Tinh môn dùng một bộ chín cái, mỗi trận ném vài cái rồi rèn lại. Phàm Phẩm, nhưng tốc độ là ưu thế.",
+      "shop": {
+        "cost_pills": 1,
+        "cost_contribution": 550,
+        "unlock_realm": null
+      }
+    },
+    {
+      "slug": "dao-moc-kiem-pham-pham",
+      "display_name": "Đào Mộc Kiếm Phàm Phẩm",
+      "category": "pierce",
+      "tier": "pham",
+      "stats": {
+        "power": 0.95,
+        "hitbox": 0.95,
+        "bounce": 0.35,
+        "damage_base": 22,
+        "pierce_count": 1,
+        "crit_chance": 0.09,
+        "crit_multi": 1.65
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_kiem_02",
+        "particle_fx_key": "",
+        "trail_fx_key": "",
+        "hue": "#d4a5a5"
+      },
+      "lore": "Kiếm gỗ đào, trừ tà khí mức nhẹ — phù chú khắc trên thân kiếm. Đạo sĩ phàm gian dùng đi trừ ma vặt; trong tu giới, là kiếm khởi đạo của Đào Hoa môn. Không sắc bằng kim loại, nhưng có linh khí thiện.",
+      "shop": {
+        "cost_pills": 2,
+        "cost_contribution": 600,
+        "unlock_realm": null
+      }
+    },
+    {
+      "slug": "hoa-nham-chau-pham-pham",
+      "display_name": "Hoả Nham Châu Phàm Phẩm",
+      "category": "spirit",
+      "tier": "pham",
+      "stats": {
+        "power": 0.95,
+        "hitbox": 1.0,
+        "bounce": 0.45,
+        "damage_base": 20,
+        "pierce_count": 0,
+        "crit_chance": 0.07,
+        "crit_multi": 1.55
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_chau_02",
+        "particle_fx_key": "",
+        "trail_fx_key": "",
+        "hue": "#e07b3c"
+      },
+      "lore": "Châu chứa than nóng từ mỏ Hoả Nham phía Nam — gia nhiệt linh khí khi bắn ra. Bay đến đối thủ kèm hơi nóng, không tắt giữa đường. Phàm Phẩm, nhưng đủ làm đối thủ phỏng nhẹ.",
+      "shop": {
+        "cost_pills": 2,
+        "cost_contribution": 600,
+        "unlock_realm": null
+      }
+    },
+    {
+      "slug": "thanh-phong-quat-pham-pham",
+      "display_name": "Thanh Phong Quạt Phàm Phẩm",
+      "category": "spirit",
+      "tier": "pham",
+      "stats": {
+        "power": 0.88,
+        "hitbox": 1.1,
+        "bounce": 0.5,
+        "damage_base": 19,
+        "pierce_count": 0,
+        "crit_chance": 0.08,
+        "crit_multi": 1.55
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_quat_01",
+        "particle_fx_key": "",
+        "trail_fx_key": "",
+        "hue": "#9ec5d4"
+      },
+      "lore": "Quạt gấp đồng cổ, vẽ tranh sơn thuỷ — gió mát điều khiển khí lưu, chiêu thức nhẹ nhàng. Văn nhân tu sĩ thích cầm, vì đẹp; ai ngờ cũng giết được. Phàm Phẩm, nhưng đầy phong nhã.",
+      "shop": {
+        "cost_pills": 1,
+        "cost_contribution": 550,
+        "unlock_realm": null
+      }
+    },
+    {
+      "slug": "cuong-tieu-pham-pham",
+      "display_name": "Cương Tiêu Phàm Phẩm",
+      "category": "pierce",
+      "tier": "pham",
+      "stats": {
+        "power": 1.0,
+        "hitbox": 0.9,
+        "bounce": 0.35,
+        "damage_base": 23,
+        "pierce_count": 1,
+        "crit_chance": 0.09,
+        "crit_multi": 1.65
+      },
+      "skills": [],
+      "visual": {
+        "model_prefab_key": "weapon_tieu_01",
+        "particle_fx_key": "",
+        "trail_fx_key": "",
+        "hue": "#8a8068"
+      },
+      "lore": "Sáo đồng — vừa thổi vừa đâm, lưỡng dụng. Tu sĩ Tiêu Linh phái nuôi linh khí qua tiếng sáo, nhập trận dùng đầu sáo đâm khí mạch đối phương. Phàm Phẩm, nhưng âm nhạc giết người.",
+      "shop": {
+        "cost_pills": 2,
+        "cost_contribution": 650,
         "unlock_realm": null
       }
     },
@@ -190,6 +530,258 @@
       "shop": {
         "cost_pills": 4,
         "cost_contribution": 1500,
+        "unlock_realm": "truc_co"
+      }
+    },
+    {
+      "slug": "hac-long-dao-dia-pham",
+      "display_name": "Hắc Long Đao Địa Phẩm",
+      "category": "pierce",
+      "tier": "dia",
+      "stats": {
+        "power": 1.18,
+        "hitbox": 1.0,
+        "bounce": 0.4,
+        "damage_base": 32,
+        "pierce_count": 1,
+        "crit_chance": 0.1,
+        "crit_multi": 1.85
+      },
+      "skills": [
+        {
+          "skill_id": "passive_lifedrain_05",
+          "trigger": "on_hit",
+          "magnitude": 0.05,
+          "cooldown": 0,
+          "fx_key": "fx_blood_drain"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_dao_02",
+        "particle_fx_key": "fx_dark_aura",
+        "trail_fx_key": "trail_hac_long",
+        "hue": "#2a1a2e"
+      },
+      "lore": "Đao đoạt từ huyết long Hắc Vực — lưỡi đen tự dẫn linh huyết. Mỗi nhát chém, đao hút 5% sát thương về tu sĩ. Trảm long lấy đao, đao lấy huyết — vòng nhân quả không dứt.",
+      "shop": {
+        "cost_pills": 5,
+        "cost_contribution": 1700,
+        "unlock_realm": "truc_co"
+      }
+    },
+    {
+      "slug": "phong-vu-thuong-dia-pham",
+      "display_name": "Phong Vũ Thương Địa Phẩm",
+      "category": "pierce",
+      "tier": "dia",
+      "stats": {
+        "power": 1.17,
+        "hitbox": 0.95,
+        "bounce": 0.32,
+        "damage_base": 30,
+        "pierce_count": 2,
+        "crit_chance": 0.1,
+        "crit_multi": 1.85
+      },
+      "skills": [
+        {
+          "skill_id": "passive_wind_chain",
+          "trigger": "on_hit",
+          "magnitude": 0.1,
+          "cooldown": 0,
+          "fx_key": "fx_wind_arc"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_thuong_02",
+        "particle_fx_key": "fx_storm_aura",
+        "trail_fx_key": "trail_phong_vu",
+        "hue": "#6b8cae"
+      },
+      "lore": "Thương khắc trận pháp gió mưa trên thân — mỗi cú đâm kèm phong vũ trận lan ra một vùng. Tu sĩ Phong Vũ phái rèn từ vảy thuỷ giao long, gió mưa theo chân thương đi.",
+      "shop": {
+        "cost_pills": 6,
+        "cost_contribution": 1900,
+        "unlock_realm": "truc_co"
+      }
+    },
+    {
+      "slug": "quan-am-thien-truong-dia-pham",
+      "display_name": "Quan Âm Thiền Trượng Địa Phẩm",
+      "category": "blunt",
+      "tier": "dia",
+      "stats": {
+        "power": 1.22,
+        "hitbox": 1.18,
+        "bounce": 0.55,
+        "damage_base": 33,
+        "pierce_count": 0,
+        "crit_chance": 0.07,
+        "crit_multi": 1.7
+      },
+      "skills": [
+        {
+          "skill_id": "passive_purify_pulse",
+          "trigger": "on_crit",
+          "magnitude": 0.2,
+          "cooldown": 0,
+          "fx_key": "fx_holy_pulse"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_truong_01",
+        "particle_fx_key": "fx_gold_aura",
+        "trail_fx_key": "",
+        "hue": "#d4b574"
+      },
+      "lore": "Trượng Phật môn cổ truyền — đỉnh trượng khắc Tam Thiên Phật, thân trượng có vòng kim hoàn. Khi crit, trượng phát một làn sóng thanh tẩy — đẩy lùi đối thủ và xoá một lớp linh tà nếu có. Phật khí trên trượng còn nguyên, chưa nhạt.",
+      "shop": {
+        "cost_pills": 6,
+        "cost_contribution": 2000,
+        "unlock_realm": "truc_co"
+      }
+    },
+    {
+      "slug": "cam-tam-phu-chau-dia-pham",
+      "display_name": "Cẩm Tâm Phù Châu Địa Phẩm",
+      "category": "spirit",
+      "tier": "dia",
+      "stats": {
+        "power": 1.02,
+        "hitbox": 1.05,
+        "bounce": 0.48,
+        "damage_base": 26,
+        "pierce_count": 0,
+        "crit_chance": 0.08,
+        "crit_multi": 1.7
+      },
+      "skills": [
+        {
+          "skill_id": "passive_focus_drain",
+          "trigger": "on_hit",
+          "magnitude": 0.1,
+          "cooldown": 0,
+          "fx_key": "fx_focus_break"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_chau_03",
+        "particle_fx_key": "fx_psy_aura",
+        "trail_fx_key": "trail_cam_tam",
+        "hue": "#bf94d6"
+      },
+      "lore": "Châu phù khắc Tâm Cảnh trận — đối thủ trúng giảm 10% khả năng tập trung trong lượt kế. Tu sĩ Tâm môn rèn để áp chế tinh thần — không cần giết, chỉ cần làm địch loạn.",
+      "shop": {
+        "cost_pills": 5,
+        "cost_contribution": 1700,
+        "unlock_realm": "truc_co"
+      }
+    },
+    {
+      "slug": "bach-mai-but-dia-pham",
+      "display_name": "Bạch Mai Bút Địa Phẩm",
+      "category": "spirit",
+      "tier": "dia",
+      "stats": {
+        "power": 1.05,
+        "hitbox": 0.95,
+        "bounce": 0.4,
+        "damage_base": 27,
+        "pierce_count": 1,
+        "crit_chance": 0.09,
+        "crit_multi": 1.75
+      },
+      "skills": [
+        {
+          "skill_id": "passive_rune_stack",
+          "trigger": "on_hit",
+          "magnitude": 0.05,
+          "cooldown": 0,
+          "fx_key": "fx_rune_glow"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_but_01",
+        "particle_fx_key": "fx_ink_aura",
+        "trail_fx_key": "trail_bach_mai",
+        "hue": "#e0d8c8"
+      },
+      "lore": "Bút văn nhân tu — viết phù chữ chứa linh khí, mỗi nét = một phù trận nhỏ. Mỗi nét trúng, đối thủ tích 5% nguyền — ba nét chồng, nguyền bùng, sát thương cộng dồn. Người Bút đạo viết kẻ địch như viết thi.",
+      "shop": {
+        "cost_pills": 5,
+        "cost_contribution": 1800,
+        "unlock_realm": "truc_co"
+      }
+    },
+    {
+      "slug": "suong-ly-tieu-dia-pham",
+      "display_name": "Sương Lý Tiêu Địa Phẩm",
+      "category": "pierce",
+      "tier": "dia",
+      "stats": {
+        "power": 1.1,
+        "hitbox": 0.92,
+        "bounce": 0.35,
+        "damage_base": 28,
+        "pierce_count": 1,
+        "crit_chance": 0.13,
+        "crit_multi": 1.9
+      },
+      "skills": [
+        {
+          "skill_id": "passive_paralysis_chance",
+          "trigger": "on_crit",
+          "magnitude": 0.15,
+          "cooldown": 0,
+          "fx_key": "fx_paralyze"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_tieu_02",
+        "particle_fx_key": "fx_silver_mist",
+        "trail_fx_key": "trail_suong_ly",
+        "hue": "#c0c8d4"
+      },
+      "lore": "Sáo bạc, âm thanh nghe như sương rơi — gây tê khí mạch đối phương. Khi crit, 15% xác suất đối thủ trượt lượt kế. Tu sĩ Sương phái dạy: âm thanh cũng là vũ khí.",
+      "shop": {
+        "cost_pills": 6,
+        "cost_contribution": 2000,
+        "unlock_realm": "truc_co"
+      }
+    },
+    {
+      "slug": "hoa-phung-kiem-dia-pham",
+      "display_name": "Hoả Phụng Kiếm Địa Phẩm",
+      "category": "pierce",
+      "tier": "dia",
+      "stats": {
+        "power": 1.2,
+        "hitbox": 0.94,
+        "bounce": 0.36,
+        "damage_base": 32,
+        "pierce_count": 1,
+        "crit_chance": 0.12,
+        "crit_multi": 1.95
+      },
+      "skills": [
+        {
+          "skill_id": "passive_flame_crit",
+          "trigger": "on_crit",
+          "magnitude": 0.3,
+          "cooldown": 0,
+          "fx_key": "fx_flame_burst"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_kiem_03",
+        "particle_fx_key": "fx_phoenix_aura",
+        "trail_fx_key": "trail_hoa_phung",
+        "hue": "#e85a3c"
+      },
+      "lore": "Kiếm khắc hình phụng hoàng — kiếm khí hoá lửa khi chí mạng. Tu sĩ Hoả Phụng cốc rèn từ lông phụng chết — kiếm còn nhớ sức nóng tổ tiên. Crit, ngọn lửa bùng thêm 30% sát thương.",
+      "shop": {
+        "cost_pills": 7,
+        "cost_contribution": 2100,
         "unlock_realm": "truc_co"
       }
     },
@@ -319,6 +911,178 @@
       "shop": {
         "cost_pills": 14,
         "cost_contribution": 5500,
+        "unlock_realm": "kim_dan"
+      }
+    },
+    {
+      "slug": "cuu-tu-dao-thien-pham",
+      "display_name": "Cửu Tử Đao Thiên Phẩm",
+      "category": "pierce",
+      "tier": "thien",
+      "stats": {
+        "power": 1.28,
+        "hitbox": 0.98,
+        "bounce": 0.4,
+        "damage_base": 36,
+        "pierce_count": 2,
+        "crit_chance": 0.14,
+        "crit_multi": 2.0
+      },
+      "skills": [
+        {
+          "skill_id": "passive_armor_strip",
+          "trigger": "on_crit",
+          "magnitude": 0.2,
+          "cooldown": 0,
+          "fx_key": "fx_armor_strip"
+        },
+        {
+          "skill_id": "signature_cuu_tu_chem",
+          "trigger": "active",
+          "magnitude": 2.0,
+          "cooldown": 9.0,
+          "fx_key": "fx_nine_slash"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_dao_03",
+        "particle_fx_key": "fx_dark_phoenix",
+        "trail_fx_key": "trail_cuu_tu",
+        "hue": "#5a1a2e"
+      },
+      "lore": "Đao của tu sĩ chín lần vượt Thiên Kiếp không tử — đao khí mang theo chín lần chết hụt. Mỗi crit phá một lớp hộ thể đối phương 20%. Khi tu sĩ dứt điểm, đao chém chín nhát chồng nhau — kẻ địch chết tám lần trong một nhịp tim.",
+      "shop": {
+        "cost_pills": 13,
+        "cost_contribution": 5200,
+        "unlock_realm": "kim_dan"
+      }
+    },
+    {
+      "slug": "vo-tuong-thuong-thien-pham",
+      "display_name": "Vô Tướng Thương Thiên Phẩm",
+      "category": "pierce",
+      "tier": "thien",
+      "stats": {
+        "power": 1.28,
+        "hitbox": 0.95,
+        "bounce": 0.38,
+        "damage_base": 36,
+        "pierce_count": 2,
+        "crit_chance": 0.15,
+        "crit_multi": 2.05
+      },
+      "skills": [
+        {
+          "skill_id": "passive_dodge_negate",
+          "trigger": "passive",
+          "magnitude": 0.3,
+          "cooldown": 0,
+          "fx_key": "fx_phase_shift"
+        },
+        {
+          "skill_id": "signature_vo_tuong_dam",
+          "trigger": "active",
+          "magnitude": 2.1,
+          "cooldown": 10,
+          "fx_key": "fx_phantom_thrust"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_thuong_03",
+        "particle_fx_key": "fx_void_mist",
+        "trail_fx_key": "trail_vo_tuong",
+        "hue": "#4a5060"
+      },
+      "lore": "Thương biến hình theo tâm — mũi luôn ở vị trí đối thủ không phòng. Tu sĩ Vô Tướng môn dạy: 'Vô tướng tức chân tướng' — thương không có hình cố định, đối phương không tìm được nhịp né. Mỗi cú đâm bỏ qua 30% xác suất né.",
+      "shop": {
+        "cost_pills": 14,
+        "cost_contribution": 5400,
+        "unlock_realm": "kim_dan"
+      }
+    },
+    {
+      "slug": "lac-ha-phu-tran-thien-pham",
+      "display_name": "Lạc Hà Phù Trận Thiên Phẩm",
+      "category": "spirit",
+      "tier": "thien",
+      "stats": {
+        "power": 1.05,
+        "hitbox": 1.1,
+        "bounce": 0.48,
+        "damage_base": 30,
+        "pierce_count": 0,
+        "crit_chance": 0.12,
+        "crit_multi": 2.0
+      },
+      "skills": [
+        {
+          "skill_id": "passive_illusion_slow",
+          "trigger": "on_hit",
+          "magnitude": 0.15,
+          "cooldown": 0,
+          "fx_key": "fx_dusk_haze"
+        },
+        {
+          "skill_id": "signature_lac_ha_bao",
+          "trigger": "active",
+          "magnitude": 2.3,
+          "cooldown": 11,
+          "fx_key": "fx_sunset_storm"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_phu_01",
+        "particle_fx_key": "fx_sunset_aura",
+        "trail_fx_key": "trail_lac_ha",
+        "hue": "#e0826b"
+      },
+      "lore": "Phù trận khắc cảnh hoàng hôn rơi — kéo đối thủ vào ảo cảnh giảm 15% phản xạ. Tu sĩ Lạc Hà tông nhìn hoàng hôn trăm năm, nhận ra cảnh ấy gói được tâm người. Đối thủ thấy hoàng hôn, không thấy mũi đâm.",
+      "shop": {
+        "cost_pills": 12,
+        "cost_contribution": 4800,
+        "unlock_realm": "kim_dan"
+      }
+    },
+    {
+      "slug": "tinh-lien-phat-chau-thien-pham",
+      "display_name": "Tịnh Liên Phật Châu Thiên Phẩm",
+      "category": "spirit",
+      "tier": "thien",
+      "stats": {
+        "power": 1.0,
+        "hitbox": 1.08,
+        "bounce": 0.5,
+        "damage_base": 28,
+        "pierce_count": 0,
+        "crit_chance": 0.11,
+        "crit_multi": 2.0
+      },
+      "skills": [
+        {
+          "skill_id": "passive_purify_taint",
+          "trigger": "on_hit",
+          "magnitude": 1,
+          "cooldown": 0,
+          "fx_key": "fx_lotus_pulse"
+        },
+        {
+          "skill_id": "signature_tinh_lien_thien",
+          "trigger": "active",
+          "magnitude": 2.2,
+          "cooldown": 10,
+          "fx_key": "fx_lotus_bloom"
+        }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_chau_04",
+        "particle_fx_key": "fx_lotus_aura",
+        "trail_fx_key": "trail_tinh_lien",
+        "hue": "#e8d4a8"
+      },
+      "lore": "Châu Phật môn tịnh thế — giải linh tà của vũ khí ác trên đối thủ. Mỗi cú đập rửa một lớp nguyền/linh tà của địch. Tu sĩ Tịnh Liên tự không giết, vũ khí chỉ rửa — nhưng kẻ thanh tẩy đến mức không còn linh khí cũng coi như chết.",
+      "shop": {
+        "cost_pills": 13,
+        "cost_contribution": 5000,
         "unlock_realm": "kim_dan"
       }
     },

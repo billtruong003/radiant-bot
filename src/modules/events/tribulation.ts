@@ -258,6 +258,18 @@ async function applyOutcomeRewards(
     if (user) {
       await store.users.set({ ...user, pills: (user.pills ?? 0) + 5 });
     }
+    // Phase 14 quest — tribulation_pass.
+    {
+      const { incrementProgress } = await import('../quests/daily-quest.js');
+      void incrementProgress(member.id, 'tribulation_pass', 1);
+    }
+    // Phase 14 — title award eligibility check (tribulation_passes counter
+    // is derived from xp_logs source='tribulation_pass' which we just
+    // appended via awardXp).
+    {
+      const { awardEligibleTitles } = await import('../titles/index.js');
+      void awardEligibleTitles(member.id);
+    }
     return result.newXp - (result.newXp - PASS_XP); // i.e., PASS_XP
   }
   // fail OR timeout → penalty (floored)

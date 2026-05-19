@@ -77,13 +77,21 @@ describe('daily-quest', () => {
     if (!q) throw new Error('no quest');
     const r1 = await incrementProgress('u1', q.quest_type, 1);
     expect(r1.updated).toBe(true);
-    expect(r1.completed).toBe(false);
+    // With Phase 14 quest expansion, some quest types have target=1 (duel_win,
+    // equip_both, upgrade_attempt, tribulation_pass) and complete on delta=1.
+    // Only assert "not yet completed" when target > 1 (the message/voice path).
+    if (q.target > 1) {
+      expect(r1.completed).toBe(false);
+    } else {
+      expect(r1.completed).toBe(true);
+    }
 
-    // Force-complete by jumping to target
+    // Force-complete by jumping to target (no-op if already completed).
     const r2 = await incrementProgress('u1', q.quest_type, q.target);
-    expect(r2.completed).toBe(true);
     const completed = getCurrentQuest('u1');
     expect(completed?.completed_at).not.toBeNull();
+    // r2.completed is true only when r1 didn't already complete it.
+    expect(r2.completed || r1.completed).toBe(true);
   });
 
   it('incrementProgress wrong type does nothing', async () => {

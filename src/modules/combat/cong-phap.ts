@@ -84,6 +84,14 @@ export async function buyCongPhap(discordId: string, slug: string): Promise<BuyR
   });
   await store.userCongPhap.set(ownership);
 
+  // Phase 14 quest — spend_contribution increments by the contrib cost of
+  // this purchase. Async, best-effort: failure to record quest doesn't roll
+  // back the purchase.
+  if (item.cost_contribution > 0) {
+    const { incrementProgress } = await import('../quests/daily-quest.js');
+    void incrementProgress(discordId, 'spend_contribution', item.cost_contribution);
+  }
+
   return { ok: true, newPills, newContribution, ownership };
 }
 
@@ -104,6 +112,11 @@ export async function equipCongPhap(discordId: string, slug: string): Promise<Eq
   if (owned.length === 0) return { ok: false, reason: 'not-owned' };
 
   await store.users.set({ ...user, equipped_cong_phap_slug: slug });
+  // Phase 14 quest — equip_both check (fires only if weapon also equipped).
+  {
+    const { checkEquipBothQuest } = await import('../quests/daily-quest.js');
+    void checkEquipBothQuest(discordId);
+  }
   return { ok: true };
 }
 

@@ -6,7 +6,7 @@ import {
 } from 'discord.js';
 import { ROLE_SECT_MASTER } from '../config/roles.js';
 import { judgeAndPunish } from '../modules/admin/divine-judgment.js';
-import { postBotLog } from '../modules/bot-log.js';
+import { postBotLog, postTribulation } from '../modules/bot-log.js';
 import { logger } from '../utils/logger.js';
 import { sanitizeForDisplay } from '../utils/sanitize.js';
 
@@ -123,6 +123,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       `${a.result === 'applied' ? '✅' : '⏭️'} **${a.punishmentName}** ` +
       `(severity ${a.severity})${a.reason ? ` _— ${a.reason}_` : ''}`,
   );
+  const skippedTimeouts = result.applied.filter(
+    (a) => a.punishmentId === 'timeout_minutes' && a.result === 'skipped',
+  );
+  const adminWarning =
+    skippedTimeouts.length > 0
+      ? '\n\n⚠️ **CẢNH BÁO ADMIN**: Hình phạt `timeout_minutes` (vong ngôn) đã bị bot bỏ qua. Kiểm tra: (1) bot có perm `Moderate Members` không, (2) role bot có cao hơn role đệ tử không.'
+      : '';
   const confirmEmbed = new EmbedBuilder()
     .setColor(0x9c3848)
     .setTitle('⚖️ Thiên Đạo đã phán quyết')
@@ -134,16 +141,19 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         '',
         '**Hình phạt áp dụng**:',
         ...appliedLines,
-      ].join('\n'),
+      ].join('\n') + adminWarning,
     )
     .setFooter({ text: `Triệu hồi bởi Chưởng Môn · ${new Date().toLocaleString('vi-VN')}` });
 
   await interaction.editReply({ embeds: [confirmEmbed] });
 
-  // Public verdict to #bot-log.
+  // Audit copy → #bot-log (staff-only via perm preset).
   const publicLines = result.applied
     .filter((a) => a.result === 'applied')
     .map((a) => `• ${a.punishmentName} (${a.severity})`);
+  const skippedAuditLines = result.applied
+    .filter((a) => a.result === 'skipped')
+    .map((a) => `⏭️ ${a.punishmentName}${a.reason ? ` — ${a.reason}` : ''}`);
   await postBotLog(
     [
       `⚖️ **Thiên Đạo phán xử** — đệ tử **${safeName}** vì tội đã được tường trình.`,
@@ -151,10 +161,31 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       `_${result.verdict}_`,
       '',
       ...(publicLines.length > 0
-        ? ['**Hình phạt**:', ...publicLines]
+        ? ['**Hình phạt áp dụng**:', ...publicLines]
         : ['_Chỉ công khai cảnh báo — không hình phạt vật chất._']),
+      ...(skippedAuditLines.length > 0 ? ['', '**Bỏ qua**:', ...skippedAuditLines] : []),
     ].join('\n'),
   );
+
+  // Public broadcast → #tribulation (visible to verified cultivators).
+  // Bill 2026-05-20: thiên đạo verdict cần ra public, không chỉ staff-only.
+  // Tribulation channel is the canonical "cosmic event" venue (perm preset
+  // `verified_full`). Skip the public post if ONLY public_shame applied
+  // AND verdict text is empty — nothing meaningful to announce.
+  const publicShouldPost = publicLines.length > 0 || result.verdict.trim().length > 0;
+  if (publicShouldPost) {
+    await postTribulation(
+      [
+        `🌩️ **Thiên Đạo giáng phạt** — đệ tử **${safeName}** (${result.targetSnapshot.rank} · Lv ${result.targetSnapshot.level})`,
+        '',
+        `_${result.verdict}_`,
+        '',
+        ...(publicLines.length > 0
+          ? ['**Hình phạt**:', ...publicLines]
+          : ['_Cảnh báo công khai — chưa hình phạt vật chất._']),
+      ].join('\n'),
+    );
+  }
 }
 
 export const command = { data, execute };

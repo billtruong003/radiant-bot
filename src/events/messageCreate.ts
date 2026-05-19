@@ -143,6 +143,16 @@ async function handleGuildMessage(message: Message): Promise<void> {
   if (isNoXpChannel(message.channel.name)) return;
   if (!isXpEligibleMessage(message.content)) return;
 
+  // Phase 12 Lát 4 / 2026-05-20 fix — quest progress fires for EVERY eligible
+  // message, BEFORE the 60s XP cooldown. Previously this lived inside
+  // awardXp which the cooldown gates; users chatting fast saw quest stuck.
+  // Wrapped in setImmediate-equivalent via void to avoid blocking message
+  // processing on store IO.
+  void (async () => {
+    const { incrementProgress } = await import('../modules/quests/daily-quest.js');
+    await incrementProgress(message.author.id, 'message_count', 1);
+  })();
+
   // 60s/user cooldown (SPEC §3 sacred constant).
   if (!messageXpCooldown.tryConsume(message.author.id)) return;
 

@@ -145,9 +145,13 @@ export async function awardXp(input: AwardXpInput): Promise<XpAwardResult> {
         });
       }
     }
-    // Phase 12 Lát 4 — daily quest progress (message_count quests).
-    const { incrementProgress } = await import('../quests/daily-quest.js');
-    void incrementProgress(input.discordId, 'message_count', 1, now);
+    // Phase 12 Lát 4 — `message_count` quest progress used to live HERE,
+    // inside awardXp. That made the quest hook fire only when XP was
+    // actually granted (i.e. after the 60s/user XP cooldown). Bill 2026-05-20
+    // ("quest hay bị lỗi nhận"): users chatting 25 messages in a minute
+    // would see XP capped to 1 award AND quest progress stuck at 1/10. The
+    // hook moved to `events/messageCreate.ts` so every eligible message
+    // counts for the quest regardless of XP cooldown.
   }
 
   return { newXp, oldLevel, newLevel, leveledUp };

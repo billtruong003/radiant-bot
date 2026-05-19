@@ -9,9 +9,14 @@ import {
   type MessageActionRowComponentBuilder,
   SlashCommandBuilder,
 } from 'discord.js';
-import { rankById } from '../config/cultivation.js';
+import { ulid } from 'ulid';
+import { rankById, rankIndex } from '../config/cultivation.js';
 import { getStore } from '../db/index.js';
+import { BAN_MENH_SLUG_PREFIX } from '../modules/arena/forge.js';
 import { simulateDuel } from '../modules/combat/duel.js';
+import { type FighterDisplay, narrateMieuSat, narrateRounds } from '../modules/combat/narrate.js';
+import { resolveWeaponContribution } from '../modules/combat/power.js';
+import { awardEligibleTitles } from '../modules/titles/index.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -37,10 +42,21 @@ const DUEL_COOLDOWN_MS = 30 * 60 * 1000;
 const DUELS_PER_DAY_MAX = 3;
 const ACCEPT_WINDOW_MS = 60_000;
 
+/**
+ * Miểu sát rule — when challenger out-ranks opponent by ≥ this many cảnh giới,
+ * the duel skips the 60s accept window and resolves as an instant kill with
+ * no pill stake transfer. Tracked separately from normal duels (own daily
+ * cooldown). Theme: "cảnh giới chênh lệch quá lớn — không thể chống đỡ".
+ */
+const MIEU_SAT_RANK_GAP = 2;
+const MIEU_SAT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
 interface DuelMetadata {
   lastDuelAt: number;
   duelsToday: number;
   todayStart: number;
+  /** Epoch ms of the user's last successful miểu sát. 0 = never. */
+  lastMieuSatAt: number;
 }
 
 const duelMetadata: Map<string, DuelMetadata> = new Map();
@@ -49,9 +65,50 @@ function getMeta(userId: string, now: number): DuelMetadata {
   const dayStart = now - (now % (24 * 60 * 60 * 1000));
   const existing = duelMetadata.get(userId);
   if (!existing || existing.todayStart !== dayStart) {
-    return { lastDuelAt: 0, duelsToday: 0, todayStart: dayStart };
+    return { lastDuelAt: 0, duelsToday: 0, todayStart: dayStart, lastMieuSatAt: 0 };
   }
   return existing;
+}
+
+/**
+ * Resolve the narration display fields for a fighter: weapon name+category
+ * and công pháp name+school. Bản mệnh weapons miss the catalog (forged
+ * per-user, slug `phap-khi-ban-menh-<discord_id>`) — fall back to a generic
+ * "Bản Mệnh Khí" label inferred from the slug prefix.
+ */
+function resolveFighterDisplay(userId: string, displayName: string): FighterDisplay {
+  const store = getStore();
+  const user = store.users.get(userId);
+  if (!user) return { name: displayName, weapon: null, congPhap: null };
+
+  let weapon: FighterDisplay['weapon'] = null;
+  const wSlug = user.equipped_weapon_slug ?? null;
+  if (wSlug) {
+    const catalog = store.weaponCatalog.get(wSlug);
+    if (catalog) {
+      weapon = {
+        display_name: catalog.display_name,
+        category: catalog.category,
+        tier: catalog.tier,
+      };
+    } else if (wSlug.startsWith(BAN_MENH_SLUG_PREFIX)) {
+      weapon = {
+        display_name: 'Bản Mệnh Khí',
+        category: 'spirit',
+        tier: 'ban_menh',
+      };
+    }
+  }
+
+  const cpSlug = user.equipped_cong_phap_slug ?? null;
+  const congPhap = cpSlug
+    ? (() => {
+        const item = store.congPhapCatalog.get(cpSlug);
+        return item ? { name: item.name, icon: item.icon, school: item.school } : null;
+      })()
+    : null;
+
+  return { name: displayName, weapon, congPhap };
 }
 
 export const data = new SlashCommandBuilder()
@@ -105,6 +162,78 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   const cMeta = getMeta(challenger.id, now);
+
+  // === Miểu sát path ===
+  // When challenger out-ranks opponent by ≥ 2 cảnh giới, the duel skips the
+  // accept window and resolves as an instant kill. No pill stake transfer
+  // (Bill's call: "miểu sát thì ng thắng sẽ ko lấy pill"). Tracked under a
+  // separate 24h cooldown to prevent high-rank users farming low-rank kills.
+  const rankGap = rankIndex(cUser.cultivation_rank) - rankIndex(oUser.cultivation_rank);
+  if (rankGap >= MIEU_SAT_RANK_GAP) {
+    if (now - cMeta.lastMieuSatAt < MIEU_SAT_COOLDOWN_MS) {
+      const remainingHr = Math.ceil(
+        (MIEU_SAT_COOLDOWN_MS - (now - cMeta.lastMieuSatAt)) / (60 * 60 * 1000),
+      );
+      await interaction.reply({
+        content: `⏱️ Hôm nay đã miểu sát một lần — phải đợi ${remainingHr} giờ nữa mới được áp chế cấp thấp tiếp.`,
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const cRankName = rankById(cUser.cultivation_rank).name;
+    const oRankName = rankById(oUser.cultivation_rank).name;
+    const cDisplay = resolveFighterDisplay(challenger.id, challenger.username);
+    const oDisplay = resolveFighterDisplay(opponent.id, opponent.username);
+
+    const mieuSatEmbed = new EmbedBuilder()
+      .setColor(0x4a3a5e)
+      .setTitle('🌑 MIỂU SÁT — không cần khiêu chiến')
+      .setDescription(narrateMieuSat(cDisplay, oDisplay, rankGap, cRankName, oRankName).join('\n'))
+      .setFooter({
+        text: `Miểu sát · gap ≥ ${MIEU_SAT_RANK_GAP} cảnh giới · 24h cooldown`,
+      });
+
+    duelMetadata.set(challenger.id, { ...cMeta, lastMieuSatAt: now });
+
+    await interaction.reply({
+      content: `${opponent}, ${challenger} áp chế.`,
+      embeds: [mieuSatEmbed],
+      allowedMentions: { users: [opponent.id] },
+    });
+
+    logger.info(
+      {
+        challenger: challenger.id,
+        opponent: opponent.id,
+        rank_gap: rankGap,
+        challenger_rank: cUser.cultivation_rank,
+        opponent_rank: oUser.cultivation_rank,
+      },
+      'duel: mieu-sat',
+    );
+
+    // Phase 14 — append lifetime counter markers + award titles.
+    await store.xpLogs.append({
+      id: ulid(),
+      discord_id: challenger.id,
+      amount: 0,
+      source: 'mieu_sat',
+      metadata: { opponent: opponent.id, rank_gap: rankGap },
+      created_at: now,
+    });
+    await store.xpLogs.append({
+      id: ulid(),
+      discord_id: challenger.id,
+      amount: 0,
+      source: 'duel_win',
+      metadata: { opponent: opponent.id, mode: 'mieu_sat' },
+      created_at: now,
+    });
+    void awardEligibleTitles(challenger.id);
+    return;
+  }
+
   if (now - cMeta.lastDuelAt < DUEL_COOLDOWN_MS) {
     const remainingMin = Math.ceil((DUEL_COOLDOWN_MS - (now - cMeta.lastDuelAt)) / 60_000);
     await interaction.reply({
@@ -221,10 +350,50 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const oEquipped = oUserNow.equipped_cong_phap_slug
       ? (store.congPhapCatalog.get(oUserNow.equipped_cong_phap_slug) ?? null)
       : null;
+    const cCpLevel = cUserNow.equipped_cong_phap_slug
+      ? (store.userCongPhap.query(
+          (uc) =>
+            uc.discord_id === challenger.id &&
+            uc.cong_phap_slug === cUserNow.equipped_cong_phap_slug,
+        )[0]?.level ?? 0)
+      : 0;
+    const oCpLevel = oUserNow.equipped_cong_phap_slug
+      ? (store.userCongPhap.query(
+          (uc) =>
+            uc.discord_id === opponent.id &&
+            uc.cong_phap_slug === oUserNow.equipped_cong_phap_slug,
+        )[0]?.level ?? 0)
+      : 0;
+    const cWeapon = resolveWeaponContribution(
+      cUserNow.equipped_weapon_slug,
+      (s) => store.weaponCatalog.get(s) ?? null,
+      (s) =>
+        store.userWeapons.query((w) => w.discord_id === challenger.id && w.weapon_slug === s)[0] ??
+        null,
+    );
+    const oWeapon = resolveWeaponContribution(
+      oUserNow.equipped_weapon_slug,
+      (s) => store.weaponCatalog.get(s) ?? null,
+      (s) =>
+        store.userWeapons.query((w) => w.discord_id === opponent.id && w.weapon_slug === s)[0] ??
+        null,
+    );
 
     const result = simulateDuel(
-      { user: cUserNow, displayName: challenger.username, equippedCongPhap: cEquipped },
-      { user: oUserNow, displayName: opponent.username, equippedCongPhap: oEquipped },
+      {
+        user: cUserNow,
+        displayName: challenger.username,
+        equippedCongPhap: cEquipped,
+        congPhapLevel: cCpLevel,
+        weapon: cWeapon,
+      },
+      {
+        user: oUserNow,
+        displayName: opponent.username,
+        equippedCongPhap: oEquipped,
+        congPhapLevel: oCpLevel,
+        weapon: oWeapon,
+      },
       Date.now() & 0xffffffff,
     );
 
@@ -240,9 +409,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     });
 
     duelMetadata.set(challenger.id, {
+      ...cMeta,
       lastDuelAt: Date.now(),
       duelsToday: cMeta.duelsToday + 1,
-      todayStart: cMeta.todayStart,
     });
 
     const winnerName =
@@ -253,11 +422,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           : 'Hòa';
     const winnerEmoji = result.winner === 'tie' ? '🤝' : '🏆';
 
-    const roundLines = result.rounds.map((r) => {
-      const cMark = r.challengerCrit ? '⚡' : r.challengerDefended ? '🛡️' : '⚔️';
-      const oMark = r.opponentCrit ? '⚡' : r.opponentDefended ? '🛡️' : '⚔️';
-      return `**Hiệp ${r.round}:** ${cMark} ${challenger.username} −${r.opponentDamage} · ${oMark} ${opponent.username} −${r.challengerDamage}   _(${r.challengerHpAfter} vs ${r.opponentHpAfter})_`;
-    });
+    const cDisplay = resolveFighterDisplay(challenger.id, challenger.username);
+    const oDisplay = resolveFighterDisplay(opponent.id, opponent.username);
+    const roundLines = narrateRounds(result.rounds, cDisplay, oDisplay);
 
     const resultEmbed = new EmbedBuilder()
       .setColor(
@@ -273,7 +440,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           `**${challenger.username}** (${cRank} · ${result.challengerLc} LC) ⚔️ **${opponent.username}** (${oRank} · ${result.opponentLc} LC)`,
           `Stake: 💊 ${stake} đan dược`,
           '',
-          ...roundLines,
+          roundLines.join('\n\n'),
           '',
           `${winnerEmoji} **Thắng: ${winnerName}**`,
           `HP cuối: ${challenger.username} ${result.challengerHpEnd} / ${opponent.username} ${result.opponentHpEnd}`,
@@ -299,6 +466,24 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       },
       'duel: settled',
     );
+
+    // Phase 14 quest + title — duel_win hook fires for whichever fighter
+    // actually won. Skip ties.
+    if (result.winner !== 'tie') {
+      const winnerId = result.winner === 'challenger' ? challenger.id : opponent.id;
+      const loserId = result.winner === 'challenger' ? opponent.id : challenger.id;
+      const { incrementProgress } = await import('../modules/quests/daily-quest.js');
+      void incrementProgress(winnerId, 'duel_win', 1);
+      await store.xpLogs.append({
+        id: ulid(),
+        discord_id: winnerId,
+        amount: 0,
+        source: 'duel_win',
+        metadata: { opponent: loserId, mode: 'normal', stake },
+        created_at: Date.now(),
+      });
+      void awardEligibleTitles(winnerId);
+    }
   } catch (err) {
     // Timeout — opponent never clicked. Discord throws on collector timeout.
     const isTimeout = (err as { code?: string })?.code === 'InteractionCollectorError';
@@ -319,7 +504,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 }
 
-export const __for_testing = { duelMetadata, DUEL_COOLDOWN_MS, DUELS_PER_DAY_MAX };
+export const __for_testing = {
+  duelMetadata,
+  DUEL_COOLDOWN_MS,
+  DUELS_PER_DAY_MAX,
+  MIEU_SAT_RANK_GAP,
+  MIEU_SAT_COOLDOWN_MS,
+};
 
 export const command = { data, execute };
 export default command;

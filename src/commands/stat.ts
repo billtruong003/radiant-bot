@@ -1,8 +1,9 @@
 import { type ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import { rankById } from '../config/cultivation.js';
+import { getTitle } from '../config/titles.js';
 import { RANK_ICONS } from '../config/ui.js';
 import { getStore } from '../db/index.js';
-import { computeCombatPowerBreakdown } from '../modules/combat/power.js';
+import { computeCombatPowerBreakdown, resolveWeaponContribution } from '../modules/combat/power.js';
 import { themedEmbed } from '../utils/embed.js';
 
 /**
@@ -56,26 +57,60 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   // when the catalog entry was deleted while it was still equipped.
   const equippedSlug = user.equipped_cong_phap_slug ?? null;
   const equippedCongPhap = equippedSlug ? (store.congPhapCatalog.get(equippedSlug) ?? null) : null;
+  const congPhapLevel = equippedSlug
+    ? (store.userCongPhap.query(
+        (uc) => uc.discord_id === target.id && uc.cong_phap_slug === equippedSlug,
+      )[0]?.level ?? 0)
+    : 0;
 
-  const cp = computeCombatPowerBreakdown(user, equippedCongPhap);
+  // Phase 14 — weapon contribution. Handles both catalog refs and bản mệnh.
+  const weapon = resolveWeaponContribution(
+    user.equipped_weapon_slug,
+    (slug) => store.weaponCatalog.get(slug) ?? null,
+    (slug) =>
+      store.userWeapons.query(
+        (w) => w.discord_id === target.id && w.weapon_slug === slug,
+      )[0] ?? null,
+  );
+
+  const cp = computeCombatPowerBreakdown(user, equippedCongPhap, congPhapLevel, weapon);
   const pills = user.pills ?? 0;
   const contribution = user.contribution_points ?? 0;
 
+  const equippedWeaponName = (() => {
+    if (!user.equipped_weapon_slug) return null;
+    const cat = store.weaponCatalog.get(user.equipped_weapon_slug);
+    if (cat) return cat.display_name;
+    if (user.equipped_weapon_slug.startsWith('phap-khi-ban-menh-')) return 'Bản Mệnh Khí';
+    return user.equipped_weapon_slug;
+  })();
+
   const cpBreakdownLines = [
     `• Nền: ${cp.base}`,
-    `• Cấp độ: +${cp.levelBonus} _(${user.level} × 10)_`,
+    `• Cấp độ: +${cp.levelBonus} _(${user.level} × 5)_`,
     `• Cảnh giới: +${cp.rankBonus}`,
     user.sub_title ? `• Sub-title: +${cp.subTitleBonus} _(${user.sub_title})_` : null,
-    cp.congPhapBonus > 0 ? `• Công pháp: +${cp.congPhapBonus} _(${equippedCongPhap?.name})_` : null,
+    cp.statBonus > 0 ? `• Chỉ số phân: +${cp.statBonus}` : null,
+    cp.congPhapBonus > 0
+      ? `• Công pháp: +${cp.congPhapBonus} _(${equippedCongPhap?.name}${congPhapLevel > 0 ? ` +${congPhapLevel}` : ''})_`
+      : null,
+    cp.weaponBonus > 0
+      ? `• Vũ khí: +${cp.weaponBonus} _(${equippedWeaponName}${weapon && weapon.level > 0 ? ` +${weapon.level}` : ''})_`
+      : null,
   ]
     .filter(Boolean)
     .join('\n');
 
+  const equippedTitle = user.equipped_title_id ? getTitle(user.equipped_title_id) : null;
+  const titleLine = equippedTitle
+    ? `${equippedTitle.emoji} **${equippedTitle.name}**`
+    : '_(chưa trang bị danh hiệu)_';
+
   const embed = themedEmbed('cultivation', {
     color: hexToInt(rank.colorHex),
     title: `${rankIcon} Combat profile — ${target.displayName ?? target.username}`,
-    description: `_${rank.description}_`,
-    footer: 'Phase 12 · Radiant Tech Sect',
+    description: `_${rank.description}_\n🎖️ ${titleLine}`,
+    footer: 'Phase 14 · Radiant Tech Sect',
   })
     .setThumbnail(target.displayAvatarURL({ size: 256 }))
     .addFields(

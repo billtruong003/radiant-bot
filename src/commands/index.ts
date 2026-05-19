@@ -9,6 +9,7 @@ import { command as breakthrough } from './breakthrough.js';
 import { command as congPhap } from './cong-phap.js';
 import { command as contributeDoc } from './contribute-doc.js';
 import { command as daily } from './daily.js';
+import { command as danhHieu } from './danh-hieu.js';
 import { command as duel } from './duel.js';
 import { command as grant } from './grant.js';
 import { command as help } from './help.js';
@@ -19,6 +20,7 @@ import { command as quest } from './quest.js';
 import { command as raidMode } from './raid-mode.js';
 import { command as rank } from './rank.js';
 import { command as shop } from './shop.js';
+import { command as statAlloc } from './stat-alloc.js';
 import { command as stat } from './stat.js';
 import { command as stats } from './stats.js';
 import { command as syncPinned } from './sync-pinned.js';
@@ -26,6 +28,7 @@ import { command as thienDao } from './thien-dao.js';
 import { command as title } from './title.js';
 import { command as trade } from './trade.js';
 import { command as verifyTest } from './verify-test.js';
+import { command as weapon } from './weapon.js';
 
 /**
  * Slash command registry. Each command lives in its own file and is
@@ -53,6 +56,7 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [linkWhitelist.data.name, linkWhitelist as SlashCommand],
   [stats.data.name, stats as SlashCommand],
   [stat.data.name, stat as SlashCommand],
+  [statAlloc.data.name, statAlloc as SlashCommand],
   [grant.data.name, grant as SlashCommand],
   // Phase 12 Lát 2-6
   [inventory.data.name, inventory as SlashCommand],
@@ -70,6 +74,10 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [syncPinned.data.name, syncPinned as SlashCommand],
   // Phase 13 Lát A
   [arena.data.name, arena as SlashCommand],
+  // Phase 14 — weapon management
+  [weapon.data.name, weapon as SlashCommand],
+  // Phase 14 — danh hiệu (honor titles)
+  [danhHieu.data.name, danhHieu as SlashCommand],
 ]);
 
 export function findCommand(name: string): SlashCommand | undefined {

@@ -59,6 +59,20 @@ export async function maybePromoteRank(
   // Persist rank change first so a Discord failure doesn't lose state.
   await getStore().users.set({ ...user, cultivation_rank: newRank });
 
+  // Phase 14 — title eligibility (e.g., Tâm Bích Chân Nhân at Đại Thừa,
+  // Độ Kiếp Giả at Độ Kiếp). Idempotent: re-checks all titles; already-owned
+  // skipped. Fire-and-forget — title grant is non-critical for the promo flow.
+  // try/catch guards against late-fire (e.g., store mid-shutdown or in tests
+  // after cleanup) — failure here must not crash the promotion path.
+  void (async () => {
+    try {
+      const { awardEligibleTitles } = await import('../titles/index.js');
+      await awardEligibleTitles(member.id);
+    } catch (err) {
+      logger.warn({ err, discord_id: member.id }, 'rank-promoter: title award failed (non-fatal)');
+    }
+  })();
+
   // Swap the Discord role atomically. `roles.set([keep, newRole])` avoids
   // a window where the user has zero cultivation roles.
   const guild = member.guild;

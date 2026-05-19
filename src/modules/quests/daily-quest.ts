@@ -57,11 +57,52 @@ export const QUEST_POOL: readonly QuestTemplate[] = [
   },
   {
     type: 'daily_streak_check',
+    target: 3,
+    reward_xp: 75,
+    reward_pills: 2,
+    reward_contribution: 20,
+    label: 'Giữ streak điểm danh 3 ngày',
+  },
+  // Phase 14 — engagement quests (Bill 2026-05-20 round 2).
+  {
+    type: 'duel_win',
     target: 1,
-    reward_xp: 25,
+    reward_xp: 80,
+    reward_pills: 3,
+    reward_contribution: 40,
+    label: 'Thắng 1 trận duel',
+  },
+  {
+    type: 'spend_contribution',
+    target: 100,
+    reward_xp: 40,
     reward_pills: 1,
-    reward_contribution: 5,
-    label: 'Dùng /daily hôm nay',
+    reward_contribution: 20,
+    label: 'Chi 100 điểm cống hiến ở shop',
+  },
+  {
+    type: 'upgrade_attempt',
+    target: 1,
+    reward_xp: 60,
+    reward_pills: 2,
+    reward_contribution: 30,
+    label: 'Cường hóa 1 lần (công pháp hoặc vũ khí)',
+  },
+  {
+    type: 'equip_both',
+    target: 1,
+    reward_xp: 30,
+    reward_pills: 1,
+    reward_contribution: 15,
+    label: 'Trang bị đồng thời 1 công pháp + 1 vũ khí',
+  },
+  {
+    type: 'tribulation_pass',
+    target: 1,
+    reward_xp: 120,
+    reward_pills: 5,
+    reward_contribution: 60,
+    label: 'Vượt qua 1 thiên kiếp',
   },
 ];
 
@@ -200,6 +241,89 @@ export async function incrementProgress(
   }
 
   return { updated: true, completed: justCompleted };
+}
+
+/**
+ * Set quest progress to an absolute value (idempotent, clamped to target).
+ * Used by `daily_streak_check`: progress mirrors `user.daily_streak` so a
+ * user who already maintained a 3-day streak auto-completes on `/daily`
+ * even if the quest was assigned mid-streak.
+ *
+ * Diverges from `incrementProgress`: delta semantics don't fit streak — a
+ * user with streak=5 shouldn't keep adding +1 per /daily. Returns same
+ * shape as incrementProgress for parity at call sites.
+ */
+export async function setProgress(
+  discordId: string,
+  type: DailyQuestType,
+  value: number,
+  now: number = Date.now(),
+): Promise<{ updated: boolean; completed: boolean }> {
+  if (value < 0) return { updated: false, completed: false };
+  const store = getStore();
+  const quest = getCurrentQuest(discordId, now);
+  if (!quest) return { updated: false, completed: false };
+  if (quest.quest_type !== type) return { updated: false, completed: false };
+  if (quest.completed_at !== null) return { updated: false, completed: false };
+
+  const clamped = Math.min(quest.target, value);
+  if (clamped <= quest.progress) return { updated: false, completed: false };
+
+  const justCompleted = clamped >= quest.target;
+  await store.dailyQuests.set({
+    ...quest,
+    progress: clamped,
+    completed_at: justCompleted ? now : null,
+  });
+
+  if (justCompleted) {
+    const user = store.users.get(discordId);
+    if (user) {
+      await store.users.set({
+        ...user,
+        pills: (user.pills ?? 0) + quest.reward_pills,
+        contribution_points: (user.contribution_points ?? 0) + quest.reward_contribution,
+      });
+      if (quest.reward_xp > 0) {
+        const { awardXp } = await import('../leveling/tracker.js');
+        await awardXp({
+          discordId,
+          username: user.username,
+          displayName: user.display_name,
+          amount: quest.reward_xp,
+          source: 'event',
+          metadata: { quest_id: quest.id, quest_type: type, set_progress: true },
+        });
+      }
+      logger.info(
+        {
+          discord_id: discordId,
+          quest_id: quest.id,
+          type,
+          target: quest.target,
+          reward_xp: quest.reward_xp,
+          reward_pills: quest.reward_pills,
+          reward_contribution: quest.reward_contribution,
+        },
+        'quest: completed via setProgress + rewards granted',
+      );
+    }
+  }
+
+  return { updated: true, completed: justCompleted };
+}
+
+/**
+ * Convenience hook for `equip_both` quest: call after any equip operation
+ * (công pháp OR vũ khí) — if BOTH slots are now filled, increments the
+ * quest. Idempotent because incrementProgress no-ops on already-completed
+ * quests. Lazy-imported to avoid circular deps at call sites.
+ */
+export async function checkEquipBothQuest(discordId: string): Promise<void> {
+  const user = getStore().users.get(discordId);
+  if (!user) return;
+  if (!user.equipped_cong_phap_slug || !user.equipped_weapon_slug) return;
+  await incrementProgress(discordId, 'equip_both', 1);
 }
 
 export const __for_testing = { QUEST_POOL, vnDayStart };

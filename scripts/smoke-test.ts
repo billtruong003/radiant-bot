@@ -1164,10 +1164,11 @@ async function smokeRejoinCooldown(): Promise<void> {
 // --- Phase 12 Lát 1: combat power formula -----------------------------
 
 async function smokeCombatPower(): Promise<void> {
-  group('Phase 12 · lực chiến formula');
+  group('Phase 14 · lực chiến formula');
   const { computeCombatPower, computeCombatPowerBreakdown } = await import(
     '../src/modules/combat/power.js'
   );
+  // Phase 14: level×5, rank×30, sub_title 30, stat_alloc weights.
   expectEq(
     computeCombatPower({ level: 0, cultivation_rank: 'pham_nhan', sub_title: null }, null),
     100,
@@ -1175,18 +1176,18 @@ async function smokeCombatPower(): Promise<void> {
   );
   expectEq(
     computeCombatPower({ level: 10, cultivation_rank: 'truc_co', sub_title: 'Kiếm Tu' }, null),
-    350,
-    'Trúc Cơ Lv 10 + sub_title = 350',
+    240,
+    'Trúc Cơ Lv 10 + sub_title = 240 (100+50+60+30)',
   );
   const b = computeCombatPowerBreakdown(
     { level: 20, cultivation_rank: 'kim_dan', sub_title: null },
     null,
   );
   expectEq(b.base, 100, 'breakdown base = 100');
-  expectEq(b.levelBonus, 200, 'breakdown levelBonus = 200');
-  expectEq(b.rankBonus, 150, 'Kim Đan rank bonus = 150 (idx 3 × 50)');
+  expectEq(b.levelBonus, 100, 'breakdown levelBonus = 100 (Lv 20 × 5)');
+  expectEq(b.rankBonus, 90, 'Kim Đan rank bonus = 90 (idx 3 × 30)');
   expectEq(b.subTitleBonus, 0, 'no sub_title → 0 sub_title bonus');
-  expectEq(b.total, 450, 'Kim Đan Lv 20 = 450');
+  expectEq(b.total, 290, 'Kim Đan Lv 20 = 290 (100+100+90+0)');
 }
 
 // --- Phase 12 Lát 3: cong-phap catalog seed -----------------------------
@@ -1396,7 +1397,7 @@ async function smokeEdgeCases(): Promise<void> {
   );
   expectEq(
     computeCombatPower({ level: 999, cultivation_rank: 'do_kiep', sub_title: 'Kiếm Tu' }, null),
-    100 + 9990 + 9 * 50 + 50,
+    100 + 999 * 5 + 9 * 30 + 30,
     'LC: extreme level=999 Độ Kiếp sub_title — no overflow',
   );
 
@@ -1994,11 +1995,14 @@ async function smokeArenaBridge(): Promise<void> {
   );
   __resetWeaponCatalogCacheForTesting();
   const catalog = await loadWeaponCatalog();
-  expectEq(catalog.length, 6, 'catalog: 6 weapons seeded');
+  expectEq(catalog.length, 36, 'catalog: 36 weapons seeded');
   const categories = new Set(catalog.map((w) => w.category));
   check('catalog: covers all 3 categories', categories.has('blunt') && categories.has('pierce') && categories.has('spirit'));
   const tiers = new Set(catalog.map((w) => w.tier));
-  check('catalog: covers tiers pham + dia + thien', tiers.has('pham') && tiers.has('dia') && tiers.has('thien'));
+  check(
+    'catalog: covers tiers ban_menh + pham + dia + thien + tien',
+    tiers.has('ban_menh') && tiers.has('pham') && tiers.has('dia') && tiers.has('thien') && tiers.has('tien'),
+  );
   for (const w of catalog) {
     check(`catalog: '${w.slug}' has positive damage_base`, w.stats.damage_base > 0);
     check(`catalog: '${w.slug}' has valid hue`, /^#[0-9a-fA-F]{6}$/.test(w.visual.hue));

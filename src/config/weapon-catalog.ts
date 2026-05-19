@@ -38,7 +38,7 @@ const itemSchema = z.object({
   slug: z.string().min(1),
   display_name: z.string().min(1),
   category: z.enum(['blunt', 'pierce', 'spirit']),
-  tier: z.enum(['pham', 'dia', 'thien', 'tien']),
+  tier: z.enum(['ban_menh', 'pham', 'dia', 'thien', 'tien']),
   stats: statsSchema,
   skills: z.array(skillSchema),
   visual: visualSchema,

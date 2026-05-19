@@ -29,10 +29,11 @@ describe('simulateDuel', () => {
 
   it('computes lực chiến for both fighters', () => {
     const r = simulateDuel(FIGHTER_WEAK, FIGHTER_STRONG, 42);
-    // Lv 5, Luyện Khí (idx 1) → 100 base + 50 level + 50 rank + 0 sub_title = 200
-    expect(r.challengerLc).toBe(200);
-    // Lv 100, Độ Kiếp (idx 9), Kiếm Tu → 100 + 1000 + 450 + 50 = 1600
-    expect(r.opponentLc).toBe(1600);
+    // Phase 14 formula: base 100 + level×5 + rank×30 + sub_title 30 (if any)
+    // Lv 5, Luyện Khí (idx 1) → 100 + 25 + 30 + 0 = 155
+    expect(r.challengerLc).toBe(155);
+    // Lv 100, Độ Kiếp (idx 9), Kiếm Tu → 100 + 500 + 270 + 30 = 900
+    expect(r.opponentLc).toBe(900);
     expect(r.opponentHpStart).toBe(r.opponentLc);
   });
 

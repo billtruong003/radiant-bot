@@ -3,9 +3,18 @@ import type { CongPhap } from '../../src/db/types.js';
 import { computeCombatPower, computeCombatPowerBreakdown } from '../../src/modules/combat/power.js';
 
 /**
- * Phase 12 Lát 1 — lực chiến formula.
+ * Phase 14 lực chiến formula — see src/modules/combat/power.ts.
  *
- *   combat_power = 100 + level×10 + rankIdx×50 + (sub_title ? 50 : 0) + cong_phap_bonus
+ *   total = 100 (base)
+ *         + level × 5
+ *         + rankIdx × 30
+ *         + (sub_title ? 30 : 0)
+ *         + stat_alloc.dmg × 8 + hp × 5 + def × 3 + spd × 4
+ *         + cong_phap_bonus × (1 + cp_level × 0.10)
+ *         + weapon.damage_base × 10 × (1 + weapon_level × 0.15)
+ *
+ * Phase 14 lowered LEVEL_BONUS 10→5 and RANK_BONUS_STEP 50→30 to make
+ * room for stat allocation. Old Phase 12 fixtures are updated below.
  */
 
 function mkCongPhap(combatPower: number): CongPhap {
@@ -32,30 +41,30 @@ describe('computeCombatPower', () => {
     expect(cp).toBe(100);
   });
 
-  it('Luyện Khí level 5 = 100 + 50 + 50 = 200', () => {
-    // base 100 + level 5×10=50 + Luyện Khí (idx 1) ×50 = 50
+  it('Luyện Khí level 5 = 100 + 25 + 30 = 155', () => {
+    // base 100 + level 5×5=25 + Luyện Khí (idx 1) ×30 = 30
     const cp = computeCombatPower(
       { level: 5, cultivation_rank: 'luyen_khi', sub_title: null },
       null,
     );
-    expect(cp).toBe(200);
+    expect(cp).toBe(155);
   });
 
-  it('Trúc Cơ level 10 with sub_title = 100 + 100 + 100 + 50 = 350', () => {
+  it('Trúc Cơ level 10 with sub_title = 100 + 50 + 60 + 30 = 240', () => {
     const cp = computeCombatPower(
       { level: 10, cultivation_rank: 'truc_co', sub_title: 'Kiếm Tu' },
       null,
     );
-    expect(cp).toBe(350);
+    expect(cp).toBe(240);
   });
 
   it('Độ Kiếp level 160 with sub_title + 200 CP công pháp', () => {
-    // base 100 + 1600 + (idx 9 × 50 = 450) + 50 + 200 = 2400
+    // base 100 + 800 + (idx 9 × 30 = 270) + 30 + 200 = 1400
     const cp = computeCombatPower(
       { level: 160, cultivation_rank: 'do_kiep', sub_title: 'Trận Pháp Sư' },
       mkCongPhap(200),
     );
-    expect(cp).toBe(2400);
+    expect(cp).toBe(1400);
   });
 
   it('Tiên Nhân (admin grant) = highest rank index = 10', () => {
@@ -63,7 +72,7 @@ describe('computeCombatPower', () => {
       { level: 100, cultivation_rank: 'tien_nhan', sub_title: 'Kiếm Tu' },
       null,
     );
-    expect(cp).toBe(100 + 1000 + 10 * 50 + 50);
+    expect(cp).toBe(100 + 500 + 10 * 30 + 30);
   });
 
   it('breakdown attributes correctly', () => {
@@ -72,11 +81,13 @@ describe('computeCombatPower', () => {
       mkCongPhap(75),
     );
     expect(b.base).toBe(100);
-    expect(b.levelBonus).toBe(200);
-    expect(b.rankBonus).toBe(150); // Kim Đan = idx 3
-    expect(b.subTitleBonus).toBe(50);
+    expect(b.levelBonus).toBe(100); // 20 × 5
+    expect(b.rankBonus).toBe(90); // Kim Đan = idx 3 × 30
+    expect(b.subTitleBonus).toBe(30);
     expect(b.congPhapBonus).toBe(75);
-    expect(b.total).toBe(575);
+    expect(b.statBonus).toBe(0);
+    expect(b.weaponBonus).toBe(0);
+    expect(b.total).toBe(395);
   });
 
   it('no equipped công pháp → 0 bonus from that slot', () => {
@@ -93,5 +104,42 @@ describe('computeCombatPower', () => {
       null,
     );
     expect(b.subTitleBonus).toBe(0);
+  });
+
+  it('stat_alloc contributes per weight (dmg×8, hp×5, def×3, spd×4)', () => {
+    const b = computeCombatPowerBreakdown(
+      {
+        level: 0,
+        cultivation_rank: 'pham_nhan',
+        sub_title: null,
+        stat_alloc: { dmg: 10, hp: 10, def: 10, spd: 10 },
+      },
+      null,
+    );
+    // 10×8 + 10×5 + 10×3 + 10×4 = 200
+    expect(b.statBonus).toBe(200);
+    expect(b.total).toBe(300); // 100 base + 200 stat
+  });
+
+  it('weapon contribution scales with level (damage_base × 10 × (1 + lv × 0.15))', () => {
+    const b = computeCombatPowerBreakdown(
+      { level: 0, cultivation_rank: 'pham_nhan', sub_title: null },
+      null,
+      0,
+      { damage_base: 30, level: 4 },
+    );
+    // 30 × 10 × (1 + 4 × 0.15) = 300 × 1.6 = 480
+    expect(b.weaponBonus).toBe(480);
+  });
+
+  it('công pháp level scales bonus by 10% per level', () => {
+    const b = computeCombatPowerBreakdown(
+      { level: 0, cultivation_rank: 'pham_nhan', sub_title: null },
+      mkCongPhap(100),
+      5,
+      null,
+    );
+    // 100 × (1 + 5 × 0.10) = 150
+    expect(b.congPhapBonus).toBe(150);
   });
 });

@@ -113,10 +113,26 @@ const BY_ID: ReadonlyMap<CultivationRankId, CultivationRank> = new Map(
   [...CULTIVATION_RANKS, TIEN_NHAN].map((r) => [r.id, r] as const),
 );
 
+/**
+ * Ordinal index of each cảnh giới: Phàm Nhân=0 ... Độ Kiếp=9, Tiên Nhân=10.
+ * Used by combat/duel for rank-gap comparisons (miểu sát threshold).
+ */
+const RANK_INDEX: ReadonlyMap<CultivationRankId, number> = (() => {
+  const m = new Map<CultivationRankId, number>();
+  CULTIVATION_RANKS.forEach((r, i) => m.set(r.id, i));
+  m.set('tien_nhan', CULTIVATION_RANKS.length);
+  return m;
+})();
+
 export function rankById(id: CultivationRankId): CultivationRank {
   const r = BY_ID.get(id);
   if (!r) throw new Error(`Unknown cultivation rank id: ${id}`);
   return r;
+}
+
+/** Returns the ordinal index of a rank. Unknown ids return 0 (Phàm Nhân). */
+export function rankIndex(id: CultivationRankId): number {
+  return RANK_INDEX.get(id) ?? 0;
 }
 
 /**

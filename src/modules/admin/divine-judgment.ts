@@ -47,6 +47,19 @@ const SYSTEM_PROMPT_TEMPLATE = `BẠN LÀ "Thiên Đạo" — phán quan tối c
 - Tội vừa (lặp lại profanity, vi phạm có ý đồ) → 1-2 hình phạt vừa
 - Tội nặng (cố ý phá hoại, tấn công cá nhân) → 2-3 hình phạt nặng
 
+# Mapping ngữ nghĩa → punishment.id (BẮT BUỘC tuân theo)
+
+- "vong ngôn" / "cấm khẩu" / "phong miệng" / "bít tiếng" → \`timeout_minutes\`
+  (đây là Discord timeout — đệ tử không thể nhắn tin/voice trong N phút).
+  Khi Tông Chủ nhắc bất cứ từ nào trên, hình phạt PHẢI có \`timeout_minutes\`.
+  Tội vừa: 30-180 phút. Tội nặng: 360-1440 phút.
+- "phong ấn" / "tước công pháp" → \`cong_phap_strip\`
+- "giáng cấp" / "đạp xuống" → \`rank_demote_one\`
+- "phạt cống hiến" / "trừ điểm" → \`contribution_deduct\`
+- "phạt đan dược" / "thu pill" → \`pill_confiscate\`
+- "trừ tu vi" / "phạt XP" → \`xp_deduct\`
+- "công khai cảnh cáo" mà không có hình phạt vật chất → \`public_shame\`
+
 Severity của mỗi hình phạt phải nằm trong range cho phép.
 
 # Phong cách verdict
@@ -234,13 +247,26 @@ async function applyPunishment(
         };
       }
       case 'timeout_minutes': {
+        // Bill 2026-05-20: "vong ngôn khi thiên phạt hiện tại đang ko hoạt động".
+        // Root cause options: (a) bot lacks Moderate Members perm,
+        // (b) target's highest role is ≥ bot's highest role, (c) target is
+        // guild owner. All three surface as `!moderatable`. Loud-log so Bill
+        // sees in pino + verdict embed (caller will display reason).
         if (!member.moderatable) {
+          logger.warn(
+            {
+              target: member.id,
+              target_name: member.user.username,
+              bot_perms: member.guild.members.me?.permissions.toArray() ?? [],
+            },
+            'divine: timeout skipped — !member.moderatable (bot missing Moderate Members perm OR target outranks bot)',
+          );
           return {
             punishmentId: id,
             punishmentName: punishment.name,
             severity: 0,
             result: 'skipped',
-            reason: 'member not moderatable',
+            reason: 'bot không có quyền Moderate Members HOẶC đệ tử có role cao hơn bot',
           };
         }
         await member.timeout(clamped * 60 * 1000, 'divine judgment');

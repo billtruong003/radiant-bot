@@ -71,13 +71,16 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     metadata: { streak: award.newStreak, base: award.base, bonus: award.bonus },
   });
 
-  // Persist streak + last_daily_at. Phase 12: also auto-grant +5
-  // contribution_points + (2 pills if streak milestone 7/14/30).
+  // Persist streak + last_daily_at. Phase 14 rebalance (Bill 2026-05-20):
+  // baseline +2 pills daily (was 0 outside milestones) so upgrade endgame
+  // is reachable in ~50 days steady play. Streak milestones stack on top.
   const fresh = store.users.get(interaction.user.id);
   const isStreakMilestone =
     award.newStreak === 7 || award.newStreak === 14 || award.newStreak === 30;
   const contribGrant = 5;
-  const pillsGrant = isStreakMilestone ? (award.newStreak === 30 ? 10 : 2) : 0;
+  const pillsBase = 2;
+  const pillsMilestone = isStreakMilestone ? (award.newStreak === 30 ? 10 : 2) : 0;
+  const pillsGrant = pillsBase + pillsMilestone;
   if (fresh) {
     await store.users.set({
       ...fresh,
@@ -114,9 +117,30 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   await interaction.reply({ embeds: [embed] });
 
-  // Phase 12 Lát 4 — daily_streak_check quest progress.
-  const { incrementProgress } = await import('../modules/quests/daily-quest.js');
-  void incrementProgress(interaction.user.id, 'daily_streak_check', 1);
+  // Phase 12 Lát 4 / 2026-05-20 fix — quest progress for daily_streak_check.
+  //
+  // Bill's bug: "t điểm danh daily rồi mà quest là check daily thì làm sao
+  // t làm?" — root cause: (a) if quest cron missed at 00:00 VN, no quest
+  // exists when /daily runs, and /daily's 24h cooldown then locks the
+  // user out of completing it; (b) target was 1 (trivial) — Bill bumped
+  // to target=3 (3-day streak).
+  //
+  // Fix:
+  //   1. LAZY-ASSIGN — call assignDailyQuest first so quest exists even
+  //      after cron miss. Idempotent (returns existing if already today).
+  //   2. setProgress to user.daily_streak so a user already at streak=5
+  //      auto-completes the moment /daily-streak-check is assigned. No
+  //      need to wait 3 more days.
+  const { assignDailyQuest, setProgress } = await import('../modules/quests/daily-quest.js');
+  await assignDailyQuest(interaction.user.id);
+  const freshAfterDaily = getStore().users.get(interaction.user.id);
+  if (freshAfterDaily) {
+    void setProgress(
+      interaction.user.id,
+      'daily_streak_check',
+      freshAfterDaily.daily_streak ?? 0,
+    );
+  }
 
   // Promote if leveled up.
   if (result.leveledUp && member) {

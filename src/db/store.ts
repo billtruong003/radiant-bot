@@ -19,6 +19,7 @@ import type {
   SectEvent,
   User,
   UserCongPhap,
+  UserTitle,
   UserWeapon,
   Verification,
   VoiceSession,
@@ -54,6 +55,8 @@ interface SnapshotShape {
   weapon_catalog?: Weapon[];
   user_weapons?: UserWeapon[];
   arena_sessions?: ArenaSession[];
+  // Phase 14 — danh hiệu honor titles.
+  user_titles?: UserTitle[];
 }
 
 const DEFAULT_RAID_STATE: RaidState = {
@@ -108,6 +111,8 @@ export class Store {
   readonly weaponCatalog: Collection<Weapon>;
   readonly userWeapons: Collection<UserWeapon>;
   readonly arenaSessions: Collection<ArenaSession>;
+  // Phase 14 — danh hiệu (honor titles) earned by users.
+  readonly userTitles: Collection<UserTitle>;
 
   private readonly log: AppendOnlyLog;
   private readonly walPath: string;
@@ -170,6 +175,8 @@ export class Store {
       this.log,
       (s) => s.session_id,
     );
+    // Phase 14 — earned honor title rows (one per user+title).
+    this.userTitles = new Collection<UserTitle>('user_titles', this.log, (t) => t.id);
 
     const map = new Map<string, WalApplicable>();
     for (const c of [
@@ -190,6 +197,7 @@ export class Store {
       this.weaponCatalog,
       this.userWeapons,
       this.arenaSessions,
+      this.userTitles,
     ]) {
       map.set(c.name, c);
     }
@@ -227,6 +235,7 @@ export class Store {
       this.weaponCatalog._bulkLoad(snapshot.weapon_catalog ?? []);
       this.userWeapons._bulkLoad(snapshot.user_weapons ?? []);
       this.arenaSessions._bulkLoad(snapshot.arena_sessions ?? []);
+      this.userTitles._bulkLoad(snapshot.user_titles ?? []);
       logger.info(
         {
           version: snapshot.version,
@@ -347,6 +356,7 @@ export class Store {
         weapon_catalog: this.weaponCatalog._serialize(),
         user_weapons: this.userWeapons._serialize(),
         arena_sessions: this.arenaSessions._serialize(),
+        user_titles: this.userTitles._serialize(),
       };
 
       const tmpPath = `${this.snapshotPath}.tmp`;

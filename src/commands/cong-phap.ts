@@ -8,6 +8,13 @@ import {
   listOwnedCongPhap,
   unequipCongPhap,
 } from '../modules/combat/cong-phap.js';
+import {
+  MAX_LEVEL,
+  congPhapSuccessRate,
+  costToUpgrade,
+  rollUpgrade,
+} from '../modules/combat/upgrade.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * /cong-phap list|info|buy|equip|unequip <slug>
@@ -40,7 +47,13 @@ export const data = new SlashCommandBuilder()
       .setDescription('Trang bị 1 công pháp đã sở hữu')
       .addStringOption((o) => o.setName('slug').setDescription('Slug công pháp').setRequired(true)),
   )
-  .addSubcommand((sc) => sc.setName('unequip').setDescription('Bỏ trang bị công pháp hiện tại'));
+  .addSubcommand((sc) => sc.setName('unequip').setDescription('Bỏ trang bị công pháp hiện tại'))
+  .addSubcommand((sc) =>
+    sc
+      .setName('upgrade')
+      .setDescription('Cường hóa 1 công pháp đã sở hữu (cost pills + cống hiến, RNG cao level)')
+      .addStringOption((o) => o.setName('slug').setDescription('Slug công pháp').setRequired(true)),
+  );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const sub = interaction.options.getSubcommand(true);
@@ -177,6 +190,80 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     }
     await unequipCongPhap(userId);
     await interaction.reply({ content: '🗑️ Đã bỏ trang bị công pháp.', ephemeral: true });
+    return;
+  }
+
+  if (sub === 'upgrade') {
+    const owned = store.userCongPhap.query(
+      (uc) => uc.discord_id === userId && uc.cong_phap_slug === slug,
+    );
+    const ownership = owned[0];
+    if (!ownership) {
+      await interaction.reply({
+        content: `⚠️ Bạn chưa sở hữu \`${slug}\`. Mua bằng \`/cong-phap buy\`.`,
+        ephemeral: true,
+      });
+      return;
+    }
+    const currentLevel = ownership.level ?? 0;
+    if (currentLevel >= MAX_LEVEL) {
+      await interaction.reply({
+        content: `🌟 \`${slug}\` đã đạt cường hóa tối đa (Lv ${MAX_LEVEL}).`,
+        ephemeral: true,
+      });
+      return;
+    }
+    const cost = costToUpgrade(currentLevel);
+    const pills = user.pills ?? 0;
+    const contrib = user.contribution_points ?? 0;
+    if (pills < cost.pills || contrib < cost.contribution) {
+      await interaction.reply({
+        content: `💊 Cần **${cost.pills} đan dược** + **${cost.contribution} cống hiến** để cường hóa Lv ${currentLevel}→${currentLevel + 1}. Bạn có: ${pills}💊 + ${contrib}🪙.`,
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const item = store.congPhapCatalog.get(slug);
+    const rate = congPhapSuccessRate(currentLevel);
+    const outcome = rollUpgrade('cong_phap', currentLevel);
+
+    // Deduct cost always (success or fail).
+    await store.users.set({
+      ...user,
+      pills: pills - cost.pills,
+      contribution_points: contrib - cost.contribution,
+    });
+    if (outcome.result === 'success') {
+      await store.userCongPhap.set({ ...ownership, level: outcome.newLevel });
+    }
+
+    logger.info(
+      { discord_id: userId, slug, from_level: currentLevel, outcome: outcome.result, new_level: outcome.newLevel },
+      'cong-phap: upgrade attempt',
+    );
+
+    // Phase 14 quest — upgrade_attempt fires regardless of outcome.
+    {
+      const { incrementProgress } = await import('../modules/quests/daily-quest.js');
+      void incrementProgress(userId, 'upgrade_attempt', 1);
+    }
+    // Phase 14 title — re-check eligibility on success (max level changed).
+    if (outcome.result === 'success') {
+      const { awardEligibleTitles } = await import('../modules/titles/index.js');
+      void awardEligibleTitles(userId);
+    }
+
+    const ratePct = (rate * 100).toFixed(0);
+    const flavor =
+      outcome.result === 'success'
+        ? `✨ **THÀNH CÔNG** (xác suất ${ratePct}%) — \`${item?.name ?? slug}\` Lv ${currentLevel} → **Lv ${outcome.newLevel}**.`
+        : `💥 **THẤT BẠI** (xác suất thành công ${ratePct}%) — linh khí công pháp bất ổn, giữ nguyên Lv ${currentLevel}. Đan dược + cống hiến đã tiêu tan.`;
+
+    await interaction.reply({
+      content: `${flavor}\n💸 Trừ: ${cost.pills}💊 + ${cost.contribution}🪙`,
+      ephemeral: true,
+    });
     return;
   }
 }

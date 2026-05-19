@@ -25,7 +25,12 @@ export type XpSource =
   | 'event'
   | 'tribulation_pass'
   | 'tribulation_fail'
-  | 'admin_grant';
+  | 'admin_grant'
+  // Phase 14 — markers for danh hiệu lifetime counters. Amount is the XP
+  // earned from the action (or 0 if none); the row exists primarily so
+  // title award scans can count lifetime duel_win + mieu_sat events.
+  | 'duel_win'
+  | 'mieu_sat';
 
 export interface User extends Record<string, unknown> {
   discord_id: string;
@@ -83,6 +88,57 @@ export interface User extends Record<string, unknown> {
   equipped_phap_khi_slug?: string | null;
   /** Up to 2 nhẫn (rings) equipped. Each entry is a slug from nhan_catalog. */
   equipped_ring_slugs?: string[] | null;
+  // --- Phase 14 — Stat allocation + item upgrade --------------------
+  /**
+   * Unspent stat points the user has accumulated. Granted at level-up
+   * (+2/level per Phase 14 design). Spent via /stat-alloc to bump
+   * `stat_alloc.*` categories. Optional + back-compat: lazy-migrate
+   * to `level × 2` on first /stat-alloc access for users predating
+   * Phase 14.
+   */
+  stat_points_unspent?: number;
+  /**
+   * User-allocated stat distribution. Each category contributes to the
+   * lực-chiến formula in `combat/power.ts`. Trade-off design: all-dmg
+   * builds big damage but no HP; balanced builds survive longer. Reset
+   * is free via /stat-alloc reset → refunds total into stat_points_unspent.
+   */
+  stat_alloc?: {
+    /** Damage flat add — +8 LC per point. */
+    dmg: number;
+    /** Hit-point pool — +5 LC per point (proxies survivability into LC). */
+    hp: number;
+    /** Damage reduction — +3 LC per point. */
+    def: number;
+    /** Crit chance + initiative — +4 LC per point. */
+    spd: number;
+  };
+  /**
+   * Tracks the last level we awarded stat points for, so we don't double-grant
+   * on bot restart / WAL replay. null/undefined = never granted (lazy-migrate
+   * picks user.level on next interaction).
+   */
+  stat_points_granted_for_level?: number | null;
+  /**
+   * Phase 14 — equipped honor title (danh hiệu). Distinct from `sub_title`
+   * which is a self-chosen archetype role (Kiếm Tu/Đan Sư/...); a danh hiệu
+   * is achievement-earned and shown in /stat as a flair line. References
+   * `id` from the static TITLES catalog in `src/config/titles.ts`. null =
+   * none equipped.
+   */
+  equipped_title_id?: string | null;
+}
+
+/**
+ * Phase 14 — earned honor title ownership row. One row per (user, title_id).
+ * Tracked separately from user record so we can index by title (leaderboards,
+ * "first to earn X") without scanning users.
+ */
+export interface UserTitle extends Record<string, unknown> {
+  id: string;
+  discord_id: string;
+  title_id: string;
+  earned_at: number;
 }
 
 export interface XpLog extends Record<string, unknown> {
@@ -368,7 +424,13 @@ export type DailyQuestType =
   | 'message_count'
   | 'voice_minutes'
   | 'reaction_count'
-  | 'daily_streak_check';
+  | 'daily_streak_check'
+  // Phase 14 expansion — engagement quests beyond passive activity.
+  | 'duel_win'
+  | 'spend_contribution'
+  | 'upgrade_attempt'
+  | 'equip_both'
+  | 'tribulation_pass';
 
 /**
  * Phase 14 V2 — probabilistic item drop attached to a quest. Rolled when
@@ -558,6 +620,13 @@ export interface UserWeapon extends Record<string, unknown> {
    */
   custom_skills: WeaponSkillRef[] | null;
   acquired_at: number;
+  /**
+   * Phase 14 — Cường Hóa upgrade level 0..10. Each level multiplies the
+   * weapon's contribution to LC by +15%. Optional for back-compat (default
+   * 0 when undefined). Upgrade via /weapon upgrade with fail RNG (downgrade
+   * at level ≥ 7 on fail; stay-put below).
+   */
+  level?: number;
 }
 
 export type ArenaSessionStatus = 'pending' | 'active' | 'ended';
