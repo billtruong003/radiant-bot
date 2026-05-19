@@ -4,13 +4,13 @@ import { simulateDuel } from '../../src/modules/combat/duel.js';
 const FIGHTER_WEAK = {
   user: { level: 5, cultivation_rank: 'luyen_khi' as const, sub_title: null },
   displayName: 'Weakling',
-  equippedCongPhap: null,
+  congPhapSlots: [],
 };
 
 const FIGHTER_STRONG = {
   user: { level: 100, cultivation_rank: 'do_kiep' as const, sub_title: 'Kiếm Tu' },
   displayName: 'Strong',
-  equippedCongPhap: null,
+  congPhapSlots: [],
 };
 
 describe('simulateDuel', () => {

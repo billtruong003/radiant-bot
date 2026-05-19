@@ -59,8 +59,19 @@ export interface User extends Record<string, unknown> {
   pills?: number;
   /** Soft currency earned from activity, spent at the shop. */
   contribution_points?: number;
-  /** Slug of the công pháp currently equipped, or null. */
+  /**
+   * @deprecated Phase 14 round 3 — replaced by `equipped_cong_phap_slugs`
+   * (array, up to 3 slots). Kept on the type so old snapshots replay clean
+   * and a fall-back read can wrap the single slug into a 1-element array.
+   */
   equipped_cong_phap_slug?: string | null;
+  /**
+   * Phase 14 round 3 — multi-slot công pháp equip. Up to 3 slots; slot
+   * unlock thresholds gated by cultivation rank (slot 2 at Trúc Cơ, slot
+   * 3 at Hóa Thần). Each entry is a slug owned in `userCongPhap`. Duplicate
+   * slugs rejected at equip-time.
+   */
+  equipped_cong_phap_slugs?: string[] | null;
   /** Timestamp of the most recent daily quest the cron assigned. */
   last_quest_assigned_at?: number | null;
   /**

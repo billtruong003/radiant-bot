@@ -14,8 +14,8 @@ import { rankById, rankIndex } from '../config/cultivation.js';
 import { getStore } from '../db/index.js';
 import { BAN_MENH_SLUG_PREFIX } from '../modules/arena/forge.js';
 import { simulateDuel } from '../modules/combat/duel.js';
+import { resolveEquippedSlots } from '../modules/combat/equipment-resolver.js';
 import { type FighterDisplay, narrateMieuSat, narrateRounds } from '../modules/combat/narrate.js';
-import { resolveWeaponContribution } from '../modules/combat/power.js';
 import { awardEligibleTitles } from '../modules/titles/index.js';
 import { logger } from '../utils/logger.js';
 
@@ -100,10 +100,14 @@ function resolveFighterDisplay(userId: string, displayName: string): FighterDisp
     }
   }
 
-  const cpSlug = user.equipped_cong_phap_slug ?? null;
-  const congPhap = cpSlug
+  // Phase 14 round 3 — narrate uses primary (first) công pháp slot for
+  // flavor; secondary slots stack LC but the prose narration features
+  // only the lead pháp môn for tone consistency.
+  const cpSlugs = user.equipped_cong_phap_slugs ?? (user.equipped_cong_phap_slug ? [user.equipped_cong_phap_slug] : []);
+  const primarySlug = cpSlugs[0] ?? null;
+  const congPhap = primarySlug
     ? (() => {
-        const item = store.congPhapCatalog.get(cpSlug);
+        const item = store.congPhapCatalog.get(primarySlug);
         return item ? { name: item.name, icon: item.icon, school: item.school } : null;
       })()
     : null;
@@ -344,55 +348,26 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       return;
     }
 
-    const cEquipped = cUserNow.equipped_cong_phap_slug
-      ? (store.congPhapCatalog.get(cUserNow.equipped_cong_phap_slug) ?? null)
-      : null;
-    const oEquipped = oUserNow.equipped_cong_phap_slug
-      ? (store.congPhapCatalog.get(oUserNow.equipped_cong_phap_slug) ?? null)
-      : null;
-    const cCpLevel = cUserNow.equipped_cong_phap_slug
-      ? (store.userCongPhap.query(
-          (uc) =>
-            uc.discord_id === challenger.id &&
-            uc.cong_phap_slug === cUserNow.equipped_cong_phap_slug,
-        )[0]?.level ?? 0)
-      : 0;
-    const oCpLevel = oUserNow.equipped_cong_phap_slug
-      ? (store.userCongPhap.query(
-          (uc) =>
-            uc.discord_id === opponent.id &&
-            uc.cong_phap_slug === oUserNow.equipped_cong_phap_slug,
-        )[0]?.level ?? 0)
-      : 0;
-    const cWeapon = resolveWeaponContribution(
-      cUserNow.equipped_weapon_slug,
-      (s) => store.weaponCatalog.get(s) ?? null,
-      (s) =>
-        store.userWeapons.query((w) => w.discord_id === challenger.id && w.weapon_slug === s)[0] ??
-        null,
-    );
-    const oWeapon = resolveWeaponContribution(
-      oUserNow.equipped_weapon_slug,
-      (s) => store.weaponCatalog.get(s) ?? null,
-      (s) =>
-        store.userWeapons.query((w) => w.discord_id === opponent.id && w.weapon_slug === s)[0] ??
-        null,
-    );
+    // Phase 14 round 3 — multi-slot equipment resolve.
+    const cSlots = resolveEquippedSlots(challenger.id);
+    const oSlots = resolveEquippedSlots(opponent.id);
 
     const result = simulateDuel(
       {
         user: cUserNow,
         displayName: challenger.username,
-        equippedCongPhap: cEquipped,
-        congPhapLevel: cCpLevel,
-        weapon: cWeapon,
+        congPhapSlots: cSlots.congPhap,
+        phapKhi: cSlots.phapKhi,
+        nhan: cSlots.nhan,
+        weapon: cSlots.weapon,
       },
       {
         user: oUserNow,
         displayName: opponent.username,
-        equippedCongPhap: oEquipped,
-        congPhapLevel: oCpLevel,
-        weapon: oWeapon,
+        congPhapSlots: oSlots.congPhap,
+        phapKhi: oSlots.phapKhi,
+        nhan: oSlots.nhan,
+        weapon: oSlots.weapon,
       },
       Date.now() & 0xffffffff,
     );

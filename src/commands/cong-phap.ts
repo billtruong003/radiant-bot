@@ -44,10 +44,30 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((sc) =>
     sc
       .setName('equip')
-      .setDescription('Trang bị 1 công pháp đã sở hữu')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug công pháp').setRequired(true)),
+      .setDescription('Trang bị 1 công pháp vào slot (slot 2 mở từ Trúc Cơ, slot 3 từ Hóa Thần)')
+      .addStringOption((o) => o.setName('slug').setDescription('Slug công pháp').setRequired(true))
+      .addIntegerOption((o) =>
+        o
+          .setName('slot')
+          .setDescription('Slot 1/2/3 (mặc định: trống đầu tiên)')
+          .setRequired(false)
+          .setMinValue(1)
+          .setMaxValue(3),
+      ),
   )
-  .addSubcommand((sc) => sc.setName('unequip').setDescription('Bỏ trang bị công pháp hiện tại'))
+  .addSubcommand((sc) =>
+    sc
+      .setName('unequip')
+      .setDescription('Bỏ trang bị 1 slot (mặc định: tất cả)')
+      .addIntegerOption((o) =>
+        o
+          .setName('slot')
+          .setDescription('Slot 1/2/3 (mặc định: tất cả)')
+          .setRequired(false)
+          .setMinValue(1)
+          .setMaxValue(3),
+      ),
+  )
   .addSubcommand((sc) =>
     sc
       .setName('upgrade')
@@ -163,33 +183,51 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   if (sub === 'equip') {
-    const r = await equipCongPhap(userId, slug);
+    const slotOpt = interaction.options.getInteger('slot') ?? null;
+    const slotIdx = slotOpt !== null ? slotOpt - 1 : undefined;
+    const r = await equipCongPhap(userId, slug, slotIdx);
     if (!r.ok) {
-      const msg =
-        r.reason === 'not-owned'
-          ? `⚠️ Bạn chưa sở hữu \`${slug}\`. Mua bằng \`/cong-phap buy\`.`
-          : `⚠️ ${r.reason}`;
+      const msg = (() => {
+        switch (r.reason) {
+          case 'not-owned':
+            return `⚠️ Bạn chưa sở hữu \`${slug}\`. Mua bằng \`/cong-phap buy\`.`;
+          case 'already-equipped':
+            return `ℹ️ \`${slug}\` đã trang bị ở slot ${(r.slotIdx ?? 0) + 1}.`;
+          case 'slot-locked':
+            return `🔒 Slot này chưa mở (slot 2 mở từ Trúc Cơ, slot 3 từ Hóa Thần).`;
+          default:
+            return `⚠️ ${r.reason}`;
+        }
+      })();
       await interaction.reply({ content: msg, ephemeral: true });
       return;
     }
     const item = store.congPhapCatalog.get(slug);
     await interaction.reply({
-      content: `⭐ Đã trang bị **${item?.name}** — +${item?.stat_bonuses.combat_power} lực chiến.`,
+      content: `⭐ Đã trang bị **${item?.name}** vào **slot ${(r.slotIdx ?? 0) + 1}** — +${item?.stat_bonuses.combat_power} lực chiến.`,
       ephemeral: true,
     });
     return;
   }
 
   if (sub === 'unequip') {
-    if (!user.equipped_cong_phap_slug) {
+    const slotOpt = interaction.options.getInteger('slot') ?? null;
+    const slotIdx = slotOpt !== null ? slotOpt - 1 : undefined;
+    const cpSlugs = user.equipped_cong_phap_slugs ?? (user.equipped_cong_phap_slug ? [user.equipped_cong_phap_slug] : []);
+    if (cpSlugs.length === 0) {
       await interaction.reply({
         content: 'ℹ️ Bạn không có công pháp nào đang trang bị.',
         ephemeral: true,
       });
       return;
     }
-    await unequipCongPhap(userId);
-    await interaction.reply({ content: '🗑️ Đã bỏ trang bị công pháp.', ephemeral: true });
+    await unequipCongPhap(userId, slotIdx);
+    await interaction.reply({
+      content: typeof slotIdx === 'number'
+        ? `🗑️ Đã bỏ trang bị slot ${slotIdx + 1}.`
+        : '🗑️ Đã bỏ trang bị tất cả công pháp.',
+      ephemeral: true,
+    });
     return;
   }
 

@@ -1170,19 +1170,20 @@ async function smokeCombatPower(): Promise<void> {
   );
   // Phase 14: level×5, rank×30, sub_title 30, stat_alloc weights.
   expectEq(
-    computeCombatPower({ level: 0, cultivation_rank: 'pham_nhan', sub_title: null }, null),
+    computeCombatPower({ level: 0, cultivation_rank: 'pham_nhan', sub_title: null }),
     100,
     'fresh Phàm Nhân = 100',
   );
   expectEq(
-    computeCombatPower({ level: 10, cultivation_rank: 'truc_co', sub_title: 'Kiếm Tu' }, null),
+    computeCombatPower({ level: 10, cultivation_rank: 'truc_co', sub_title: 'Kiếm Tu' }),
     240,
     'Trúc Cơ Lv 10 + sub_title = 240 (100+50+60+30)',
   );
-  const b = computeCombatPowerBreakdown(
-    { level: 20, cultivation_rank: 'kim_dan', sub_title: null },
-    null,
-  );
+  const b = computeCombatPowerBreakdown({
+    level: 20,
+    cultivation_rank: 'kim_dan',
+    sub_title: null,
+  });
   expectEq(b.base, 100, 'breakdown base = 100');
   expectEq(b.levelBonus, 100, 'breakdown levelBonus = 100 (Lv 20 × 5)');
   expectEq(b.rankBonus, 90, 'Kim Đan rank bonus = 90 (idx 3 × 30)');
@@ -1223,12 +1224,12 @@ async function smokeDuelSimulation(): Promise<void> {
   const weak = {
     user: { level: 1, cultivation_rank: 'pham_nhan' as const, sub_title: null },
     displayName: 'W',
-    equippedCongPhap: null,
+    congPhapSlots: [],
   };
   const strong = {
     user: { level: 50, cultivation_rank: 'hoa_than' as const, sub_title: 'Kiếm Tu' },
     displayName: 'S',
-    equippedCongPhap: null,
+    congPhapSlots: [],
   };
   const r = simulateDuel(weak, strong, 42);
   check(
@@ -1391,12 +1392,12 @@ async function smokeEdgeCases(): Promise<void> {
   // ---- Lực chiến boundaries ----
   const { computeCombatPower } = await import('../src/modules/combat/power.js');
   expectEq(
-    computeCombatPower({ level: 0, cultivation_rank: 'pham_nhan', sub_title: null }, null),
+    computeCombatPower({ level: 0, cultivation_rank: 'pham_nhan', sub_title: null }),
     100,
     'LC: level=0 Phàm Nhân = 100 (base only)',
   );
   expectEq(
-    computeCombatPower({ level: 999, cultivation_rank: 'do_kiep', sub_title: 'Kiếm Tu' }, null),
+    computeCombatPower({ level: 999, cultivation_rank: 'do_kiep', sub_title: 'Kiếm Tu' }),
     100 + 999 * 5 + 9 * 30 + 30,
     'LC: extreme level=999 Độ Kiếp sub_title — no overflow',
   );
@@ -1488,12 +1489,12 @@ async function smokeEdgeCases(): Promise<void> {
   const peasant = {
     user: { level: 0, cultivation_rank: 'pham_nhan' as const, sub_title: null },
     displayName: 'P',
-    equippedCongPhap: null,
+    congPhapSlots: [],
   };
   const god = {
     user: { level: 999, cultivation_rank: 'do_kiep' as const, sub_title: 'Kiếm Tu' },
     displayName: 'G',
-    equippedCongPhap: null,
+    congPhapSlots: [],
   };
   let godWins = 0;
   for (let s = 0; s < 50; s++) {
@@ -1514,7 +1515,7 @@ async function smokeEdgeCases(): Promise<void> {
   // ---- Empty / null user paths ----
   // computeCombatPower with minimal user — no crash.
   expectEq(
-    computeCombatPower({ level: 0, cultivation_rank: 'pham_nhan' as never, sub_title: null }, null),
+    computeCombatPower({ level: 0, cultivation_rank: 'pham_nhan' as never, sub_title: null }),
     100,
     'LC: defensive with minimal user data',
   );

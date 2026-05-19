@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import { startBot, stopBot } from './bot.js';
 import { loadCongPhapCatalog } from './config/cong-phap-catalog.js';
+import { loadNhanCatalog } from './config/nhan-catalog.js';
+import { loadPhapKhiCatalog } from './config/phap-khi-catalog.js';
 import { loadWeaponCatalog } from './config/weapon-catalog.js';
 import { getStore, initStore, shutdownStore } from './db/index.js';
 import { logger } from './utils/logger.js';
@@ -51,6 +53,39 @@ async function main(): Promise<void> {
     }
   } catch (err) {
     logger.error({ err }, 'store: failed to seed weapon catalog (continuing)');
+  }
+
+  // Phase 14 round 3 — seed pháp khí + nhẫn catalogs.
+  try {
+    const phapKhi = await loadPhapKhiCatalog();
+    let seeded = 0;
+    for (const pk of phapKhi) {
+      if (!getStore().phapKhiCatalog.get(pk.slug)) {
+        await getStore().phapKhiCatalog.set(pk);
+        seeded++;
+      }
+    }
+    if (seeded > 0) {
+      logger.info({ seeded, total: phapKhi.length }, 'store: pháp khí catalog seeded');
+    }
+  } catch (err) {
+    logger.error({ err }, 'store: failed to seed pháp khí catalog (continuing)');
+  }
+
+  try {
+    const nhan = await loadNhanCatalog();
+    let seeded = 0;
+    for (const n of nhan) {
+      if (!getStore().nhanCatalog.get(n.slug)) {
+        await getStore().nhanCatalog.set(n);
+        seeded++;
+      }
+    }
+    if (seeded > 0) {
+      logger.info({ seeded, total: nhan.length }, 'store: nhẫn catalog seeded');
+    }
+  } catch (err) {
+    logger.error({ err }, 'store: failed to seed nhẫn catalog (continuing)');
   }
 
   const client = await startBot();

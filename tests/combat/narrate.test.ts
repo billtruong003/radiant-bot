@@ -24,12 +24,12 @@ describe('narrateRounds', () => {
       {
         user: { level: 10, cultivation_rank: 'truc_co', sub_title: null },
         displayName: 'a',
-        equippedCongPhap: null,
+        congPhapSlots: [],
       },
       {
         user: { level: 10, cultivation_rank: 'truc_co', sub_title: null },
         displayName: 'b',
-        equippedCongPhap: null,
+        congPhapSlots: [],
       },
       42,
     );
@@ -42,12 +42,12 @@ describe('narrateRounds', () => {
       {
         user: { level: 10, cultivation_rank: 'truc_co', sub_title: null },
         displayName: 'a',
-        equippedCongPhap: null,
+        congPhapSlots: [],
       },
       {
         user: { level: 10, cultivation_rank: 'truc_co', sub_title: null },
         displayName: 'b',
-        equippedCongPhap: null,
+        congPhapSlots: [],
       },
       42,
     );
@@ -65,12 +65,12 @@ describe('narrateRounds', () => {
       {
         user: { level: 10, cultivation_rank: 'truc_co', sub_title: null },
         displayName: 'a',
-        equippedCongPhap: null,
+        congPhapSlots: [],
       },
       {
         user: { level: 10, cultivation_rank: 'truc_co', sub_title: null },
         displayName: 'b',
-        equippedCongPhap: null,
+        congPhapSlots: [],
       },
       42,
     );
@@ -83,12 +83,12 @@ describe('narrateRounds', () => {
       {
         user: { level: 10, cultivation_rank: 'truc_co', sub_title: null },
         displayName: 'a',
-        equippedCongPhap: null,
+        congPhapSlots: [],
       },
       {
         user: { level: 10, cultivation_rank: 'truc_co', sub_title: null },
         displayName: 'b',
-        equippedCongPhap: null,
+        congPhapSlots: [],
       },
       42,
     );

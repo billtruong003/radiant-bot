@@ -1,5 +1,10 @@
-import type { CongPhap, User } from '../../db/types.js';
-import { type WeaponContribution, computeCombatPower } from './power.js';
+import type { Nhan, User } from '../../db/types.js';
+import {
+  type CongPhapSlotContribution,
+  type PhapKhiContribution,
+  type WeaponContribution,
+  computeCombatPower,
+} from './power.js';
 
 /**
  * Phase 12 Lát 6 — PvP /duel combat resolution.
@@ -26,9 +31,12 @@ import { type WeaponContribution, computeCombatPower } from './power.js';
 export interface DuelFighter {
   user: Pick<User, 'level' | 'cultivation_rank' | 'sub_title' | 'stat_alloc'>;
   displayName: string;
-  equippedCongPhap: CongPhap | null;
-  /** Cường hóa level 0..10 of equipped công pháp. */
-  congPhapLevel?: number;
+  /** Equipped công pháp slots (up to 3). Each carries item + upgrade level. */
+  congPhapSlots?: readonly CongPhapSlotContribution[];
+  /** Equipped pháp khí (magic treasure). Null = none. */
+  phapKhi?: PhapKhiContribution | null;
+  /** Equipped nhẫn (rings) — up to 2. */
+  nhan?: readonly Nhan[];
   /** Resolved weapon contribution (catalog or bản mệnh). null = unarmed. */
   weapon?: WeaponContribution | null;
 }
@@ -88,14 +96,16 @@ export function simulateDuel(
 ): DuelResult {
   const challengerLc = computeCombatPower(
     challenger.user,
-    challenger.equippedCongPhap,
-    challenger.congPhapLevel ?? 0,
+    challenger.congPhapSlots ?? [],
+    challenger.phapKhi ?? null,
+    challenger.nhan ?? [],
     challenger.weapon ?? null,
   );
   const opponentLc = computeCombatPower(
     opponent.user,
-    opponent.equippedCongPhap,
-    opponent.congPhapLevel ?? 0,
+    opponent.congPhapSlots ?? [],
+    opponent.phapKhi ?? null,
+    opponent.nhan ?? [],
     opponent.weapon ?? null,
   );
   const challengerHpStart = challengerLc;

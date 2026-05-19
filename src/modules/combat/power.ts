@@ -1,8 +1,8 @@
 import { CULTIVATION_RANKS } from '../../config/cultivation.js';
-import type { CongPhap, User, UserWeapon, Weapon } from '../../db/types.js';
+import type { CongPhap, Nhan, PhapKhi, User, UserWeapon, Weapon } from '../../db/types.js';
 
 /**
- * Lực chiến (combat power) formula — Phase 14 redesign.
+ * Lực chiến (combat power) formula — Phase 14 round 3 multi-slot redesign.
  *
  *   total =
  *     BASE +
@@ -10,18 +10,19 @@ import type { CongPhap, User, UserWeapon, Weapon } from '../../db/types.js';
  *     rank_idx * RANK_BONUS_STEP +
  *     SUB_TITLE_BONUS (if any) +
  *     stat_alloc contribution +
- *     cong_phap contribution * (1 + cp_level * 0.10) +
- *     weapon contribution * (1 + weapon_level * 0.15)
+ *     sum(cong_phap[i].cp * (1 + level[i]*0.10))  over up to 3 slots
+ *     + phap_khi.cp * (1 + phap_khi_level*0.10)
+ *     + sum(nhan[i].cp)  over up to 2 slots
+ *     + weapon.damage_base * 10 * (1 + weapon_level * 0.15)
  *
- * Phase 14 changes (Bill 2026-05-20 vision — stat allocation):
- *   - LEVEL_BONUS halved (10 → 5) and RANK_BONUS_STEP lowered (50 → 30) to
- *     make room for user-allocated stats. Existing users with 0 alloc see
- *     a small LC drop, then catch up after spending their migrated points.
- *   - Added stat_alloc weights: dmg×8, hp×5, def×3, spd×4. All-dmg build
- *     biggest LC, balanced build slightly lower but tankier in duel HP.
- *   - Công pháp and weapon now scale with their upgrade `level` field.
+ * Phase 14 round 3 changes (Bill 2026-05-20 multi-equip):
+ *   - cong_phap now array (up to 3) instead of single slot
+ *   - pháp khí slot added — single equip, stacks like weapon
+ *   - nhẫn slots added — up to 2 rings, both contribute (no upgrade level
+ *     on nhẫn yet — flat bonus)
  *
- * Pure function — no I/O, no Discord. Caller resolves all entities.
+ * Back-compat: callers that pass a single `equippedCongPhap` still work —
+ * helper `singleAsList` wraps it. New callers should resolve all slots.
  */
 
 const BASE = 100;
@@ -38,6 +39,7 @@ const STAT_WEIGHT = {
 
 const CONG_PHAP_LEVEL_SCALE = 0.1;
 const WEAPON_LEVEL_SCALE = 0.15;
+const PHAP_KHI_LEVEL_SCALE = 0.1;
 
 const RANK_INDEX: ReadonlyMap<string, number> = (() => {
   const map = new Map<string, number>();
@@ -52,7 +54,12 @@ export interface CombatPowerBreakdown {
   rankBonus: number;
   subTitleBonus: number;
   statBonus: number;
+  /** Total bonus from ALL equipped công pháp slots (after upgrade scaling). */
   congPhapBonus: number;
+  /** Bonus from equipped pháp khí (after upgrade scaling). */
+  phapKhiBonus: number;
+  /** Bonus from all equipped nhẫn slots. */
+  nhanBonus: number;
   weaponBonus: number;
   total: number;
 }
@@ -68,16 +75,30 @@ export interface WeaponContribution {
 }
 
 /**
- * Returns the lực chiến components AND the total. Useful for /stat
- * embeds that want to show attribution.
- *
- * `equippedCongPhap` / `weapon` are null when the user has nothing
- * equipped in that slot — bonus = 0.
+ * Resolved công pháp slot view — pairs the catalog entry with the user's
+ * upgrade level for that ownership row. Caller resolves before invoking
+ * `computeCombatPowerBreakdown`.
+ */
+export interface CongPhapSlotContribution {
+  item: CongPhap;
+  level: number;
+}
+
+/** Resolved pháp khí slot view. */
+export interface PhapKhiContribution {
+  item: PhapKhi;
+  level: number;
+}
+
+/**
+ * Returns the lực chiến components AND the total. All slot arrays default
+ * to empty — callers can pass only what's equipped.
  */
 export function computeCombatPowerBreakdown(
   user: Pick<User, 'level' | 'cultivation_rank' | 'sub_title' | 'stat_alloc'>,
-  equippedCongPhap: CongPhap | null,
-  congPhapLevel: number = 0,
+  congPhapSlots: readonly CongPhapSlotContribution[] = [],
+  phapKhi: PhapKhiContribution | null = null,
+  nhanSlots: readonly Nhan[] = [],
   weapon: WeaponContribution | null = null,
 ): CombatPowerBreakdown {
   const rankIdx = RANK_INDEX.get(user.cultivation_rank) ?? 0;
@@ -92,15 +113,30 @@ export function computeCombatPowerBreakdown(
     alloc.def * STAT_WEIGHT.def +
     alloc.spd * STAT_WEIGHT.spd;
 
-  const cpRaw = equippedCongPhap?.stat_bonuses.combat_power ?? 0;
-  const cpLv = Math.max(0, Math.min(10, congPhapLevel ?? 0));
-  const congPhapBonus = Math.round(cpRaw * (1 + cpLv * CONG_PHAP_LEVEL_SCALE));
+  let congPhapBonus = 0;
+  for (const slot of congPhapSlots) {
+    const lv = Math.max(0, Math.min(10, slot.level ?? 0));
+    congPhapBonus += Math.round(slot.item.stat_bonuses.combat_power * (1 + lv * CONG_PHAP_LEVEL_SCALE));
+  }
+
+  let phapKhiBonus = 0;
+  if (phapKhi) {
+    const lv = Math.max(0, Math.min(10, phapKhi.level ?? 0));
+    phapKhiBonus = Math.round(phapKhi.item.stat_bonuses.combat_power * (1 + lv * PHAP_KHI_LEVEL_SCALE));
+  }
+
+  let nhanBonus = 0;
+  for (const nhan of nhanSlots) {
+    nhanBonus += nhan.stat_bonuses.combat_power;
+  }
 
   const wpRaw = weapon?.damage_base ?? 0;
   const wpLv = Math.max(0, Math.min(10, weapon?.level ?? 0));
   const weaponBonus = Math.round(wpRaw * 10 * (1 + wpLv * WEAPON_LEVEL_SCALE));
 
-  const total = BASE + levelBonus + rankBonus + subTitleBonus + statBonus + congPhapBonus + weaponBonus;
+  const total =
+    BASE + levelBonus + rankBonus + subTitleBonus + statBonus + congPhapBonus + phapKhiBonus + nhanBonus + weaponBonus;
+
   return {
     base: BASE,
     levelBonus,
@@ -108,6 +144,8 @@ export function computeCombatPowerBreakdown(
     subTitleBonus,
     statBonus,
     congPhapBonus,
+    phapKhiBonus,
+    nhanBonus,
     weaponBonus,
     total,
   };
@@ -116,11 +154,12 @@ export function computeCombatPowerBreakdown(
 /** Shortcut for callers that only need the number. */
 export function computeCombatPower(
   user: Pick<User, 'level' | 'cultivation_rank' | 'sub_title' | 'stat_alloc'>,
-  equippedCongPhap: CongPhap | null,
-  congPhapLevel: number = 0,
+  congPhapSlots: readonly CongPhapSlotContribution[] = [],
+  phapKhi: PhapKhiContribution | null = null,
+  nhanSlots: readonly Nhan[] = [],
   weapon: WeaponContribution | null = null,
 ): number {
-  return computeCombatPowerBreakdown(user, equippedCongPhap, congPhapLevel, weapon).total;
+  return computeCombatPowerBreakdown(user, congPhapSlots, phapKhi, nhanSlots, weapon).total;
 }
 
 /**
@@ -156,5 +195,6 @@ export const __for_testing = {
   STAT_WEIGHT,
   CONG_PHAP_LEVEL_SCALE,
   WEAPON_LEVEL_SCALE,
+  PHAP_KHI_LEVEL_SCALE,
   RANK_INDEX,
 };

@@ -51,11 +51,16 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   // doesn't apply here (combat power is a current state, not earnable).
   if (mode === 'luc-chien') {
     const allUsers = store.users.query(() => true);
+    // Phase 14 round 3 — leaderboard scoring uses the full equipment resolver
+    // so multi-slot công pháp + pháp khí + nhẫn + weapon all count.
+    const { resolveEquippedSlots } = await import('../modules/combat/equipment-resolver.js');
     const ranked = allUsers
       .map((u) => {
-        const equippedSlug = u.equipped_cong_phap_slug ?? null;
-        const equipped = equippedSlug ? (store.congPhapCatalog.get(equippedSlug) ?? null) : null;
-        return { user: u, score: computeCombatPower(u, equipped) };
+        const slots = resolveEquippedSlots(u.discord_id);
+        return {
+          user: u,
+          score: computeCombatPower(u, slots.congPhap, slots.phapKhi, slots.nhan, slots.weapon),
+        };
       })
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);

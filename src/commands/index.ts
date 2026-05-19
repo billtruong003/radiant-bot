@@ -16,6 +16,8 @@ import { command as help } from './help.js';
 import { command as inventory } from './inventory.js';
 import { command as leaderboard } from './leaderboard.js';
 import { command as linkWhitelist } from './link-whitelist.js';
+import { command as nhan } from './nhan.js';
+import { command as phapKhi } from './phap-khi.js';
 import { command as quest } from './quest.js';
 import { command as raidMode } from './raid-mode.js';
 import { command as rank } from './rank.js';
@@ -78,6 +80,9 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [weapon.data.name, weapon as SlashCommand],
   // Phase 14 — danh hiệu (honor titles)
   [danhHieu.data.name, danhHieu as SlashCommand],
+  // Phase 14 round 3 — pháp khí + nhẫn multi-slot equipment
+  [phapKhi.data.name, phapKhi as SlashCommand],
+  [nhan.data.name, nhan as SlashCommand],
 ]);
 
 export function findCommand(name: string): SlashCommand | undefined {

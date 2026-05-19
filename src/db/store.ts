@@ -17,8 +17,12 @@ import type {
   RaidState,
   ReactionRolesConfig,
   SectEvent,
+  Nhan,
+  PhapKhi,
   User,
   UserCongPhap,
+  UserNhan,
+  UserPhapKhi,
   UserTitle,
   UserWeapon,
   Verification,
@@ -57,6 +61,11 @@ interface SnapshotShape {
   arena_sessions?: ArenaSession[];
   // Phase 14 — danh hiệu honor titles.
   user_titles?: UserTitle[];
+  // Phase 14 round 3 — pháp khí + nhẫn (V2 multi-slot equipment).
+  phap_khi_catalog?: PhapKhi[];
+  user_phap_khi?: UserPhapKhi[];
+  nhan_catalog?: Nhan[];
+  user_nhan?: UserNhan[];
 }
 
 const DEFAULT_RAID_STATE: RaidState = {
@@ -113,6 +122,11 @@ export class Store {
   readonly arenaSessions: Collection<ArenaSession>;
   // Phase 14 — danh hiệu (honor titles) earned by users.
   readonly userTitles: Collection<UserTitle>;
+  // Phase 14 round 3 — V2 multi-slot equipment catalogs + ownership.
+  readonly phapKhiCatalog: Collection<PhapKhi>;
+  readonly userPhapKhi: Collection<UserPhapKhi>;
+  readonly nhanCatalog: Collection<Nhan>;
+  readonly userNhan: Collection<UserNhan>;
 
   private readonly log: AppendOnlyLog;
   private readonly walPath: string;
@@ -177,6 +191,11 @@ export class Store {
     );
     // Phase 14 — earned honor title rows (one per user+title).
     this.userTitles = new Collection<UserTitle>('user_titles', this.log, (t) => t.id);
+    // Phase 14 round 3 — pháp khí + nhẫn multi-slot equipment.
+    this.phapKhiCatalog = new Collection<PhapKhi>('phap_khi_catalog', this.log, (p) => p.slug);
+    this.userPhapKhi = new Collection<UserPhapKhi>('user_phap_khi', this.log, (up) => up.id);
+    this.nhanCatalog = new Collection<Nhan>('nhan_catalog', this.log, (n) => n.slug);
+    this.userNhan = new Collection<UserNhan>('user_nhan', this.log, (un) => un.id);
 
     const map = new Map<string, WalApplicable>();
     for (const c of [
@@ -198,6 +217,10 @@ export class Store {
       this.userWeapons,
       this.arenaSessions,
       this.userTitles,
+      this.phapKhiCatalog,
+      this.userPhapKhi,
+      this.nhanCatalog,
+      this.userNhan,
     ]) {
       map.set(c.name, c);
     }
@@ -236,6 +259,10 @@ export class Store {
       this.userWeapons._bulkLoad(snapshot.user_weapons ?? []);
       this.arenaSessions._bulkLoad(snapshot.arena_sessions ?? []);
       this.userTitles._bulkLoad(snapshot.user_titles ?? []);
+      this.phapKhiCatalog._bulkLoad(snapshot.phap_khi_catalog ?? []);
+      this.userPhapKhi._bulkLoad(snapshot.user_phap_khi ?? []);
+      this.nhanCatalog._bulkLoad(snapshot.nhan_catalog ?? []);
+      this.userNhan._bulkLoad(snapshot.user_nhan ?? []);
       logger.info(
         {
           version: snapshot.version,
@@ -357,6 +384,10 @@ export class Store {
         user_weapons: this.userWeapons._serialize(),
         arena_sessions: this.arenaSessions._serialize(),
         user_titles: this.userTitles._serialize(),
+        phap_khi_catalog: this.phapKhiCatalog._serialize(),
+        user_phap_khi: this.userPhapKhi._serialize(),
+        nhan_catalog: this.nhanCatalog._serialize(),
+        user_nhan: this.userNhan._serialize(),
       };
 
       const tmpPath = `${this.snapshotPath}.tmp`;

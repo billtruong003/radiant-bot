@@ -97,10 +97,26 @@ export async function buyCongPhap(discordId: string, slug: string): Promise<BuyR
 
 export interface EquipResult {
   ok: boolean;
-  reason?: 'not-owned' | 'no-user' | 'not-in-catalog';
+  reason?: 'not-owned' | 'no-user' | 'not-in-catalog' | 'already-equipped' | 'slot-locked';
+  slotIdx?: number;
 }
 
-export async function equipCongPhap(discordId: string, slug: string): Promise<EquipResult> {
+/**
+ * Phase 14 round 3 — equip a công pháp into the next available slot, OR
+ * a specific slot if `slotIdx` provided. Multi-slot semantics:
+ *   - reads existing `equipped_cong_phap_slugs` array
+ *   - if slug already equipped in another slot → rejects with 'already-equipped'
+ *   - if slotIdx given but ≥ maxCongPhapSlots(rank) → 'slot-locked'
+ *   - if no slotIdx → appends to first empty slot (up to max); replaces last if full
+ *
+ * Legacy `equipped_cong_phap_slug` is mirrored to the first slug for any
+ * non-migrated reader.
+ */
+export async function equipCongPhap(
+  discordId: string,
+  slug: string,
+  slotIdx?: number,
+): Promise<EquipResult> {
   const store = getStore();
   const user = store.users.get(discordId);
   if (!user) return { ok: false, reason: 'no-user' };
@@ -111,20 +127,75 @@ export async function equipCongPhap(discordId: string, slug: string): Promise<Eq
   );
   if (owned.length === 0) return { ok: false, reason: 'not-owned' };
 
-  await store.users.set({ ...user, equipped_cong_phap_slug: slug });
+  // Resolve slot capacity from user's rank.
+  const { maxCongPhapSlots } = await import('./equipment-resolver.js');
+  const maxSlots = maxCongPhapSlots(user.cultivation_rank);
+
+  const current = (user.equipped_cong_phap_slugs && user.equipped_cong_phap_slugs.length > 0
+    ? user.equipped_cong_phap_slugs
+    : user.equipped_cong_phap_slug
+      ? [user.equipped_cong_phap_slug]
+      : []
+  ).slice(0, maxSlots);
+
+  // Already equipped check.
+  const existingIdx = current.indexOf(slug);
+  if (existingIdx >= 0 && slotIdx !== existingIdx) {
+    return { ok: false, reason: 'already-equipped', slotIdx: existingIdx };
+  }
+
+  let target: number;
+  if (typeof slotIdx === 'number') {
+    if (slotIdx < 0 || slotIdx >= maxSlots) {
+      return { ok: false, reason: 'slot-locked' };
+    }
+    target = slotIdx;
+  } else {
+    // Find first empty slot; otherwise replace the last (newest preference).
+    const emptyIdx = current.findIndex((_, i) => i >= current.length);
+    target = emptyIdx >= 0 ? emptyIdx : Math.min(current.length, maxSlots - 1);
+  }
+
+  const next = [...current];
+  while (next.length <= target) next.push('');
+  next[target] = slug;
+  // Drop any stale empty strings beyond maxSlots.
+  const finalSlugs = next.filter((s) => s.length > 0).slice(0, maxSlots);
+
+  await store.users.set({
+    ...user,
+    equipped_cong_phap_slugs: finalSlugs,
+    equipped_cong_phap_slug: finalSlugs[0] ?? null,
+  });
+
   // Phase 14 quest — equip_both check (fires only if weapon also equipped).
   {
     const { checkEquipBothQuest } = await import('../quests/daily-quest.js');
     void checkEquipBothQuest(discordId);
   }
-  return { ok: true };
+  return { ok: true, slotIdx: target };
 }
 
-export async function unequipCongPhap(discordId: string): Promise<{ ok: boolean }> {
+export async function unequipCongPhap(discordId: string, slotIdx?: number): Promise<{ ok: boolean }> {
   const store = getStore();
   const user = store.users.get(discordId);
   if (!user) return { ok: false };
-  await store.users.set({ ...user, equipped_cong_phap_slug: null });
+  const current = user.equipped_cong_phap_slugs && user.equipped_cong_phap_slugs.length > 0
+    ? user.equipped_cong_phap_slugs
+    : user.equipped_cong_phap_slug
+      ? [user.equipped_cong_phap_slug]
+      : [];
+  let next: string[];
+  if (typeof slotIdx === 'number') {
+    next = current.filter((_, i) => i !== slotIdx);
+  } else {
+    next = [];
+  }
+  await store.users.set({
+    ...user,
+    equipped_cong_phap_slugs: next,
+    equipped_cong_phap_slug: next[0] ?? null,
+  });
   return { ok: true };
 }
 

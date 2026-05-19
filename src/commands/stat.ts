@@ -3,7 +3,8 @@ import { rankById } from '../config/cultivation.js';
 import { getTitle } from '../config/titles.js';
 import { RANK_ICONS } from '../config/ui.js';
 import { getStore } from '../db/index.js';
-import { computeCombatPowerBreakdown, resolveWeaponContribution } from '../modules/combat/power.js';
+import { resolveEquippedSlots } from '../modules/combat/equipment-resolver.js';
+import { computeCombatPowerBreakdown } from '../modules/combat/power.js';
 import { themedEmbed } from '../utils/embed.js';
 
 /**
@@ -53,27 +54,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const rank = rankById(user.cultivation_rank);
   const rankIcon = RANK_ICONS[user.cultivation_rank] ?? '⭐';
 
-  // Look up equipped công pháp (if any). null when nothing equipped OR
-  // when the catalog entry was deleted while it was still equipped.
-  const equippedSlug = user.equipped_cong_phap_slug ?? null;
-  const equippedCongPhap = equippedSlug ? (store.congPhapCatalog.get(equippedSlug) ?? null) : null;
-  const congPhapLevel = equippedSlug
-    ? (store.userCongPhap.query(
-        (uc) => uc.discord_id === target.id && uc.cong_phap_slug === equippedSlug,
-      )[0]?.level ?? 0)
-    : 0;
-
-  // Phase 14 — weapon contribution. Handles both catalog refs and bản mệnh.
-  const weapon = resolveWeaponContribution(
-    user.equipped_weapon_slug,
-    (slug) => store.weaponCatalog.get(slug) ?? null,
-    (slug) =>
-      store.userWeapons.query(
-        (w) => w.discord_id === target.id && w.weapon_slug === slug,
-      )[0] ?? null,
-  );
-
-  const cp = computeCombatPowerBreakdown(user, equippedCongPhap, congPhapLevel, weapon);
+  // Phase 14 round 3 — resolve ALL equipment slots through shared helper.
+  const slots = resolveEquippedSlots(target.id);
+  const cp = computeCombatPowerBreakdown(user, slots.congPhap, slots.phapKhi, slots.nhan, slots.weapon);
   const pills = user.pills ?? 0;
   const contribution = user.contribution_points ?? 0;
 
@@ -85,17 +68,29 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return user.equipped_weapon_slug;
   })();
 
+  const cpSlotsLine = slots.congPhap.length
+    ? slots.congPhap
+        .map((s) => `${s.item.icon ?? '📜'} ${s.item.name}${s.level > 0 ? ` +${s.level}` : ''}`)
+        .join(', ')
+    : '_chưa có_';
+  const phapKhiLine = slots.phapKhi
+    ? `${slots.phapKhi.item.icon} ${slots.phapKhi.item.name}${slots.phapKhi.level > 0 ? ` +${slots.phapKhi.level}` : ''}`
+    : null;
+  const nhanLine = slots.nhan.length
+    ? slots.nhan.map((n) => `${n.icon} ${n.name}`).join(', ')
+    : null;
+
   const cpBreakdownLines = [
     `• Nền: ${cp.base}`,
     `• Cấp độ: +${cp.levelBonus} _(${user.level} × 5)_`,
     `• Cảnh giới: +${cp.rankBonus}`,
     user.sub_title ? `• Sub-title: +${cp.subTitleBonus} _(${user.sub_title})_` : null,
     cp.statBonus > 0 ? `• Chỉ số phân: +${cp.statBonus}` : null,
-    cp.congPhapBonus > 0
-      ? `• Công pháp: +${cp.congPhapBonus} _(${equippedCongPhap?.name}${congPhapLevel > 0 ? ` +${congPhapLevel}` : ''})_`
-      : null,
+    cp.congPhapBonus > 0 ? `• Công pháp: +${cp.congPhapBonus} _(${cpSlotsLine})_` : null,
+    cp.phapKhiBonus > 0 ? `• Pháp khí: +${cp.phapKhiBonus} _(${phapKhiLine})_` : null,
+    cp.nhanBonus > 0 ? `• Nhẫn: +${cp.nhanBonus} _(${nhanLine})_` : null,
     cp.weaponBonus > 0
-      ? `• Vũ khí: +${cp.weaponBonus} _(${equippedWeaponName}${weapon && weapon.level > 0 ? ` +${weapon.level}` : ''})_`
+      ? `• Vũ khí: +${cp.weaponBonus} _(${equippedWeaponName}${slots.weapon && slots.weapon.level > 0 ? ` +${slots.weapon.level}` : ''})_`
       : null,
   ]
     .filter(Boolean)
@@ -135,10 +130,15 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         inline: true,
       },
       {
-        name: '📜 Công pháp',
-        value: equippedCongPhap
-          ? `**${equippedCongPhap.name}** _(${equippedCongPhap.rarity})_\n${equippedCongPhap.description}`
-          : '_Chưa trang bị công pháp nào. Sẽ mở khi `/shop` ship._',
+        name: '📜 Công pháp đang trang bị',
+        value: slots.congPhap.length
+          ? slots.congPhap
+              .map(
+                (s, i) =>
+                  `**Slot ${i + 1}**: ${s.item.icon ?? '📜'} ${s.item.name}${s.level > 0 ? ` **+${s.level}**` : ''} _(${s.item.rarity})_`,
+              )
+              .join('\n')
+          : '_Chưa trang bị — `/inventory` để chọn._',
         inline: false,
       },
     );
