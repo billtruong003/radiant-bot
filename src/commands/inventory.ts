@@ -13,6 +13,7 @@ import {
 } from 'discord.js';
 import { rankIndex } from '../config/cultivation.js';
 import { BAN_MENH_SLUG_PREFIX } from '../modules/arena/forge.js';
+import { getBanMenhDisplay } from '../modules/combat/ban-menh-templates.js';
 import { RARITY_EMOJI, listOwnedCongPhap } from '../modules/combat/cong-phap.js';
 import { readEquippedRingSlugs } from '../modules/combat/equipment-resolver.js';
 import { NHAN_RARITY_EMOJI } from '../modules/combat/nhan-shop.js';
@@ -81,7 +82,8 @@ function buildOverviewEmbed(userId: string, displayName: string): EmbedBuilder {
         store.userWeapons.query((w) => w.discord_id === userId && w.weapon_slug === wSlug)[0]
           ?.level ?? 0;
     } else if (wSlug.startsWith(BAN_MENH_SLUG_PREFIX)) {
-      wName = 'Bản Mệnh Khí';
+      // Phase 14.7 — themed template name from hash(discord_id) mod 6.
+      wName = getBanMenhDisplay(userId).name;
       wLevel =
         store.userWeapons.query((w) => w.discord_id === userId && w.weapon_slug === wSlug)[0]
           ?.level ?? 0;
@@ -215,7 +217,7 @@ function buildWeaponEmbed(userId: string): {
     if (w.weapon_slug.startsWith(BAN_MENH_SLUG_PREFIX) && w.custom_stats) {
       return {
         slug: w.weapon_slug,
-        name: 'Bản Mệnh Khí',
+        name: getBanMenhDisplay(userId).name,
         tier: 'ban_menh',
         dmg: w.custom_stats.damage_base,
         level: w.level ?? 0,

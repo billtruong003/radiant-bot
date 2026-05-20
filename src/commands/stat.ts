@@ -3,6 +3,7 @@ import { CULTIVATION_RANKS, rankById, rankIndex } from '../config/cultivation.js
 import { getTitle } from '../config/titles.js';
 import { RANK_ICONS } from '../config/ui.js';
 import { getStore } from '../db/index.js';
+import { getBanMenhDisplay } from '../modules/combat/ban-menh-templates.js';
 import {
   CONG_PHAP_SLOT_UNLOCK,
   NHAN_SLOT_UNLOCK,
@@ -69,7 +70,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     if (!user.equipped_weapon_slug) return null;
     const cat = store.weaponCatalog.get(user.equipped_weapon_slug);
     if (cat) return cat.display_name;
-    if (user.equipped_weapon_slug.startsWith('phap-khi-ban-menh-')) return 'Bản Mệnh Khí';
+    if (user.equipped_weapon_slug.startsWith('phap-khi-ban-menh-')) {
+      // Phase 14.7 — themed template name via hash(discord_id).
+      return getBanMenhDisplay(target.id).name;
+    }
     return user.equipped_weapon_slug;
   })();
 

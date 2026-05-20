@@ -13,6 +13,7 @@ import { ulid } from 'ulid';
 import { rankById, rankIndex } from '../config/cultivation.js';
 import { getStore } from '../db/index.js';
 import { BAN_MENH_SLUG_PREFIX } from '../modules/arena/forge.js';
+import { getBanMenhDisplay } from '../modules/combat/ban-menh-templates.js';
 import { simulateDuel } from '../modules/combat/duel.js';
 import { resolveEquippedSlots } from '../modules/combat/equipment-resolver.js';
 import { type FighterDisplay, narrateMieuSat, narrateRounds } from '../modules/combat/narrate.js';
@@ -92,8 +93,11 @@ function resolveFighterDisplay(userId: string, displayName: string): FighterDisp
         tier: catalog.tier,
       };
     } else if (wSlug.startsWith(BAN_MENH_SLUG_PREFIX)) {
+      // Phase 14.7 — surface the themed template name (Phong Linh Côn /
+      // Hoả Tâm Kiếm / ...) instead of the generic "Bản Mệnh Khí" label.
+      const tpl = getBanMenhDisplay(userId);
       weapon = {
-        display_name: 'Bản Mệnh Khí',
+        display_name: tpl.name,
         category: 'spirit',
         tier: 'ban_menh',
       };

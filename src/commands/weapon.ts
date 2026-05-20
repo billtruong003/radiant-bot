@@ -2,6 +2,7 @@ import { type ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } f
 import { rankById } from '../config/cultivation.js';
 import { BAN_MENH_SLUG_PREFIX } from '../modules/arena/forge.js';
 import { autocompleteWeapon } from '../modules/combat/autocomplete.js';
+import { getBanMenhDisplay } from '../modules/combat/ban-menh-templates.js';
 import {
   MAX_LEVEL,
   costToUpgrade,
@@ -80,9 +81,11 @@ function resolveOwnedWeapon(userId: string, slug: string): ResolvedWeapon | null
   }
   // Bản mệnh — custom_stats must be set.
   if (slug.startsWith(BAN_MENH_SLUG_PREFIX) && owned.custom_stats) {
+    // Phase 14.7 — themed name + lore from template lookup.
+    const tpl = getBanMenhDisplay(userId);
     return {
       slug,
-      display_name: 'Bản Mệnh Khí',
+      display_name: tpl.name,
       category: 'spirit',
       tier: 'ban_menh',
       stats: owned.custom_stats,

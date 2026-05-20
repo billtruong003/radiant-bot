@@ -105,15 +105,23 @@ async function handleForge(interaction: ChatInputCommandInteraction): Promise<vo
   const preview = previewBanMenh(target.id);
   const row = await forgeBanMenh(target.id);
   const isNew = row.acquired_at >= Date.now() - 5000;
+  // Phase 14.7 — surface themed template (Phong Linh Côn / Hoả Tâm Kiếm /
+  // ...) instead of generic "Pháp Khí Bản Mệnh". Deterministic mapping
+  // hash(discord_id) mod 6 → 1 of the 6 catalog templates.
+  const { getBanMenhDisplay } = await import('../modules/combat/ban-menh-templates.js');
+  const tpl = getBanMenhDisplay(target.id);
 
   const embed = new EmbedBuilder()
     .setColor(Number.parseInt(preview.visual.hue.slice(1), 16))
-    .setTitle(`🗡️ Pháp Khí Bản Mệnh — ${target.username}`)
+    .setTitle(`🗡️ ${tpl.name} — ${target.username}`)
     .setDescription(
       [
         isNew ? '✨ **Pháp khí mới rèn xong.**' : '⏳ Pháp khí đã tồn tại — trả về bản gốc.',
         '',
+        `_${tpl.lore.slice(0, 280)}${tpl.lore.length > 280 ? '…' : ''}_`,
+        '',
         `Slug: \`${row.weapon_slug}\``,
+        `Template: \`${tpl.slug}\``,
         `Acquired: <t:${Math.floor(row.acquired_at / 1000)}:R>`,
       ].join('\n'),
     )
@@ -121,7 +129,7 @@ async function handleForge(interaction: ChatInputCommandInteraction): Promise<vo
       { name: '📊 Stats', value: statsBlock(preview.stats), inline: true },
       { name: '🎨 Visual', value: visualBlock(preview.visual), inline: true },
     )
-    .setFooter({ text: 'Bản mệnh là deterministic theo Discord ID · idempotent forge' });
+    .setFooter({ text: 'Bản mệnh mạch tương ứng deterministic theo Discord ID · stats riêng cho mỗi user' });
 
   await interaction.editReply({ embeds: [embed] });
 }
@@ -168,7 +176,9 @@ async function handleInspect(interaction: ChatInputCommandInteraction): Promise<
     }
     stats = owned.custom_stats;
     visual = owned.custom_visual;
-    displayName = 'Pháp Khí Bản Mệnh';
+    // Phase 14.7 — themed template name + lore via hash(discord_id).
+    const { getBanMenhDisplay } = await import('../modules/combat/ban-menh-templates.js');
+    displayName = getBanMenhDisplay(target.id).name;
     tier = 'ban_menh';
     category = 'blunt';
     // Phase 13 Lát B: show the rolled "mạch" skill if present. Old rows
