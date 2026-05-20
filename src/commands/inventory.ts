@@ -13,6 +13,9 @@ import {
 } from 'discord.js';
 import { BAN_MENH_SLUG_PREFIX } from '../modules/arena/forge.js';
 import { RARITY_EMOJI, listOwnedCongPhap } from '../modules/combat/cong-phap.js';
+import { readEquippedRingSlugs } from '../modules/combat/equipment-resolver.js';
+import { NHAN_RARITY_EMOJI } from '../modules/combat/nhan-shop.js';
+import { PHAP_KHI_RARITY_EMOJI } from '../modules/combat/phap-khi-shop.js';
 import { TIER_ICON } from '../modules/combat/weapon-shop.js';
 import { getStore } from '../db/index.js';
 import { logger } from '../utils/logger.js';
@@ -33,7 +36,8 @@ import { logger } from '../utils/logger.js';
 
 const COLLECTOR_TIMEOUT_MS = 5 * 60 * 1000;
 
-type Tab = 'overview' | 'cong_phap' | 'weapon';
+type Tab = 'overview' | 'cong_phap' | 'weapon' | 'phap_khi' | 'nhan';
+type EquipKind = 'cong_phap' | 'weapon' | 'phap_khi' | 'nhan';
 
 function buildOverviewEmbed(userId: string, displayName: string): EmbedBuilder {
   const store = getStore();
@@ -214,38 +218,145 @@ function buildWeaponEmbed(userId: string): {
   };
 }
 
+function buildPhapKhiEmbed(userId: string): {
+  embed: EmbedBuilder;
+  options: StringSelectMenuOptionBuilder[];
+} {
+  const store = getStore();
+  const user = store.users.get(userId);
+  const equippedSlug = user?.equipped_phap_khi_slug ?? null;
+  const owned = store.userPhapKhi.query((u) => u.discord_id === userId);
+
+  if (owned.length === 0) {
+    return {
+      embed: new EmbedBuilder()
+        .setColor(0xb09bd3)
+        .setTitle('✨ Pháp khí')
+        .setDescription('_Chưa có pháp khí — `/shop` tab Pháp khí (yêu cầu Kim Đan)._'),
+      options: [],
+    };
+  }
+
+  const resolved = owned.map((up) => {
+    const item = store.phapKhiCatalog.get(up.phap_khi_slug);
+    return item ? { slug: up.phap_khi_slug, item, level: up.level ?? 0 } : null;
+  }).filter((r): r is NonNullable<typeof r> => r !== null);
+
+  const lines = resolved.map((r) => {
+    const star = r.slug === equippedSlug ? '⭐' : '  ';
+    const lv = r.level > 0 ? ` **+${r.level}**` : '';
+    return `${star} ${PHAP_KHI_RARITY_EMOJI[r.item.rarity] ?? '✨'} ${r.item.icon} **${r.item.name}**${lv} _(+${r.item.stat_bonuses.combat_power} LC)_`;
+  });
+
+  const options = resolved.slice(0, 25).map((r) => {
+    const lvSuffix = r.level > 0 ? ` (+${r.level})` : '';
+    return new StringSelectMenuOptionBuilder()
+      .setLabel(`${r.item.name}${lvSuffix}`.slice(0, 100))
+      .setValue(r.slug)
+      .setDescription(`+${r.item.stat_bonuses.combat_power} LC · ${r.item.rarity}`.slice(0, 100))
+      .setEmoji(r.item.icon || (PHAP_KHI_RARITY_EMOJI[r.item.rarity] ?? '✨'))
+      .setDefault(r.slug === equippedSlug);
+  });
+
+  return {
+    embed: new EmbedBuilder()
+      .setColor(0xb09bd3)
+      .setTitle('✨ Pháp khí')
+      .setDescription(lines.join('\n'))
+      .setFooter({ text: `${resolved.length} pháp khí · ⭐ đeo · slot mở từ Kim Đan` }),
+    options,
+  };
+}
+
+function buildNhanEmbed(userId: string): {
+  embed: EmbedBuilder;
+  options: StringSelectMenuOptionBuilder[];
+} {
+  const store = getStore();
+  const user = store.users.get(userId);
+  const equippedSlugs = user ? readEquippedRingSlugs(user) : [];
+  const equippedSet = new Set(equippedSlugs);
+  const owned = store.userNhan.query((u) => u.discord_id === userId);
+
+  if (owned.length === 0) {
+    return {
+      embed: new EmbedBuilder()
+        .setColor(0xd4a574)
+        .setTitle('💍 Nhẫn')
+        .setDescription('_Chưa có nhẫn — `/shop` tab Nhẫn._'),
+      options: [],
+    };
+  }
+
+  const resolved = owned.map((un) => {
+    const item = store.nhanCatalog.get(un.nhan_slug);
+    return item ? { slug: un.nhan_slug, item } : null;
+  }).filter((r): r is NonNullable<typeof r> => r !== null);
+
+  const lines = resolved.map((r) => {
+    const slotIdx = equippedSlugs.indexOf(r.slug);
+    const star = slotIdx >= 0 ? `⭐${slotIdx + 1}` : '  ';
+    return `${star} ${NHAN_RARITY_EMOJI[r.item.rarity] ?? '💍'} ${r.item.icon} **${r.item.name}** _(+${r.item.stat_bonuses.combat_power} LC)_`;
+  });
+
+  const options = resolved.slice(0, 25).map((r) => {
+    return new StringSelectMenuOptionBuilder()
+      .setLabel(`${r.item.name}`.slice(0, 100))
+      .setValue(r.slug)
+      .setDescription(`+${r.item.stat_bonuses.combat_power} LC · ${r.item.rarity}${equippedSet.has(r.slug) ? ' (đang đeo — chọn để gỡ)' : ''}`.slice(0, 100))
+      .setEmoji(r.item.icon || (NHAN_RARITY_EMOJI[r.item.rarity] ?? '💍'))
+      .setDefault(equippedSet.has(r.slug));
+  });
+
+  return {
+    embed: new EmbedBuilder()
+      .setColor(0xd4a574)
+      .setTitle('💍 Nhẫn')
+      .setDescription(lines.join('\n'))
+      .setFooter({ text: `${resolved.length} nhẫn · ⭐N = slot N · chọn từ menu để toggle equip · slot 2 từ Nguyên Anh` }),
+    options,
+  };
+}
+
+const TAB_META: Record<Tab, { emoji: string; label: string }> = {
+  overview: { emoji: '💰', label: 'Tổng' },
+  cong_phap: { emoji: '📜', label: 'Công pháp' },
+  weapon: { emoji: '⚔️', label: 'Vũ khí' },
+  phap_khi: { emoji: '✨', label: 'Pháp khí' },
+  nhan: { emoji: '💍', label: 'Nhẫn' },
+};
+
 function buildTabRow(active: Tab, userId: string): ActionRowBuilder<MessageActionRowComponentBuilder> {
+  // 5 tabs exactly fits Discord's 5-buttons-per-row limit.
+  const tabs: Tab[] = ['overview', 'cong_phap', 'weapon', 'phap_khi', 'nhan'];
   return new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`inv:tab:overview:${userId}`)
-      .setEmoji('💰')
-      .setLabel('Tổng')
-      .setStyle(active === 'overview' ? ButtonStyle.Primary : ButtonStyle.Secondary)
-      .setDisabled(active === 'overview'),
-    new ButtonBuilder()
-      .setCustomId(`inv:tab:cong_phap:${userId}`)
-      .setEmoji('📜')
-      .setLabel('Công pháp')
-      .setStyle(active === 'cong_phap' ? ButtonStyle.Primary : ButtonStyle.Secondary)
-      .setDisabled(active === 'cong_phap'),
-    new ButtonBuilder()
-      .setCustomId(`inv:tab:weapon:${userId}`)
-      .setEmoji('⚔️')
-      .setLabel('Vũ khí')
-      .setStyle(active === 'weapon' ? ButtonStyle.Primary : ButtonStyle.Secondary)
-      .setDisabled(active === 'weapon'),
+    ...tabs.map((t) =>
+      new ButtonBuilder()
+        .setCustomId(`inv:tab:${t}:${userId}`)
+        .setEmoji(TAB_META[t].emoji)
+        .setLabel(TAB_META[t].label)
+        .setStyle(active === t ? ButtonStyle.Primary : ButtonStyle.Secondary)
+        .setDisabled(active === t),
+    ),
   );
 }
 
+const SELECT_PLACEHOLDER: Record<EquipKind, string> = {
+  cong_phap: 'Chọn công pháp để trang bị (vào slot trống)',
+  weapon: 'Chọn vũ khí để trang bị',
+  phap_khi: 'Chọn pháp khí để trang bị',
+  nhan: 'Chọn nhẫn — toggle equip/unequip',
+};
+
 function buildSelectRow(
-  kind: 'cong_phap' | 'weapon',
+  kind: EquipKind,
   userId: string,
   options: StringSelectMenuOptionBuilder[],
 ): ActionRowBuilder<MessageActionRowComponentBuilder> | null {
   if (options.length === 0) return null;
   const select = new StringSelectMenuBuilder()
     .setCustomId(`inv:equip:${kind}:${userId}`)
-    .setPlaceholder(kind === 'cong_phap' ? 'Chọn công pháp để trang bị' : 'Chọn vũ khí để trang bị')
+    .setPlaceholder(SELECT_PLACEHOLDER[kind])
     .setMinValues(1)
     .setMaxValues(1)
     .addOptions(options);
@@ -296,7 +407,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       // Tab switch
       if (parts[1] === 'tab' && cmp.componentType === ComponentType.Button) {
         const next = parts[2] as Tab;
-        if (next !== 'overview' && next !== 'cong_phap' && next !== 'weapon') {
+        if (!(next in TAB_META)) {
           await cmp.deferUpdate();
           return;
         }
@@ -308,21 +419,26 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           });
           return;
         }
-        const { embed, options } = next === 'cong_phap'
-          ? buildCongPhapEmbed(userId)
-          : buildWeaponEmbed(userId);
+        const built =
+          next === 'cong_phap'
+            ? buildCongPhapEmbed(userId)
+            : next === 'weapon'
+              ? buildWeaponEmbed(userId)
+              : next === 'phap_khi'
+                ? buildPhapKhiEmbed(userId)
+                : buildNhanEmbed(userId);
         const rows: ActionRowBuilder<MessageActionRowComponentBuilder>[] = [
           buildTabRow(activeTab, userId),
         ];
-        const selectRow = buildSelectRow(next, userId, options);
+        const selectRow = buildSelectRow(next, userId, built.options);
         if (selectRow) rows.push(selectRow);
-        await cmp.update({ embeds: [embed], components: rows });
+        await cmp.update({ embeds: [built.embed], components: rows });
         return;
       }
 
       // Equip select-menu
       if (parts[1] === 'equip' && cmp.componentType === ComponentType.StringSelect) {
-        const kind = parts[2] as 'cong_phap' | 'weapon';
+        const kind = parts[2] as EquipKind;
         const slug = cmp.values[0];
         if (!slug) {
           await cmp.deferUpdate();
@@ -333,25 +449,53 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           await cmp.deferUpdate();
           return;
         }
+        // Phase 14.5 — dispatch by kind:
+        //   cong_phap: multi-slot equip via equipCongPhap helper (auto-slot pick)
+        //   weapon/phap_khi: single slot, direct user.set
+        //   nhan: TOGGLE — clicking equipped slug unequips; else add to first free slot
         if (kind === 'cong_phap') {
-          await store.users.set({ ...fresh, equipped_cong_phap_slug: slug });
-        } else {
+          const { equipCongPhap } = await import('../modules/combat/cong-phap.js');
+          await equipCongPhap(userId, slug);
+        } else if (kind === 'weapon') {
           await store.users.set({ ...fresh, equipped_weapon_slug: slug });
+        } else if (kind === 'phap_khi') {
+          await store.users.set({ ...fresh, equipped_phap_khi_slug: slug });
+        } else if (kind === 'nhan') {
+          const { maxNhanSlots } = await import('../modules/combat/equipment-resolver.js');
+          const maxSlots = maxNhanSlots(fresh.cultivation_rank);
+          const current = readEquippedRingSlugs(fresh);
+          let next: string[];
+          if (current.includes(slug)) {
+            // Toggle off
+            next = current.filter((s) => s !== slug);
+          } else if (current.length < maxSlots) {
+            // Append
+            next = [...current, slug];
+          } else {
+            // Full — replace slot 0 (oldest)
+            next = [slug, ...current.slice(1)];
+          }
+          await store.users.set({ ...fresh, equipped_ring_slugs: next });
         }
         // Phase 14 quest — equip_both fires when both slots filled.
         {
           const { checkEquipBothQuest } = await import('../modules/quests/daily-quest.js');
           void checkEquipBothQuest(userId);
         }
-        const { embed, options } = kind === 'cong_phap'
-          ? buildCongPhapEmbed(userId)
-          : buildWeaponEmbed(userId);
+        const built =
+          kind === 'cong_phap'
+            ? buildCongPhapEmbed(userId)
+            : kind === 'weapon'
+              ? buildWeaponEmbed(userId)
+              : kind === 'phap_khi'
+                ? buildPhapKhiEmbed(userId)
+                : buildNhanEmbed(userId);
         const rows: ActionRowBuilder<MessageActionRowComponentBuilder>[] = [
           buildTabRow(activeTab, userId),
         ];
-        const selectRow = buildSelectRow(kind, userId, options);
+        const selectRow = buildSelectRow(kind, userId, built.options);
         if (selectRow) rows.push(selectRow);
-        await cmp.update({ embeds: [embed], components: rows });
+        await cmp.update({ embeds: [built.embed], components: rows });
       }
     } catch (err) {
       logger.error({ err, userId, customId: cmp.customId }, 'inventory: handler failed');

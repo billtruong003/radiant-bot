@@ -1,9 +1,14 @@
 import { type ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { rankById } from '../config/cultivation.js';
+import { CULTIVATION_RANKS, rankById, rankIndex } from '../config/cultivation.js';
 import { getTitle } from '../config/titles.js';
 import { RANK_ICONS } from '../config/ui.js';
 import { getStore } from '../db/index.js';
-import { resolveEquippedSlots } from '../modules/combat/equipment-resolver.js';
+import {
+  CONG_PHAP_SLOT_UNLOCK,
+  NHAN_SLOT_UNLOCK,
+  PHAP_KHI_MIN_RANK,
+  resolveEquippedSlots,
+} from '../modules/combat/equipment-resolver.js';
 import { computeCombatPowerBreakdown } from '../modules/combat/power.js';
 import { themedEmbed } from '../utils/embed.js';
 
@@ -162,6 +167,78 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     embed.addFields({
       name: `📖 Lore — ${primaryLore.name}`,
       value: `_${snippet}_`,
+      inline: false,
+    });
+  }
+
+  // Phase 14.5 — next-unlock progress indicator + power preview.
+  // Reveals upcoming slot openings + how much LC each tier of upgrade
+  // would deliver. Makes progression legible without external docs.
+  const userRankIdx = rankIndex(user.cultivation_rank);
+  const nextUnlocks: string[] = [];
+  for (const { slotIdx, minRank } of CONG_PHAP_SLOT_UNLOCK) {
+    if (rankIndex(minRank) > userRankIdx) {
+      const rankInfo = rankById(minRank);
+      const r = CULTIVATION_RANKS.find((x) => x.id === minRank);
+      const lvHint = r ? ` (Lv ${r.minLevel})` : '';
+      nextUnlocks.push(`📜 Slot công pháp ${slotIdx + 1} mở ở **${rankInfo.name}**${lvHint}`);
+      break;
+    }
+  }
+  if (rankIndex(PHAP_KHI_MIN_RANK) > userRankIdx) {
+    const r = CULTIVATION_RANKS.find((x) => x.id === PHAP_KHI_MIN_RANK);
+    const lvHint = r ? ` (Lv ${r.minLevel})` : '';
+    nextUnlocks.push(`✨ Pháp khí mở ở **${rankById(PHAP_KHI_MIN_RANK).name}**${lvHint}`);
+  }
+  for (const { slotIdx, minRank } of NHAN_SLOT_UNLOCK) {
+    if (rankIndex(minRank) > userRankIdx) {
+      const r = CULTIVATION_RANKS.find((x) => x.id === minRank);
+      const lvHint = r ? ` (Lv ${r.minLevel})` : '';
+      nextUnlocks.push(`💍 Slot nhẫn ${slotIdx + 1} mở ở **${rankById(minRank).name}**${lvHint}`);
+      break;
+    }
+  }
+  if (nextUnlocks.length > 0) {
+    embed.addFields({
+      name: '🔓 Mở khoá tiếp theo',
+      value: nextUnlocks.join('\n'),
+      inline: false,
+    });
+  }
+
+  // Power preview — show LC delta if user upgrades their most-impactful
+  // slot one level. Picks the slot with the lowest current level among
+  // equipped items so it surfaces a reachable next step (not pinned-max).
+  const upgradeable: { name: string; currentLv: number; potentialDelta: number }[] = [];
+  for (const s of slots.congPhap) {
+    if ((s.level ?? 0) < 10) {
+      const cur = Math.round(s.item.stat_bonuses.combat_power * (1 + (s.level ?? 0) * 0.1));
+      const next = Math.round(s.item.stat_bonuses.combat_power * (1 + ((s.level ?? 0) + 1) * 0.1));
+      upgradeable.push({ name: s.item.name, currentLv: s.level ?? 0, potentialDelta: next - cur });
+    }
+  }
+  if (slots.phapKhi && (slots.phapKhi.level ?? 0) < 10) {
+    const cur = Math.round(slots.phapKhi.item.stat_bonuses.combat_power * (1 + (slots.phapKhi.level ?? 0) * 0.1));
+    const next = Math.round(slots.phapKhi.item.stat_bonuses.combat_power * (1 + ((slots.phapKhi.level ?? 0) + 1) * 0.1));
+    upgradeable.push({ name: slots.phapKhi.item.name, currentLv: slots.phapKhi.level ?? 0, potentialDelta: next - cur });
+  }
+  if (slots.weapon && slots.weapon.level < 10) {
+    const cur = Math.round(slots.weapon.damage_base * 10 * (1 + slots.weapon.level * 0.15));
+    const next = Math.round(slots.weapon.damage_base * 10 * (1 + (slots.weapon.level + 1) * 0.15));
+    upgradeable.push({ name: equippedWeaponName ?? 'Vũ khí', currentLv: slots.weapon.level, potentialDelta: next - cur });
+  }
+  if (upgradeable.length > 0) {
+    // Sort by lowest level first → user sees the cheapest next upgrade.
+    upgradeable.sort((a, b) => a.currentLv - b.currentLv);
+    const top = upgradeable.slice(0, 3);
+    embed.addFields({
+      name: '🎯 Preview cường hóa kế (cheapest first)',
+      value: top
+        .map(
+          (u) =>
+            `• ${u.name} **Lv ${u.currentLv} → ${u.currentLv + 1}**: +${u.potentialDelta} LC`,
+        )
+        .join('\n'),
       inline: false,
     });
   }

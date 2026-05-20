@@ -33,6 +33,7 @@ import { command as syncPinned } from './sync-pinned.js';
 import { command as thienDao } from './thien-dao.js';
 import { command as title } from './title.js';
 import { command as trade } from './trade.js';
+import { command as tutorial } from './tutorial.js';
 import { command as verifyTest } from './verify-test.js';
 import { command as weapon } from './weapon.js';
 
@@ -94,6 +95,8 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   // Phase 14 round 3 — pháp khí + nhẫn multi-slot equipment
   [phapKhi.data.name, phapKhi as SlashCommand],
   [nhan.data.name, nhan as SlashCommand],
+  // Phase 14.5 — onboarding
+  [tutorial.data.name, tutorial as SlashCommand],
 ]);
 
 export function findCommand(name: string): SlashCommand | undefined {
