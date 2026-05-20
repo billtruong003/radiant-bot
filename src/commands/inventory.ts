@@ -11,6 +11,7 @@ import {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
 } from 'discord.js';
+import { rankIndex } from '../config/cultivation.js';
 import { BAN_MENH_SLUG_PREFIX } from '../modules/arena/forge.js';
 import { RARITY_EMOJI, listOwnedCongPhap } from '../modules/combat/cong-phap.js';
 import { readEquippedRingSlugs } from '../modules/combat/equipment-resolver.js';
@@ -140,6 +141,9 @@ function buildCongPhapEmbed(userId: string): {
     };
   }
 
+  // Phase 14.6 — Bill fix: tab CP không render được vì setDefault(true) trên
+  // nhiều option với maxValues=1 → Discord reject. Drop setDefault entirely;
+  // ⭐ trong embed text + "(đang đeo)" trong option description đã đủ rõ.
   const lines = owned.map(({ item, ownership }) => {
     const star = equippedSet.has(item.slug) ? '⭐' : '  ';
     const lv = (ownership.level ?? 0) > 0 ? ` **+${ownership.level}**` : '';
@@ -150,22 +154,29 @@ function buildCongPhapEmbed(userId: string): {
     const lvSuffix = (ownership.level ?? 0) > 0 ? ` (+${ownership.level})` : '';
     const equipped = equippedSet.has(item.slug);
     return new StringSelectMenuOptionBuilder()
-      .setLabel(`${item.name}${lvSuffix}`.slice(0, 100))
+      .setLabel(`${equipped ? '⭐ ' : ''}${item.name}${lvSuffix}`.slice(0, 100))
       .setValue(item.slug)
       .setDescription(
-        `+${item.stat_bonuses.combat_power} LC · ${item.rarity}${equipped ? ' (đang đeo — chọn để gỡ)' : ''}`.slice(0, 100),
+        equipped
+          ? `Đang đeo — chọn để GỠ · +${item.stat_bonuses.combat_power} LC`.slice(0, 100)
+          : `Chưa đeo — chọn để ĐEO · +${item.stat_bonuses.combat_power} LC`.slice(0, 100),
       )
-      .setEmoji(RARITY_EMOJI[item.rarity] ?? '⚪')
-      .setDefault(equipped);
+      .setEmoji(RARITY_EMOJI[item.rarity] ?? '⚪');
   });
+
+  const slotsLeft = 5 - equippedSet.size;
+  const guideLine =
+    slotsLeft > 0
+      ? `🎯 **Còn ${slotsLeft} slot trống**. Chọn 1 công pháp từ menu để đeo. Có thể chọn lại để gỡ.`
+      : `⛔ **5/5 slot đầy**. Chọn 1 công pháp đang ⭐ để gỡ, hoặc gỡ rồi mới đeo món khác.`;
 
   return {
     embed: new EmbedBuilder()
       .setColor(0x9b59b6)
-      .setTitle(`📜 Công pháp (${equippedSet.size}/${owned.length} đang đeo)`)
-      .setDescription(lines.join('\n'))
+      .setTitle(`📜 Công pháp — ${equippedSet.size}/5 slot đang đeo`)
+      .setDescription([guideLine, '', ...lines].join('\n'))
       .setFooter({
-        text: `Phase 14.6 — không giới hạn slot · chọn từ menu để toggle equip/unequip`,
+        text: 'Multi-slot · Max 5 · Chọn từ menu = toggle equip/unequip · Sở hữu ' + owned.length,
       }),
     options,
   };
@@ -321,21 +332,38 @@ function buildNhanEmbed(userId: string): {
     return `${star} ${NHAN_RARITY_EMOJI[r.item.rarity] ?? '💍'} ${r.item.icon} **${r.item.name}** _(+${r.item.stat_bonuses.combat_power} LC)_`;
   });
 
+  // Phase 14.6 — same Discord constraint as CP: maxValues=1 conflicts with
+  // multiple defaults. Drop setDefault; rely on ⭐N marker in embed + the
+  // option description to communicate state.
   const options = resolved.slice(0, 25).map((r) => {
+    const equipped = equippedSet.has(r.slug);
     return new StringSelectMenuOptionBuilder()
-      .setLabel(`${r.item.name}`.slice(0, 100))
+      .setLabel(`${equipped ? '⭐ ' : ''}${r.item.name}`.slice(0, 100))
       .setValue(r.slug)
-      .setDescription(`+${r.item.stat_bonuses.combat_power} LC · ${r.item.rarity}${equippedSet.has(r.slug) ? ' (đang đeo — chọn để gỡ)' : ''}`.slice(0, 100))
-      .setEmoji(r.item.icon || (NHAN_RARITY_EMOJI[r.item.rarity] ?? '💍'))
-      .setDefault(equippedSet.has(r.slug));
+      .setDescription(
+        equipped
+          ? `Đang đeo — chọn để GỠ · +${r.item.stat_bonuses.combat_power} LC`.slice(0, 100)
+          : `Chưa đeo — chọn để ĐEO · +${r.item.stat_bonuses.combat_power} LC`.slice(0, 100),
+      )
+      .setEmoji(r.item.icon || (NHAN_RARITY_EMOJI[r.item.rarity] ?? '💍'));
   });
+
+  const user2 = getStore().users.get(userId);
+  const maxNhan = user2
+    ? (rankIndex(user2.cultivation_rank) >= rankIndex('nguyen_anh') ? 2 : 1)
+    : 1;
+  const slotsLeft = maxNhan - equippedSlugs.length;
+  const guideLine =
+    slotsLeft > 0
+      ? `🎯 **Còn ${slotsLeft} slot nhẫn trống** (max ${maxNhan}). Chọn nhẫn để đeo.`
+      : `⛔ **${maxNhan}/${maxNhan} slot đầy**. Chọn ⭐ để gỡ trước khi đeo nhẫn khác.`;
 
   return {
     embed: new EmbedBuilder()
       .setColor(0xd4a574)
-      .setTitle('💍 Nhẫn')
-      .setDescription(lines.join('\n'))
-      .setFooter({ text: `${resolved.length} nhẫn · ⭐N = slot N · chọn từ menu để toggle equip · slot 2 từ Nguyên Anh` }),
+      .setTitle(`💍 Nhẫn — ${equippedSlugs.length}/${maxNhan} đang đeo`)
+      .setDescription([guideLine, '', ...lines].join('\n'))
+      .setFooter({ text: `Sở hữu ${resolved.length} · ⭐N = slot N · slot 2 mở từ Nguyên Anh` }),
     options,
   };
 }
