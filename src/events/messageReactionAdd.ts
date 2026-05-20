@@ -52,8 +52,23 @@ async function handle(
   const isReactionRole = await handleReactionRole(message.guild, reactor.id, message.id, emojiKey);
   if (isReactionRole) return;
 
+  if (message.author?.id === reactor.id) return; // no self-quest/XP
+
+  // Phase 14.5 fix (Bill 2026-05-20: "thả reaction k count trong quest") —
+  // quest progress fires for EVERY non-self reaction by a non-bot user,
+  // BEFORE the 10s XP cooldown and the 10-reactions-per-message XP cap.
+  // Previously the hook lived at the end of the function, so a user
+  // reacting fast (XP cooldown active) or reacting to a popular message
+  // (>10 reactions total) lost quest credit entirely. Reactor bot already
+  // bailed earlier; we still skip reactions to bot-authored messages here
+  // by NOT firing the quest because those carry no social signal — but
+  // we do not return so XP path stays unchanged.
+  if (!message.author?.bot) {
+    const { incrementProgress } = await import('../modules/quests/daily-quest.js');
+    void incrementProgress(reactor.id, 'reaction_count', 1);
+  }
+
   if (message.author?.bot) return;
-  if (message.author?.id === reactor.id) return; // no self-XP
 
   const channel = message.channel;
   if ('name' in channel && channel.name && isNoXpChannel(channel.name)) return;
@@ -81,11 +96,6 @@ async function handle(
       reactor_id: reactor.id,
     },
   });
-
-  // Phase 12 Lát 4 — reaction_count quest progress (counts on the
-  // REACTOR side, not the message author — Bill spec said "thả 5 reaction").
-  const { incrementProgress } = await import('../modules/quests/daily-quest.js');
-  void incrementProgress(reactor.id, 'reaction_count', 1);
 
   if (!result.leveledUp) return;
   const promotion = await maybePromoteRank(member, result.newLevel);
