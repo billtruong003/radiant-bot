@@ -38,6 +38,36 @@ export const DIVIDER_DOUBLE = '════════════════�
 
 // ---------- Universal glyph palette ----------
 
+/**
+ * Phase 14.8 — themed section icons cho /help + /me hub. Mystical /
+ * alchemy glyphs thay vì generic emoji (Bill: "icon hiện tại k đc ngầu").
+ * Unicode hỗ trợ trên mọi nền tảng, không cần upload custom emoji.
+ */
+export const HUB_ICONS = {
+  // Section glyphs — mystical/alchemy + clean geometry
+  start: '🌌', // Mới bắt đầu — cosmos
+  path: '☯', // Tu vi — yin-yang path
+  gear: '⚜', // Trang bị — fleur-de-lis royal
+  combat: '⚔', // Combat — sword
+  aki: '🔮', // Aki AI — crystal ball
+  admin: '⚖', // Admin — judge scales
+  extra: '✦', // Misc — small star
+  // Status glyphs alt (cleaner than ✅❌)
+  equipped: '✦', // Đang đeo (alt to ⭐)
+  owned: '◉', // Sở hữu
+  affordable: '⟢', // Mua được
+  locked: '⊘', // Khoá
+  insufficient: '⌛', // Chưa đủ
+  // Decoration
+  diamond: '❖',
+  triangle: '⟁',
+  sparkle_alt: '✺',
+  flower: '❈',
+  fire_alchemy: '🜂',
+  water_alchemy: '🜄',
+  ankh: '𓋹',
+} as const;
+
 export const ICONS = {
   // Status
   success: '✅',

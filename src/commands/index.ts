@@ -20,6 +20,7 @@ import { command as help } from './help.js';
 import { command as inventory } from './inventory.js';
 import { command as leaderboard } from './leaderboard.js';
 import { command as linkWhitelist } from './link-whitelist.js';
+import { command as me } from './me.js';
 import { command as nhan } from './nhan.js';
 import { command as phapKhi } from './phap-khi.js';
 import { command as quest } from './quest.js';
@@ -97,6 +98,8 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [nhan.data.name, nhan as SlashCommand],
   // Phase 14.5 — onboarding
   [tutorial.data.name, tutorial as SlashCommand],
+  // Phase 14.8 — personalized hub
+  [me.data.name, me as SlashCommand],
 ]);
 
 export function findCommand(name: string): SlashCommand | undefined {
