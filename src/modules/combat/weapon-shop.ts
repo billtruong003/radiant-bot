@@ -120,4 +120,8 @@ export const TIER_ICON: Record<string, string> = {
   dia: '🗡️',
   thien: '🪄',
   tien: '✨',
+  // Phase 14.4 — endgame tiers
+  thanh: '🌟',
+  than: '⚜️',
+  huyen: '👑',
 };

@@ -1996,13 +1996,20 @@ async function smokeArenaBridge(): Promise<void> {
   );
   __resetWeaponCatalogCacheForTesting();
   const catalog = await loadWeaponCatalog();
-  expectEq(catalog.length, 36, 'catalog: 36 weapons seeded');
+  expectEq(catalog.length, 48, 'catalog: 48 weapons seeded');
   const categories = new Set(catalog.map((w) => w.category));
   check('catalog: covers all 3 categories', categories.has('blunt') && categories.has('pierce') && categories.has('spirit'));
   const tiers = new Set(catalog.map((w) => w.tier));
   check(
-    'catalog: covers tiers ban_menh + pham + dia + thien + tien',
-    tiers.has('ban_menh') && tiers.has('pham') && tiers.has('dia') && tiers.has('thien') && tiers.has('tien'),
+    'catalog: covers 8 tiers (ban_menh → huyen for endgame)',
+    tiers.has('ban_menh') &&
+      tiers.has('pham') &&
+      tiers.has('dia') &&
+      tiers.has('thien') &&
+      tiers.has('tien') &&
+      tiers.has('thanh') &&
+      tiers.has('than') &&
+      tiers.has('huyen'),
   );
   for (const w of catalog) {
     check(`catalog: '${w.slug}' has positive damage_base`, w.stats.damage_base > 0);

@@ -1,6 +1,7 @@
 import { type ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { rankById } from '../config/cultivation.js';
 import { BAN_MENH_SLUG_PREFIX } from '../modules/arena/forge.js';
+import { autocompleteWeapon } from '../modules/combat/autocomplete.js';
 import {
   MAX_LEVEL,
   costToUpgrade,
@@ -32,6 +33,9 @@ const TIER_ORDER: Record<string, number> = {
   dia: 2,
   thien: 3,
   tien: 4,
+  thanh: 5,
+  than: 6,
+  huyen: 7,
 };
 
 const TIER_ICON: Record<string, string> = {
@@ -40,6 +44,9 @@ const TIER_ICON: Record<string, string> = {
   dia: '🗡️',
   thien: '🪄',
   tien: '✨',
+  thanh: '🌟',
+  than: '⚜️',
+  huyen: '👑',
 };
 
 interface ResolvedWeapon {
@@ -97,26 +104,34 @@ export const data = new SlashCommandBuilder()
     sc
       .setName('info')
       .setDescription('Xem chi tiết 1 vũ khí')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug vũ khí').setRequired(true)),
+      .addStringOption((o) =>
+        o.setName('slug').setDescription('Tên vũ khí (autocomplete)').setRequired(true).setAutocomplete(true),
+      ),
   )
   .addSubcommand((sc) =>
     sc
       .setName('equip')
       .setDescription('Trang bị 1 vũ khí đã sở hữu')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug vũ khí').setRequired(true)),
+      .addStringOption((o) =>
+        o.setName('slug').setDescription('Tên vũ khí (autocomplete)').setRequired(true).setAutocomplete(true),
+      ),
   )
   .addSubcommand((sc) => sc.setName('unequip').setDescription('Bỏ trang bị vũ khí hiện tại'))
   .addSubcommand((sc) =>
     sc
       .setName('buy')
       .setDescription('Mua 1 vũ khí từ catalog (pills + cống hiến)')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug vũ khí').setRequired(true)),
+      .addStringOption((o) =>
+        o.setName('slug').setDescription('Tên vũ khí (autocomplete)').setRequired(true).setAutocomplete(true),
+      ),
   )
   .addSubcommand((sc) =>
     sc
       .setName('upgrade')
       .setDescription('Cường hóa vũ khí (RNG — level ≥7 fail = tụt 1 cấp)')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug vũ khí').setRequired(true)),
+      .addStringOption((o) =>
+        o.setName('slug').setDescription('Tên vũ khí (autocomplete)').setRequired(true).setAutocomplete(true),
+      ),
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -212,8 +227,12 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       const { checkEquipBothQuest } = await import('../modules/quests/daily-quest.js');
       void checkEquipBothQuest(userId);
     }
+    // Phase 14.4 — surface lore on equip. Bản mệnh weapons don't have lore
+    // (forged custom) so skip the snippet for those.
+    const catalog = store.weaponCatalog.get(slug);
+    const loreSnippet = catalog?.lore ? `\n_${catalog.lore.slice(0, 220)}${catalog.lore.length > 220 ? '…' : ''}_` : '';
     await interaction.reply({
-      content: `⭐ Đã trang bị **${r.display_name}** ${r.level > 0 ? `**+${r.level}**` : ''}.`,
+      content: `⭐ Đã trang bị **${r.display_name}** ${r.level > 0 ? `**+${r.level}**` : ''}.${loreSnippet}`,
       ephemeral: true,
     });
     return;
@@ -359,5 +378,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 }
 
-export const command = { data, execute };
+export const autocomplete = autocompleteWeapon;
+export const command = { data, execute, autocomplete };
 export default command;

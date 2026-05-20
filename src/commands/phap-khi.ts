@@ -6,6 +6,7 @@ import {
 } from 'discord.js';
 import { rankById } from '../config/cultivation.js';
 import { getStore } from '../db/index.js';
+import { autocompletePhapKhi } from '../modules/combat/autocomplete.js';
 import { canEquipPhapKhi, PHAP_KHI_MIN_RANK } from '../modules/combat/equipment-resolver.js';
 import {
   MAX_LEVEL,
@@ -41,26 +42,34 @@ export const data = new SlashCommandBuilder()
     sc
       .setName('info')
       .setDescription('Xem chi tiết 1 pháp khí trong catalog')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug pháp khí').setRequired(true)),
+      .addStringOption((o) =>
+        o.setName('slug').setDescription('Tên pháp khí (autocomplete)').setRequired(true).setAutocomplete(true),
+      ),
   )
   .addSubcommand((sc) =>
     sc
       .setName('buy')
       .setDescription('Mua 1 pháp khí')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug pháp khí').setRequired(true)),
+      .addStringOption((o) =>
+        o.setName('slug').setDescription('Tên pháp khí (autocomplete)').setRequired(true).setAutocomplete(true),
+      ),
   )
   .addSubcommand((sc) =>
     sc
       .setName('equip')
       .setDescription('Trang bị 1 pháp khí đã sở hữu')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug pháp khí').setRequired(true)),
+      .addStringOption((o) =>
+        o.setName('slug').setDescription('Tên pháp khí (autocomplete)').setRequired(true).setAutocomplete(true),
+      ),
   )
   .addSubcommand((sc) => sc.setName('unequip').setDescription('Bỏ trang bị pháp khí hiện tại'))
   .addSubcommand((sc) =>
     sc
       .setName('upgrade')
       .setDescription('Cường hóa pháp khí')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug pháp khí').setRequired(true)),
+      .addStringOption((o) =>
+        o.setName('slug').setDescription('Tên pháp khí (autocomplete)').setRequired(true).setAutocomplete(true),
+      ),
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -221,8 +230,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     }
     await store.users.set({ ...user, equipped_phap_khi_slug: slug });
     const item = store.phapKhiCatalog.get(slug);
+    const loreSnippet = item?.lore ? `\n_${item.lore.slice(0, 220)}${item.lore.length > 220 ? '…' : ''}_` : '';
     await interaction.reply({
-      content: `⭐ Đã trang bị **${item?.name}**.`,
+      content: `⭐ Đã trang bị **${item?.name}**.${loreSnippet}`,
       ephemeral: true,
     });
     return;
@@ -306,5 +316,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 }
 
-export const command = { data, execute };
+export const autocomplete = autocompletePhapKhi;
+export const command = { data, execute, autocomplete };
 export default command;

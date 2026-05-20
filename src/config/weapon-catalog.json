@@ -1235,6 +1235,344 @@
         "cost_contribution": 13000,
         "unlock_realm": "nguyen_anh"
       }
+    },
+    {
+      "slug": "pha-thien-dao-thanh-pham",
+      "display_name": "Phá Thiên Đại Đao Thánh Phẩm",
+      "category": "pierce",
+      "tier": "thanh",
+      "stats": {
+        "power": 1.48,
+        "hitbox": 1.05,
+        "bounce": 0.35,
+        "damage_base": 50,
+        "pierce_count": 3,
+        "crit_chance": 0.2,
+        "crit_multi": 2.4
+      },
+      "skills": [
+        { "skill_id": "passive_armor_shatter", "trigger": "on_crit", "magnitude": 0.4, "cooldown": 0, "fx_key": "fx_armor_shatter" },
+        { "skill_id": "signature_pha_thien", "trigger": "active", "magnitude": 3.0, "cooldown": 13, "fx_key": "fx_sky_break" },
+        { "skill_id": "passive_execute_low_hp", "trigger": "on_hit", "magnitude": 0.3, "cooldown": 0, "fx_key": "fx_execute_glow" }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_dao_04",
+        "particle_fx_key": "fx_void_split",
+        "trail_fx_key": "trail_thanh_pham_gold",
+        "hue": "#e8b94a"
+      },
+      "lore": "Tu sĩ Phá Thiên cốc rèn từ tinh huyết của một thượng tiên thất bại — không phải tiên thường, mà là kẻ đã chạm Đại Thừa rồi rớt xuống. Mỗi crit, đao khí xé hộ thể đối thủ thêm 40%. Khi tu sĩ tâm muốn dứt khoát, đao hô 'Trảm Thiên' — một đường chém dài, đối thủ máu dưới 30% giảm thêm 30%. Đệ tử Hóa Thần mới đeo nổi vì sát ý quá nặng.",
+      "shop": { "cost_pills": 35, "cost_contribution": 18000, "unlock_realm": "hoa_than" }
+    },
+    {
+      "slug": "phuong-hoa-cam-thanh-pham",
+      "display_name": "Phượng Hỏa Cầm Thánh Phẩm",
+      "category": "spirit",
+      "tier": "thanh",
+      "stats": {
+        "power": 1.45,
+        "hitbox": 1.1,
+        "bounce": 0.5,
+        "damage_base": 46,
+        "pierce_count": 1,
+        "crit_chance": 0.18,
+        "crit_multi": 2.3
+      },
+      "skills": [
+        { "skill_id": "passive_phoenix_burn", "trigger": "on_hit", "magnitude": 0.15, "cooldown": 0, "fx_key": "fx_phoenix_flame" },
+        { "skill_id": "signature_phuong_hoa_khuc", "trigger": "active", "magnitude": 2.7, "cooldown": 12, "fx_key": "fx_phoenix_song" },
+        { "skill_id": "passive_resurrection_aura", "trigger": "on_low_hp", "magnitude": 0.2, "cooldown": 0, "fx_key": "fx_phoenix_aura" }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_cam_01",
+        "particle_fx_key": "fx_phoenix_corona",
+        "trail_fx_key": "trail_thanh_pham_red",
+        "hue": "#ff6b3c"
+      },
+      "lore": "Cầm khắc bằng xương phượng hoàng tự thiêu trong Hóa Thần kiếp — mỗi dây cầm là một lông phụng. Tu sĩ Phụng Lai môn dạy: 'Mỗi nốt là một đợt lửa, mỗi khúc là một thiên kiếp.' Khi tu sĩ máu dưới 30%, cầm tự cộng hưởng — hồi linh khí và bùng cháy như phượng trùng sinh. Nghe tiếng cầm này, đối thủ tâm dao động trước khi thân động.",
+      "shop": { "cost_pills": 38, "cost_contribution": 19000, "unlock_realm": "hoa_than" }
+    },
+    {
+      "slug": "hon-nguyen-but-thanh-pham",
+      "display_name": "Hỗn Nguyên Bút Thánh Phẩm",
+      "category": "spirit",
+      "tier": "thanh",
+      "stats": {
+        "power": 1.46,
+        "hitbox": 0.95,
+        "bounce": 0.4,
+        "damage_base": 48,
+        "pierce_count": 2,
+        "crit_chance": 0.19,
+        "crit_multi": 2.3
+      },
+      "skills": [
+        { "skill_id": "passive_rune_cascade", "trigger": "on_hit", "magnitude": 0.1, "cooldown": 0, "fx_key": "fx_ink_cascade" },
+        { "skill_id": "signature_hon_nguyen_thu", "trigger": "active", "magnitude": 2.8, "cooldown": 13, "fx_key": "fx_ink_world" }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_but_02",
+        "particle_fx_key": "fx_chaos_ink",
+        "trail_fx_key": "trail_thanh_pham_violet",
+        "hue": "#7c5dd6"
+      },
+      "lore": "Bút làm từ lông một con kỳ lân chết trong cuộc chiến giữa Phật và Ma cuối kỷ nguyên trước. Mực bút là máu của chính tu sĩ — viết chữ nào, chữ đó hoá sống. Tu sĩ Văn Đạo môn dạy: 'Bút mạnh hơn kiếm khi tâm vững hơn núi.' Mỗi nét trúng địch tích nguyền; ba nét chồng, bút hô 'Hỗn Nguyên Thư' — chữ phù tách thành ngàn mảnh đâm về phía địch.",
+      "shop": { "cost_pills": 36, "cost_contribution": 18500, "unlock_realm": "hoa_than" }
+    },
+    {
+      "slug": "loi-hoa-chuy-thanh-pham",
+      "display_name": "Lôi Hoá Chuỳ Thánh Phẩm",
+      "category": "blunt",
+      "tier": "thanh",
+      "stats": {
+        "power": 1.5,
+        "hitbox": 1.3,
+        "bounce": 0.7,
+        "damage_base": 54,
+        "pierce_count": 0,
+        "crit_chance": 0.17,
+        "crit_multi": 2.2
+      },
+      "skills": [
+        { "skill_id": "passive_thunder_field", "trigger": "on_round_start", "magnitude": 8, "cooldown": 0, "fx_key": "fx_thunder_field" },
+        { "skill_id": "signature_loi_hoa", "trigger": "active", "magnitude": 2.9, "cooldown": 12, "fx_key": "fx_thunder_god" },
+        { "skill_id": "passive_chain_lightning", "trigger": "on_hit", "magnitude": 0.3, "cooldown": 0, "fx_key": "fx_chain_arc" }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_chuy_02",
+        "particle_fx_key": "fx_thunder_god_aura",
+        "trail_fx_key": "trail_thanh_pham_blue",
+        "hue": "#5b9fd6"
+      },
+      "lore": "Chuỳ cộng hưởng Thiên Lôi — đúc bởi một tu sĩ Hóa Thần hứng trọn chín đợt lôi trong tribulation thay vì né. Chín lần điện vào thân, người vẫn đứng; chuỳ kết tinh chín tia lôi vào thân. Khi vào trận, chuỳ tự phát hào quang lôi quanh tu sĩ — đối thủ vào gần tự mất 8 HP/lượt. Đập trúng, 30% sét phụ chuyền sang góc khác.",
+      "shop": { "cost_pills": 40, "cost_contribution": 20000, "unlock_realm": "hoa_than" }
+    },
+    {
+      "slug": "sat-than-kiem-than-pham",
+      "display_name": "Sát Thần Kiếm Thần Phẩm",
+      "category": "pierce",
+      "tier": "than",
+      "stats": {
+        "power": 1.6,
+        "hitbox": 0.85,
+        "bounce": 0.3,
+        "damage_base": 60,
+        "pierce_count": 3,
+        "crit_chance": 0.24,
+        "crit_multi": 2.6
+      },
+      "skills": [
+        { "skill_id": "passive_god_slayer", "trigger": "on_hit", "magnitude": 0.25, "cooldown": 0, "fx_key": "fx_god_break" },
+        { "skill_id": "signature_sat_than_quyet", "trigger": "active", "magnitude": 3.5, "cooldown": 14, "fx_key": "fx_god_slash" },
+        { "skill_id": "passive_pierce_immunity", "trigger": "on_crit", "magnitude": 1, "cooldown": 0, "fx_key": "fx_pierce_void" },
+        { "skill_id": "passive_killing_intent", "trigger": "on_round_start", "magnitude": 0.05, "cooldown": 0, "fx_key": "fx_killing_aura" }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_kiem_04",
+        "particle_fx_key": "fx_god_killer",
+        "trail_fx_key": "trail_than_pham_crimson",
+        "hue": "#c12d3c"
+      },
+      "lore": "Kiếm rèn từ huyết của một tiên nhân tự sát sau khi giết chính sư phụ — sát khí trên kiếm không phai sau cả ngàn năm. Tu sĩ Sát Đạo tông tìm thấy trong một động hoang, không ai đeo nổi quá ba ngày. Đeo lâu, mắt người tu đỏ ngầu, không ngủ được. Khi crit, kiếm khí bỏ qua mọi hộ thể — kể cả phong ấn cấp tiên.",
+      "shop": { "cost_pills": 50, "cost_contribution": 30000, "unlock_realm": "luyen_hu" }
+    },
+    {
+      "slug": "pha-hu-thuong-than-pham",
+      "display_name": "Phá Hư Thương Thần Phẩm",
+      "category": "pierce",
+      "tier": "than",
+      "stats": {
+        "power": 1.58,
+        "hitbox": 0.9,
+        "bounce": 0.32,
+        "damage_base": 58,
+        "pierce_count": 3,
+        "crit_chance": 0.23,
+        "crit_multi": 2.5
+      },
+      "skills": [
+        { "skill_id": "passive_space_pierce", "trigger": "passive", "magnitude": 0.4, "cooldown": 0, "fx_key": "fx_void_pierce" },
+        { "skill_id": "signature_pha_hu_dam", "trigger": "active", "magnitude": 3.3, "cooldown": 13, "fx_key": "fx_void_thrust" },
+        { "skill_id": "passive_dimensional_bleed", "trigger": "on_hit", "magnitude": 0.1, "cooldown": 0, "fx_key": "fx_void_bleed" }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_thuong_04",
+        "particle_fx_key": "fx_space_tear",
+        "trail_fx_key": "trail_than_pham_purple",
+        "hue": "#6a3da8"
+      },
+      "lore": "Thương xé không gian — đầu mũi không phải kim loại mà là một mảnh hư không kết tinh. Tu sĩ Hư Không môn cuối kỷ nguyên Lý đúc bằng cách hút chín mảnh không gian vỡ từ Thiên Kiếp. Mũi thương xuyên thẳng qua mọi phòng ngự — vì nó không đâm vào, mà đâm xuyên qua chiều không gian. Đối thủ thấy mũi đến, né rồi vẫn trúng.",
+      "shop": { "cost_pills": 52, "cost_contribution": 32000, "unlock_realm": "luyen_hu" }
+    },
+    {
+      "slug": "cuu-mac-bao-linh-than-pham",
+      "display_name": "Cửu Mạc Bao Linh Thần Phẩm",
+      "category": "spirit",
+      "tier": "than",
+      "stats": {
+        "power": 1.55,
+        "hitbox": 1.15,
+        "bounce": 0.5,
+        "damage_base": 55,
+        "pierce_count": 1,
+        "crit_chance": 0.22,
+        "crit_multi": 2.5
+      },
+      "skills": [
+        { "skill_id": "passive_nine_realm_drain", "trigger": "on_crit", "magnitude": 0.3, "cooldown": 0, "fx_key": "fx_nine_realm" },
+        { "skill_id": "signature_cuu_mac_bao", "trigger": "active", "magnitude": 3.4, "cooldown": 14, "fx_key": "fx_void_bag" },
+        { "skill_id": "passive_capture_aura", "trigger": "on_hit", "magnitude": 0.1, "cooldown": 0, "fx_key": "fx_capture_glow" }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_bao_01",
+        "particle_fx_key": "fx_nine_realm_aura",
+        "trail_fx_key": "trail_than_pham_black",
+        "hue": "#1a1a2e"
+      },
+      "lore": "Bao vô tận — bên trong chứa chín cõi tiểu thiên địa do tu sĩ Hợp Thể nén bằng tâm lực. Khi vào trận, bao mở miệng — hút linh khí + sát thương xung quanh vào. Đối thủ thấy bao thì khí lực tự nhiên hao đi. Tu sĩ Bao môn dùng để bắt yêu thú đắt giá — đối với người, bao hút mảnh linh hồn nếu crit.",
+      "shop": { "cost_pills": 55, "cost_contribution": 35000, "unlock_realm": "luyen_hu" }
+    },
+    {
+      "slug": "cam-tam-tang-truong-than-pham",
+      "display_name": "Cẩm Tâm Tăng Trượng Thần Phẩm",
+      "category": "blunt",
+      "tier": "than",
+      "stats": {
+        "power": 1.62,
+        "hitbox": 1.25,
+        "bounce": 0.6,
+        "damage_base": 62,
+        "pierce_count": 0,
+        "crit_chance": 0.2,
+        "crit_multi": 2.4
+      },
+      "skills": [
+        { "skill_id": "passive_buddha_purify", "trigger": "on_hit", "magnitude": 1, "cooldown": 0, "fx_key": "fx_buddha_pulse" },
+        { "skill_id": "signature_cam_tam", "trigger": "active", "magnitude": 3.6, "cooldown": 15, "fx_key": "fx_buddha_palm" },
+        { "skill_id": "passive_heart_seal", "trigger": "on_crit", "magnitude": 0.25, "cooldown": 0, "fx_key": "fx_heart_seal" }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_truong_02",
+        "particle_fx_key": "fx_buddha_aura",
+        "trail_fx_key": "trail_than_pham_gold",
+        "hue": "#e8c574"
+      },
+      "lore": "Trượng truyền ba ngàn năm trong Linh Sơn Phật phái — đỉnh trượng khắc Bồ Đề tâm chú, thân trượng nạm chín vòng Phật bảo. Mỗi nhịp trượng đập, khí Phật rửa một lớp ác nghiệp đối thủ. Hợp Thể tăng nhân mới đeo nổi vì trượng tự cảm nhận tâm — kẻ tâm tà chạm vào sẽ bị Phật khí phản chấn. Sát khí trên trượng thực ra là từ bi cộng dồn.",
+      "shop": { "cost_pills": 58, "cost_contribution": 38000, "unlock_realm": "hop_the" }
+    },
+    {
+      "slug": "thien-la-phu-tran-than-pham",
+      "display_name": "Thiên La Phù Trận Thần Phẩm",
+      "category": "spirit",
+      "tier": "than",
+      "stats": {
+        "power": 1.58,
+        "hitbox": 1.2,
+        "bounce": 0.55,
+        "damage_base": 56,
+        "pierce_count": 0,
+        "crit_chance": 0.21,
+        "crit_multi": 2.45
+      },
+      "skills": [
+        { "skill_id": "passive_heavenly_net", "trigger": "on_hit", "magnitude": 0.2, "cooldown": 0, "fx_key": "fx_heavenly_web" },
+        { "skill_id": "signature_thien_la_dia_vong", "trigger": "active", "magnitude": 3.4, "cooldown": 14, "fx_key": "fx_heaven_net" },
+        { "skill_id": "passive_array_lock", "trigger": "on_crit", "magnitude": 0.2, "cooldown": 0, "fx_key": "fx_array_seal" }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_phu_02",
+        "particle_fx_key": "fx_heavenly_array",
+        "trail_fx_key": "trail_than_pham_silver",
+        "hue": "#c8d8e8"
+      },
+      "lore": "Phù trận khắc Thiên La trận đồ — trận pháp cao nhất trong Trận Pháp môn, dùng để cấm cố tiên nhân. Tu sĩ Hợp Thể trận sư truyền cho đệ tử khi xuất sư. Khi tu sĩ kích hoạt, phù tự bay ra ngoài, kéo theo chín sợi dây vô hình — đối thủ bước vào trận, cử động chậm dần, cuối cùng đứng im chịu trận. Là phù mạnh nhất, cũng là phù khó dùng nhất.",
+      "shop": { "cost_pills": 56, "cost_contribution": 36000, "unlock_realm": "hop_the" }
+    },
+    {
+      "slug": "tram-thien-huyen-kiem-huyen-pham",
+      "display_name": "Trảm Thiên Huyền Kiếm Huyền Phẩm",
+      "category": "pierce",
+      "tier": "huyen",
+      "stats": {
+        "power": 1.8,
+        "hitbox": 0.8,
+        "bounce": 0.25,
+        "damage_base": 75,
+        "pierce_count": 5,
+        "crit_chance": 0.3,
+        "crit_multi": 3.0
+      },
+      "skills": [
+        { "skill_id": "passive_heaven_slayer", "trigger": "on_hit", "magnitude": 0.4, "cooldown": 0, "fx_key": "fx_heaven_kill" },
+        { "skill_id": "signature_tram_thien_dao", "trigger": "active", "magnitude": 4.5, "cooldown": 16, "fx_key": "fx_heaven_break" },
+        { "skill_id": "passive_dao_pierce", "trigger": "on_crit", "magnitude": 1, "cooldown": 0, "fx_key": "fx_dao_pierce" },
+        { "skill_id": "passive_executioner_mythic", "trigger": "on_hit", "magnitude": 0.6, "cooldown": 0, "fx_key": "fx_mythic_execute" }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_kiem_05",
+        "particle_fx_key": "fx_dao_kill",
+        "trail_fx_key": "trail_huyen_pham_void",
+        "hue": "#1f1f3a"
+      },
+      "lore": "Kiếm dùng để chém Thiên Đạo. Tu sĩ Đại Thừa cuối kỷ nguyên Hỗn Độn rèn từ tinh huyết của Thiên Đạo bản thân — bị Đạo phản chấn, chết tại chỗ, nhưng kiếm thành. Kiếm khí trên kiếm không phải sát ý — mà là 'phủ định Đạo'. Khi crit, kiếm khí bỏ qua chính khái niệm phòng ngự. Truyền thuyết: cầm kiếm này quá ba năm, Thiên Đạo sẽ tự xuống tribulation thẳng vào tu sĩ.",
+      "shop": { "cost_pills": 80, "cost_contribution": 60000, "unlock_realm": "dai_thua" }
+    },
+    {
+      "slug": "hon-don-huyen-linh-huyen-pham",
+      "display_name": "Hỗn Độn Huyền Linh Huyền Phẩm",
+      "category": "spirit",
+      "tier": "huyen",
+      "stats": {
+        "power": 1.75,
+        "hitbox": 1.2,
+        "bounce": 0.5,
+        "damage_base": 70,
+        "pierce_count": 2,
+        "crit_chance": 0.28,
+        "crit_multi": 2.9
+      },
+      "skills": [
+        { "skill_id": "passive_chaos_aura", "trigger": "on_round_start", "magnitude": 10, "cooldown": 0, "fx_key": "fx_chaos_aura" },
+        { "skill_id": "signature_hon_don_te_the", "trigger": "active", "magnitude": 4.2, "cooldown": 16, "fx_key": "fx_chaos_genesis" },
+        { "skill_id": "passive_reality_warp", "trigger": "on_crit", "magnitude": 0.35, "cooldown": 0, "fx_key": "fx_reality_break" }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_linh_01",
+        "particle_fx_key": "fx_chaos_corona",
+        "trail_fx_key": "trail_huyen_pham_rainbow",
+        "hue": "#9c5dd6"
+      },
+      "lore": "Linh khí ngoài vũ trụ — không có hình, không có chất, chỉ có 'ý'. Tu sĩ Đại Thừa Hỗn Độn môn tu hành suốt năm trăm năm để gọi một mảnh hỗn độn linh xuống trần. Khi vào tay tu sĩ, linh kết tinh thành hình theo tâm — kiếm/đao/châu tuỳ ý. Đập trúng đối thủ, một phần thực tại bị bóp méo — máu họ chảy ngược, vết thương tự lan rộng.",
+      "shop": { "cost_pills": 90, "cost_contribution": 65000, "unlock_realm": "dai_thua" }
+    },
+    {
+      "slug": "thien-kiep-loi-chuy-huyen-pham",
+      "display_name": "Thiên Kiếp Lôi Chuỳ Huyền Phẩm",
+      "category": "blunt",
+      "tier": "huyen",
+      "stats": {
+        "power": 1.85,
+        "hitbox": 1.4,
+        "bounce": 0.75,
+        "damage_base": 78,
+        "pierce_count": 0,
+        "crit_chance": 0.26,
+        "crit_multi": 2.8
+      },
+      "skills": [
+        { "skill_id": "passive_tribulation_storm", "trigger": "on_round_start", "magnitude": 15, "cooldown": 0, "fx_key": "fx_tribulation_aura" },
+        { "skill_id": "signature_thien_kiep_giang", "trigger": "active", "magnitude": 4.8, "cooldown": 17, "fx_key": "fx_tribulation_strike" },
+        { "skill_id": "passive_lightning_chain_mythic", "trigger": "on_hit", "magnitude": 0.4, "cooldown": 0, "fx_key": "fx_mythic_chain" },
+        { "skill_id": "passive_low_hp_rage", "trigger": "on_low_hp", "magnitude": 0.5, "cooldown": 0, "fx_key": "fx_thunder_rage" }
+      ],
+      "visual": {
+        "model_prefab_key": "weapon_chuy_03",
+        "particle_fx_key": "fx_tribulation_god",
+        "trail_fx_key": "trail_huyen_pham_violet",
+        "hue": "#5a3da8"
+      },
+      "lore": "Chuỳ chứa nguyên một đợt Thiên Kiếp. Tu sĩ Độ Kiếp dùng tâm lực cô đặc lôi điện thay vì né — chín lượt lôi vào thân, đổ vào chuỳ. Đập trúng, đối thủ trải qua một thiên kiếp thu nhỏ. Đệ tử Đại Thừa mới đeo nổi vì sức lôi đè lên vai. Khi máu yếu dưới 30%, chuỳ tự cộng hưởng với tiềm lực tu sĩ — đập tiếp theo sức tăng 50%, gọi 'Thiên Kiếp Phản Chấn'.",
+      "shop": { "cost_pills": 100, "cost_contribution": 70000, "unlock_realm": "do_kiep" }
     }
   ]
 }

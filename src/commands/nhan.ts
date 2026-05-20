@@ -6,6 +6,7 @@ import {
 } from 'discord.js';
 import { rankById } from '../config/cultivation.js';
 import { getStore } from '../db/index.js';
+import { autocompleteNhan } from '../modules/combat/autocomplete.js';
 import { maxNhanSlots, readEquippedRingSlugs } from '../modules/combat/equipment-resolver.js';
 
 /**
@@ -32,19 +33,25 @@ export const data = new SlashCommandBuilder()
     sc
       .setName('info')
       .setDescription('Xem chi tiết 1 nhẫn trong catalog')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug nhẫn').setRequired(true)),
+      .addStringOption((o) =>
+        o.setName('slug').setDescription('Tên nhẫn (autocomplete)').setRequired(true).setAutocomplete(true),
+      ),
   )
   .addSubcommand((sc) =>
     sc
       .setName('buy')
       .setDescription('Mua 1 nhẫn')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug nhẫn').setRequired(true)),
+      .addStringOption((o) =>
+        o.setName('slug').setDescription('Tên nhẫn (autocomplete)').setRequired(true).setAutocomplete(true),
+      ),
   )
   .addSubcommand((sc) =>
     sc
       .setName('equip')
       .setDescription('Trang bị nhẫn vào slot 1 hoặc 2')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug nhẫn').setRequired(true))
+      .addStringOption((o) =>
+        o.setName('slug').setDescription('Tên nhẫn (autocomplete)').setRequired(true).setAutocomplete(true),
+      )
       .addIntegerOption((o) =>
         o
           .setName('slot')
@@ -247,8 +254,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const finalSlugs = next.filter((s) => s.length > 0).slice(0, maxSlots);
     await store.users.set({ ...user, equipped_ring_slugs: finalSlugs });
     const item = store.nhanCatalog.get(slug);
+    const loreSnippet = item?.lore ? `\n_${item.lore.slice(0, 220)}${item.lore.length > 220 ? '…' : ''}_` : '';
     await interaction.reply({
-      content: `⭐ Đã trang bị **${item?.name}** vào slot ${target + 1}.`,
+      content: `⭐ Đã trang bị **${item?.name}** vào slot ${target + 1}.${loreSnippet}`,
       ephemeral: true,
     });
     return;
@@ -270,5 +278,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 }
 
-export const command = { data, execute };
+export const autocomplete = autocompleteNhan;
+export const command = { data, execute, autocomplete };
 export default command;

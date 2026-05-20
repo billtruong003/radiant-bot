@@ -1,6 +1,7 @@
 import { type ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { rankById } from '../config/cultivation.js';
 import { getStore } from '../db/index.js';
+import { autocompleteCongPhap } from '../modules/combat/autocomplete.js';
 import {
   RARITY_EMOJI,
   buyCongPhap,
@@ -32,20 +33,36 @@ export const data = new SlashCommandBuilder()
       .setName('info')
       .setDescription('Xem chi tiết 1 công pháp trong catalog')
       .addStringOption((o) =>
-        o.setName('slug').setDescription('Slug công pháp (vd: kim-cang-quyen)').setRequired(true),
+        o
+          .setName('slug')
+          .setDescription('Tên công pháp (autocomplete)')
+          .setRequired(true)
+          .setAutocomplete(true),
       ),
   )
   .addSubcommand((sc) =>
     sc
       .setName('buy')
       .setDescription('Mua 1 công pháp bằng đan dược + cống hiến')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug công pháp').setRequired(true)),
+      .addStringOption((o) =>
+        o
+          .setName('slug')
+          .setDescription('Tên công pháp (autocomplete)')
+          .setRequired(true)
+          .setAutocomplete(true),
+      ),
   )
   .addSubcommand((sc) =>
     sc
       .setName('equip')
       .setDescription('Trang bị 1 công pháp vào slot (slot 2 mở từ Trúc Cơ, slot 3 từ Hóa Thần)')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug công pháp').setRequired(true))
+      .addStringOption((o) =>
+        o
+          .setName('slug')
+          .setDescription('Tên công pháp (autocomplete)')
+          .setRequired(true)
+          .setAutocomplete(true),
+      )
       .addIntegerOption((o) =>
         o
           .setName('slot')
@@ -72,7 +89,13 @@ export const data = new SlashCommandBuilder()
     sc
       .setName('upgrade')
       .setDescription('Cường hóa 1 công pháp đã sở hữu (cost pills + cống hiến, RNG cao level)')
-      .addStringOption((o) => o.setName('slug').setDescription('Slug công pháp').setRequired(true)),
+      .addStringOption((o) =>
+        o
+          .setName('slug')
+          .setDescription('Tên công pháp (autocomplete)')
+          .setRequired(true)
+          .setAutocomplete(true),
+      ),
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -203,8 +226,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       return;
     }
     const item = store.congPhapCatalog.get(slug);
+    const loreSnippet = item?.lore ? `\n_${item.lore.slice(0, 220)}${item.lore.length > 220 ? '…' : ''}_` : '';
     await interaction.reply({
-      content: `⭐ Đã trang bị **${item?.name}** vào **slot ${(r.slotIdx ?? 0) + 1}** — +${item?.stat_bonuses.combat_power} lực chiến.`,
+      content: `⭐ Đã trang bị **${item?.name}** vào **slot ${(r.slotIdx ?? 0) + 1}** — +${item?.stat_bonuses.combat_power} lực chiến.${loreSnippet}`,
       ephemeral: true,
     });
     return;
@@ -306,5 +330,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 }
 
-export const command = { data, execute };
+export const autocomplete = autocompleteCongPhap;
+export const command = { data, execute, autocomplete };
 export default command;

@@ -53,14 +53,23 @@ function buildCongPhapEmbed(userId: string): EmbedBuilder {
     store.userCongPhap.query((uc) => uc.discord_id === userId).map((uc) => uc.cong_phap_slug),
   );
 
+  // Phase 14.4 — 3-state ownership: locked / owned-not-equipped / equipped.
+  const equippedCpSlugs = new Set(
+    user.equipped_cong_phap_slugs && user.equipped_cong_phap_slugs.length > 0
+      ? user.equipped_cong_phap_slugs
+      : user.equipped_cong_phap_slug
+        ? [user.equipped_cong_phap_slug]
+        : [],
+  );
   const fmtLine = (item: (typeof available)[number], isLocked: boolean): string => {
     const rarity = RARITY_EMOJI[item.rarity] ?? '⚪';
     const owned = ownedSlugs.has(item.slug);
+    const equipped = equippedCpSlugs.has(item.slug);
     const affordable = pills >= item.cost_pills && contrib >= item.cost_contribution;
     const lockReq = item.min_rank_required
       ? ` _(yêu cầu ${rankById(item.min_rank_required).name})_`
       : '';
-    const prefix = owned ? '✅' : isLocked ? '🔒' : affordable ? '🟢' : '⏳';
+    const prefix = equipped ? '⭐' : owned ? '✅' : isLocked ? '🔒' : affordable ? '🟢' : '⏳';
     return `${prefix} ${rarity} **${item.name}** — +${item.stat_bonuses.combat_power} LC · ${item.cost_pills}💊 + ${item.cost_contribution}🪙${lockReq}`;
   };
 
@@ -83,7 +92,7 @@ function buildCongPhapEmbed(userId: string): EmbedBuilder {
     .setTitle('🏪 Shop — 📜 Công pháp')
     .setDescription(description)
     .setFooter({
-      text: '✅ sở hữu · 🟢 mua được · ⏳ chưa đủ tiền · 🔒 chưa đủ cảnh giới · Chọn từ menu bên dưới để mua',
+      text: '⭐ đang trang bị · ✅ sở hữu · 🟢 mua được · ⏳ chưa đủ tiền · 🔒 chưa đủ cảnh giới',
     });
 }
 
@@ -102,13 +111,20 @@ function buildCongPhapBuyOptions(userId: string): StringSelectMenuOptionBuilder[
     .filter((it) => pills >= it.cost_pills && contrib >= it.cost_contribution)
     .slice(0, 25);
 
-  return buyable.map((it) =>
-    new StringSelectMenuOptionBuilder()
-      .setLabel(`${it.name}`.slice(0, 100))
+  return buyable.map((it) => {
+    // Phase 14.4 — surface lore preview in select-menu description (Discord
+    // caps 100 chars). Falls back to stat line if no lore.
+    const loreOrStats = it.lore
+      ? `${it.lore.slice(0, 95)}${it.lore.length > 95 ? '…' : ''}`
+      : `+${it.stat_bonuses.combat_power} LC · ${it.cost_pills}💊 + ${it.cost_contribution}🪙`;
+    return new StringSelectMenuOptionBuilder()
+      .setLabel(
+        `${it.name} (+${it.stat_bonuses.combat_power} · ${it.cost_pills}💊+${it.cost_contribution}🪙)`.slice(0, 100),
+      )
       .setValue(it.slug)
-      .setDescription(`+${it.stat_bonuses.combat_power} LC · ${it.cost_pills}💊 + ${it.cost_contribution}🪙`.slice(0, 100))
-      .setEmoji(RARITY_EMOJI[it.rarity] ?? '⚪'),
-  );
+      .setDescription(loreOrStats.slice(0, 100))
+      .setEmoji(RARITY_EMOJI[it.rarity] ?? '⚪');
+  });
 }
 
 function buildWeaponEmbed(userId: string): EmbedBuilder {
@@ -127,16 +143,18 @@ function buildWeaponEmbed(userId: string): EmbedBuilder {
     store.userWeapons.query((w) => w.discord_id === userId).map((w) => w.weapon_slug),
   );
 
+  const equippedWeaponSlug = user.equipped_weapon_slug ?? null;
   const fmtLine = (w: (typeof available)[number], isLocked: boolean): string => {
     const tierIcon = TIER_ICON[w.tier] ?? '⚔️';
     const owned = ownedSlugs.has(w.slug);
+    const equipped = equippedWeaponSlug === w.slug;
     const costPills = w.shop?.cost_pills ?? 0;
     const costContrib = w.shop?.cost_contribution ?? 0;
     const affordable = pills >= costPills && contrib >= costContrib;
     const lockReq = w.shop?.unlock_realm
       ? ` _(yêu cầu ${rankById(w.shop.unlock_realm).name})_`
       : '';
-    const prefix = owned ? '✅' : isLocked ? '🔒' : affordable ? '🟢' : '⏳';
+    const prefix = equipped ? '⭐' : owned ? '✅' : isLocked ? '🔒' : affordable ? '🟢' : '⏳';
     return `${prefix} ${tierIcon} **${w.display_name}** — dmg ${w.stats.damage_base} · ${costPills}💊 + ${costContrib}🪙${lockReq}`;
   };
 
@@ -159,7 +177,7 @@ function buildWeaponEmbed(userId: string): EmbedBuilder {
     .setTitle('🏪 Shop — ⚔️ Vũ khí')
     .setDescription(description)
     .setFooter({
-      text: '✅ sở hữu · 🟢 mua được · ⏳ chưa đủ tiền · 🔒 chưa đủ cảnh giới · Chọn từ menu bên dưới để mua',
+      text: '⭐ đang trang bị · ✅ sở hữu · 🟢 mua được · ⏳ chưa đủ tiền · 🔒 chưa đủ cảnh giới',
     });
 }
 
@@ -180,15 +198,18 @@ function buildWeaponBuyOptions(userId: string): StringSelectMenuOptionBuilder[] 
     )
     .slice(0, 25);
 
-  return buyable.map((w) =>
-    new StringSelectMenuOptionBuilder()
-      .setLabel(w.display_name.slice(0, 100))
-      .setValue(w.slug)
-      .setDescription(
-        `dmg ${w.stats.damage_base} · ${w.shop?.cost_pills ?? 0}💊 + ${w.shop?.cost_contribution ?? 0}🪙`.slice(0, 100),
+  return buyable.map((w) => {
+    const loreOrStats = w.lore
+      ? `${w.lore.slice(0, 95)}${w.lore.length > 95 ? '…' : ''}`
+      : `dmg ${w.stats.damage_base} · ${w.shop?.cost_pills ?? 0}💊 + ${w.shop?.cost_contribution ?? 0}🪙`;
+    return new StringSelectMenuOptionBuilder()
+      .setLabel(
+        `${w.display_name} (dmg ${w.stats.damage_base} · ${w.shop?.cost_pills ?? 0}💊)`.slice(0, 100),
       )
-      .setEmoji(TIER_ICON[w.tier] ?? '⚔️'),
-  );
+      .setValue(w.slug)
+      .setDescription(loreOrStats.slice(0, 100))
+      .setEmoji(TIER_ICON[w.tier] ?? '⚔️');
+  });
 }
 
 function buildTabRow(active: Tab, userId: string): ActionRowBuilder<MessageActionRowComponentBuilder> {

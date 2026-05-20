@@ -26,7 +26,7 @@ export interface RoomWeapon {
   slug: string;
   display_name: string;
   category: 'blunt' | 'pierce' | 'spirit';
-  tier: 'ban_menh' | 'pham' | 'dia' | 'thien' | 'tien';
+  tier: 'ban_menh' | 'pham' | 'dia' | 'thien' | 'tien' | 'thanh' | 'than' | 'huyen';
   stats: WeaponStats;
   visual: WeaponVisual;
   /** Optional skill list — Colyseus accepts an empty array. */

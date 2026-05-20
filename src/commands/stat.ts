@@ -143,6 +143,29 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       },
     );
 
+  // Phase 14.4 — surface primary item lore so the world feels alive.
+  // Pick first available equipped item across slots (priority CP → weapon → PK → nhẫn).
+  const primaryLore = (() => {
+    const cp = slots.congPhap[0]?.item;
+    if (cp?.lore) return { name: cp.name, lore: cp.lore };
+    if (slots.phapKhi?.item.lore) return { name: slots.phapKhi.item.name, lore: slots.phapKhi.item.lore };
+    if (user.equipped_weapon_slug) {
+      const w = store.weaponCatalog.get(user.equipped_weapon_slug);
+      if (w?.lore) return { name: w.display_name, lore: w.lore };
+    }
+    const n0 = slots.nhan[0];
+    if (n0?.lore) return { name: n0.name, lore: n0.lore };
+    return null;
+  })();
+  if (primaryLore) {
+    const snippet = primaryLore.lore.length > 220 ? `${primaryLore.lore.slice(0, 220)}…` : primaryLore.lore;
+    embed.addFields({
+      name: `📖 Lore — ${primaryLore.name}`,
+      value: `_${snippet}_`,
+      inline: false,
+    });
+  }
+
   await interaction.reply({ embeds: [embed] });
 }
 

@@ -547,7 +547,17 @@ export interface DailyQuest extends Record<string, unknown> {
 // ============================================================================
 
 export type WeaponCategory = 'blunt' | 'pierce' | 'spirit';
-export type WeaponTier = 'ban_menh' | 'pham' | 'dia' | 'thien' | 'tien';
+export type WeaponTier =
+  | 'ban_menh'
+  | 'pham'
+  | 'dia'
+  | 'thien'
+  | 'tien'
+  // Phase 14.4 — endgame tiers for Hóa Thần+ players. Each gates by
+  // unlock_realm; visual icon distinguishes via TIER_ICON map.
+  | 'thanh'
+  | 'than'
+  | 'huyen';
 
 export interface WeaponStats {
   /** 1.0 - 1.4 — multiplier on shot kinetic energy. */

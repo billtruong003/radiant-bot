@@ -1,4 +1,8 @@
-import type { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import type {
+  AutocompleteInteraction,
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
+} from 'discord.js';
 import { command as akiMemory } from './aki-memory.js';
 import { command as arena } from './arena.js';
 import { command as askAkira } from './ask-akira.js';
@@ -43,6 +47,13 @@ import { command as weapon } from './weapon.js';
 export interface SlashCommand {
   data: SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>;
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
+  /**
+   * Optional autocomplete handler. When the command declares string options
+   * with `setAutocomplete(true)`, the interactionCreate dispatcher routes
+   * AutocompleteInteractions here. Should respond within 3s — Discord
+   * times out otherwise.
+   */
+  autocomplete?(interaction: AutocompleteInteraction): Promise<void>;
 }
 
 const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([

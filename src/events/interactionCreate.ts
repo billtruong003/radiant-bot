@@ -1,4 +1,5 @@
 import {
+  type AutocompleteInteraction,
   type ButtonInteraction,
   type ChatInputCommandInteraction,
   type Client,
@@ -58,7 +59,34 @@ async function dispatchSlashCommand(interaction: ChatInputCommandInteraction): P
   await cmd.execute(interaction);
 }
 
+async function dispatchAutocomplete(interaction: AutocompleteInteraction): Promise<void> {
+  const cmd = findCommand(interaction.commandName);
+  if (!cmd?.autocomplete) {
+    // Silently return empty so Discord doesn't show a stale error toast.
+    try {
+      await interaction.respond([]);
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+  try {
+    await cmd.autocomplete(interaction);
+  } catch (err) {
+    logger.warn({ err, name: interaction.commandName }, 'autocomplete handler failed');
+    try {
+      await interaction.respond([]);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 async function handle(interaction: Interaction): Promise<void> {
+  if (interaction.isAutocomplete()) {
+    await dispatchAutocomplete(interaction);
+    return;
+  }
   if (interaction.isChatInputCommand()) {
     await dispatchSlashCommand(interaction);
     return;
