@@ -322,7 +322,10 @@ export async function setProgress(
 export async function checkEquipBothQuest(discordId: string): Promise<void> {
   const user = getStore().users.get(discordId);
   if (!user) return;
-  if (!user.equipped_cong_phap_slug || !user.equipped_weapon_slug) return;
+  // Phase 14.6 — read multi-slot array via centralized helper (handles
+  // back-compat fallback to legacy single-slot field internally).
+  const { readEquippedCongPhapSlugs } = await import('../combat/equipment-resolver.js');
+  if (readEquippedCongPhapSlugs(user).length === 0 || !user.equipped_weapon_slug) return;
   await incrementProgress(discordId, 'equip_both', 1);
 }
 

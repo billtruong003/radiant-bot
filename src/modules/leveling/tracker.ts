@@ -60,7 +60,10 @@ function freshUser(input: Pick<AwardXpInput, 'discordId' | 'username' | 'display
     // Phase 12 — initialize to 0 so incr() works without a prior set().
     pills: 0,
     contribution_points: 0,
+    // Phase 14.6 — multi-slot công pháp (max 5). Legacy singular slug kept
+    // null for back-compat consumers that haven't migrated yet.
     equipped_cong_phap_slug: null,
+    equipped_cong_phap_slugs: [],
     last_quest_assigned_at: null,
     premium_boosted_at_ms: null,
     aki_memory_opt_in: false,

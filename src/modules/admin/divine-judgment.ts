@@ -278,7 +278,14 @@ async function applyPunishment(
         };
       }
       case 'cong_phap_strip': {
-        if (!user.equipped_cong_phap_slug) {
+        // Phase 14.6 — strip ALL equipped công pháp slots (multi-slot).
+        const slugs =
+          user.equipped_cong_phap_slugs && user.equipped_cong_phap_slugs.length > 0
+            ? user.equipped_cong_phap_slugs
+            : user.equipped_cong_phap_slug
+              ? [user.equipped_cong_phap_slug]
+              : [];
+        if (slugs.length === 0) {
           return {
             punishmentId: id,
             punishmentName: punishment.name,
@@ -287,12 +294,17 @@ async function applyPunishment(
             reason: 'nothing equipped',
           };
         }
-        await store.users.set({ ...user, equipped_cong_phap_slug: null });
+        await store.users.set({
+          ...user,
+          equipped_cong_phap_slugs: [],
+          equipped_cong_phap_slug: null,
+        });
         return {
           punishmentId: id,
           punishmentName: punishment.name,
-          severity: 1,
+          severity: slugs.length,
           result: 'applied',
+          reason: `${slugs.length} slot bị tước`,
         };
       }
       case 'public_shame':

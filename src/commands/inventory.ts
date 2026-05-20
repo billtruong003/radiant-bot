@@ -50,14 +50,23 @@ function buildOverviewEmbed(userId: string, displayName: string): EmbedBuilder {
   const unspentPts = user.stat_points_unspent ?? 0;
   const alloc = user.stat_alloc ?? { dmg: 0, hp: 0, def: 0, spd: 0 };
 
-  // Equipped công pháp
-  const cpSlug = user.equipped_cong_phap_slug ?? null;
-  const cp = cpSlug ? store.congPhapCatalog.get(cpSlug) : null;
-  const cpLevel = cpSlug
-    ? (store.userCongPhap.query(
-        (uc) => uc.discord_id === userId && uc.cong_phap_slug === cpSlug,
-      )[0]?.level ?? 0)
-    : 0;
+  // Phase 14.6 — equipped công pháp slots (up to 5, multi-equip).
+  const cpSlugs =
+    user.equipped_cong_phap_slugs && user.equipped_cong_phap_slugs.length > 0
+      ? user.equipped_cong_phap_slugs
+      : user.equipped_cong_phap_slug
+        ? [user.equipped_cong_phap_slug]
+        : [];
+  const cpLines = cpSlugs
+    .map((slug) => {
+      const item = store.congPhapCatalog.get(slug);
+      if (!item) return null;
+      const lv = store.userCongPhap.query(
+        (uc) => uc.discord_id === userId && uc.cong_phap_slug === slug,
+      )[0]?.level ?? 0;
+      return `${item.icon ?? '📜'} **${item.name}**${lv > 0 ? ` **+${lv}**` : ''}`;
+    })
+    .filter((s): s is string => s !== null);
 
   // Equipped weapon
   const wSlug = user.equipped_weapon_slug ?? null;
@@ -91,9 +100,9 @@ function buildOverviewEmbed(userId: string, displayName: string): EmbedBuilder {
         inline: false,
       },
       {
-        name: '📜 Công pháp trang bị',
-        value: cp ? `**${cp.name}**${cpLevel > 0 ? ` **+${cpLevel}**` : ''}` : '_(chưa trang bị)_',
-        inline: true,
+        name: `📜 Công pháp (${cpLines.length}/5)`,
+        value: cpLines.length > 0 ? cpLines.join('\n') : '_(chưa trang bị)_',
+        inline: false,
       },
       {
         name: '⚔️ Vũ khí trang bị',

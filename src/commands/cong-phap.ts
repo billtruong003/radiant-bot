@@ -55,7 +55,7 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((sc) =>
     sc
       .setName('equip')
-      .setDescription('Trang bị 1 công pháp vào slot (slot 2 mở từ Trúc Cơ, slot 3 từ Hóa Thần)')
+      .setDescription('Trang bị công pháp vào slot 1-5 (max 5 slot — Phase 14.6)')
       .addStringOption((o) =>
         o
           .setName('slug')
@@ -66,10 +66,10 @@ export const data = new SlashCommandBuilder()
       .addIntegerOption((o) =>
         o
           .setName('slot')
-          .setDescription('Slot 1/2/3 (mặc định: trống đầu tiên)')
+          .setDescription('Slot 1-5 (mặc định: trống đầu tiên)')
           .setRequired(false)
           .setMinValue(1)
-          .setMaxValue(3),
+          .setMaxValue(5),
       ),
   )
   .addSubcommand((sc) =>
@@ -79,10 +79,10 @@ export const data = new SlashCommandBuilder()
       .addIntegerOption((o) =>
         o
           .setName('slot')
-          .setDescription('Slot 1/2/3 (mặc định: tất cả)')
+          .setDescription('Slot 1-5 (mặc định: tất cả)')
           .setRequired(false)
           .setMinValue(1)
-          .setMaxValue(3),
+          .setMaxValue(5),
       ),
   )
   .addSubcommand((sc) =>
@@ -113,7 +113,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   if (sub === 'list') {
     const owned = listOwnedCongPhap(userId);
-    const equippedSlug = user.equipped_cong_phap_slug ?? null;
+    // Phase 14.6 — read multi-slot array (up to 5), fall back to legacy.
+    const equippedSet = new Set(
+      user.equipped_cong_phap_slugs && user.equipped_cong_phap_slugs.length > 0
+        ? user.equipped_cong_phap_slugs
+        : user.equipped_cong_phap_slug
+          ? [user.equipped_cong_phap_slug]
+          : [],
+    );
     if (owned.length === 0) {
       await interaction.reply({
         content: '📜 Bạn chưa sở hữu công pháp nào. Dùng `/shop` để xem cửa hàng.',
@@ -121,15 +128,16 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       });
       return;
     }
-    const lines = owned.map(({ item }) => {
-      const marker = item.slug === equippedSlug ? '⭐' : '  ';
-      return `${marker} ${RARITY_EMOJI[item.rarity] ?? '⚪'} **${item.name}** \`${item.slug}\` — +${item.stat_bonuses.combat_power} LC`;
+    const lines = owned.map(({ item, ownership }) => {
+      const marker = equippedSet.has(item.slug) ? '⭐' : '  ';
+      const lv = (ownership.level ?? 0) > 0 ? ` **+${ownership.level}**` : '';
+      return `${marker} ${RARITY_EMOJI[item.rarity] ?? '⚪'} **${item.name}**${lv} \`${item.slug}\` — +${item.stat_bonuses.combat_power} LC`;
     });
     const embed = new EmbedBuilder()
       .setColor(0x9b59b6)
-      .setTitle('📜 Công pháp inventory')
+      .setTitle(`📜 Công pháp inventory (${equippedSet.size}/${owned.length} đang đeo)`)
       .setDescription(lines.join('\n'))
-      .setFooter({ text: `${owned.length} công pháp · ⭐ = đang trang bị` });
+      .setFooter({ text: `Max 5 slot · ⭐ = đang trang bị · /inventory để toggle equip` });
     await interaction.reply({ embeds: [embed], ephemeral: true });
     return;
   }
@@ -189,16 +197,23 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       await interaction.reply({ content: msg, ephemeral: true });
       return;
     }
-    // Auto-equip if user has nothing equipped.
-    if (!user.equipped_cong_phap_slug) {
+    // Phase 14.6 — auto-equip into next free slot if user has room (<5 equipped).
+    const currentEquipped =
+      user.equipped_cong_phap_slugs && user.equipped_cong_phap_slugs.length > 0
+        ? user.equipped_cong_phap_slugs
+        : user.equipped_cong_phap_slug
+          ? [user.equipped_cong_phap_slug]
+          : [];
+    const autoEquipped = currentEquipped.length < 5;
+    if (autoEquipped) {
       await equipCongPhap(userId, slug);
     }
     const item = store.congPhapCatalog.get(slug);
     await interaction.reply({
       content: `✅ Đã mua **${item?.name ?? slug}**! Còn lại: ${r.newPills} đan dược, ${r.newContribution} cống hiến.${
-        !user.equipped_cong_phap_slug
-          ? ' Đã tự động trang bị.'
-          : ' Dùng `/cong-phap equip` để trang bị.'
+        autoEquipped
+          ? ` Đã tự động trang bị (slot ${currentEquipped.length + 1}/5).`
+          : ' 5 slot đã đầy — dùng `/inventory` toggle để swap.'
       }`,
       ephemeral: true,
     });
@@ -217,7 +232,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           case 'already-equipped':
             return `ℹ️ \`${slug}\` đã trang bị ở slot ${(r.slotIdx ?? 0) + 1}.`;
           case 'slot-locked':
-            return `🔒 Slot này chưa mở (slot 2 mở từ Trúc Cơ, slot 3 từ Hóa Thần).`;
+            return `🔒 Slot không hợp lệ — max 5 slot.`;
           default:
             return `⚠️ ${r.reason}`;
         }

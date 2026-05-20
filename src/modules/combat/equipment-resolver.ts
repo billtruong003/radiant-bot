@@ -29,8 +29,8 @@ import { resolveWeaponContribution } from './power.js';
  */
 export const CONG_PHAP_SLOT_UNLOCK: readonly { slotIdx: number; minRank: CultivationRankId }[] = [];
 
-/** Hard upper bound to prevent accidental runaway arrays. Catalog has 27. */
-export const CONG_PHAP_HARD_CAP = 99;
+/** Max công pháp slots — Bill 2026-05-20: "trang bị max 5 công pháp". */
+export const CONG_PHAP_HARD_CAP = 5;
 
 export const NHAN_SLOT_UNLOCK: readonly { slotIdx: number; minRank: CultivationRankId }[] = [
   { slotIdx: 0, minRank: 'pham_nhan' },
