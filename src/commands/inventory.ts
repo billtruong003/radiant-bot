@@ -111,7 +111,15 @@ function buildCongPhapEmbed(userId: string): {
   const owned = listOwnedCongPhap(userId);
   const store = getStore();
   const user = store.users.get(userId);
-  const equippedSlug = user?.equipped_cong_phap_slug ?? null;
+  // Phase 14.6 — multi-equip, uncapped. Read from array; fall back to
+  // legacy single-slot field for users predating Phase 14.3.
+  const equippedSet = new Set(
+    user?.equipped_cong_phap_slugs && user.equipped_cong_phap_slugs.length > 0
+      ? user.equipped_cong_phap_slugs
+      : user?.equipped_cong_phap_slug
+        ? [user.equipped_cong_phap_slug]
+        : [],
+  );
 
   if (owned.length === 0) {
     return {
@@ -124,27 +132,32 @@ function buildCongPhapEmbed(userId: string): {
   }
 
   const lines = owned.map(({ item, ownership }) => {
-    const star = item.slug === equippedSlug ? '⭐' : '  ';
+    const star = equippedSet.has(item.slug) ? '⭐' : '  ';
     const lv = (ownership.level ?? 0) > 0 ? ` **+${ownership.level}**` : '';
-    return `${star} ${RARITY_EMOJI[item.rarity] ?? '⚪'} **${item.name}**${lv} \`${item.slug}\` (+${item.stat_bonuses.combat_power} LC)`;
+    return `${star} ${RARITY_EMOJI[item.rarity] ?? '⚪'} **${item.name}**${lv} (+${item.stat_bonuses.combat_power} LC)`;
   });
 
   const options = owned.slice(0, 25).map(({ item, ownership }) => {
     const lvSuffix = (ownership.level ?? 0) > 0 ? ` (+${ownership.level})` : '';
+    const equipped = equippedSet.has(item.slug);
     return new StringSelectMenuOptionBuilder()
       .setLabel(`${item.name}${lvSuffix}`.slice(0, 100))
       .setValue(item.slug)
-      .setDescription(`+${item.stat_bonuses.combat_power} LC · ${item.rarity}`.slice(0, 100))
+      .setDescription(
+        `+${item.stat_bonuses.combat_power} LC · ${item.rarity}${equipped ? ' (đang đeo — chọn để gỡ)' : ''}`.slice(0, 100),
+      )
       .setEmoji(RARITY_EMOJI[item.rarity] ?? '⚪')
-      .setDefault(item.slug === equippedSlug);
+      .setDefault(equipped);
   });
 
   return {
     embed: new EmbedBuilder()
       .setColor(0x9b59b6)
-      .setTitle('📜 Công pháp')
+      .setTitle(`📜 Công pháp (${equippedSet.size}/${owned.length} đang đeo)`)
       .setDescription(lines.join('\n'))
-      .setFooter({ text: `${owned.length} công pháp · ⭐ = đang trang bị · select-menu để equip` }),
+      .setFooter({
+        text: `Phase 14.6 — không giới hạn slot · chọn từ menu để toggle equip/unequip`,
+      }),
     options,
   };
 }
@@ -342,7 +355,7 @@ function buildTabRow(active: Tab, userId: string): ActionRowBuilder<MessageActio
 }
 
 const SELECT_PLACEHOLDER: Record<EquipKind, string> = {
-  cong_phap: 'Chọn công pháp để trang bị (vào slot trống)',
+  cong_phap: 'Chọn công pháp — toggle equip/unequip (không giới hạn slot)',
   weapon: 'Chọn vũ khí để trang bị',
   phap_khi: 'Chọn pháp khí để trang bị',
   nhan: 'Chọn nhẫn — toggle equip/unequip',
@@ -450,12 +463,28 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           return;
         }
         // Phase 14.5 — dispatch by kind:
-        //   cong_phap: multi-slot equip via equipCongPhap helper (auto-slot pick)
+        //   cong_phap: TOGGLE (Phase 14.6 — uncapped). Click equipped slug
+        //     unequips; otherwise appends to the equipped list.
         //   weapon/phap_khi: single slot, direct user.set
         //   nhan: TOGGLE — clicking equipped slug unequips; else add to first free slot
         if (kind === 'cong_phap') {
-          const { equipCongPhap } = await import('../modules/combat/cong-phap.js');
-          await equipCongPhap(userId, slug);
+          const current =
+            fresh.equipped_cong_phap_slugs && fresh.equipped_cong_phap_slugs.length > 0
+              ? [...fresh.equipped_cong_phap_slugs]
+              : fresh.equipped_cong_phap_slug
+                ? [fresh.equipped_cong_phap_slug]
+                : [];
+          let nextSlugs: string[];
+          if (current.includes(slug)) {
+            nextSlugs = current.filter((s) => s !== slug);
+          } else {
+            nextSlugs = [...current, slug];
+          }
+          await store.users.set({
+            ...fresh,
+            equipped_cong_phap_slugs: nextSlugs,
+            equipped_cong_phap_slug: nextSlugs[0] ?? null,
+          });
         } else if (kind === 'weapon') {
           await store.users.set({ ...fresh, equipped_weapon_slug: slug });
         } else if (kind === 'phap_khi') {

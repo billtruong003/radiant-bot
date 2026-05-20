@@ -21,11 +21,16 @@ import { resolveWeaponContribution } from './power.js';
  * /stat, /duel, /inventory. Reads from store; pure read, no mutation.
  */
 
-export const CONG_PHAP_SLOT_UNLOCK: readonly { slotIdx: number; minRank: CultivationRankId }[] = [
-  { slotIdx: 0, minRank: 'pham_nhan' },
-  { slotIdx: 1, minRank: 'truc_co' },
-  { slotIdx: 2, minRank: 'hoa_than' },
-];
+/**
+ * Phase 14.6 — Bill: "có bn công pháp trang bị bấy nhiêu". Công pháp
+ * unlock is now uncapped: a user can equip as many công pháp slugs as
+ * they own. Kept as an empty array to preserve the export shape (used
+ * by /stat next-unlock indicator which now skips it).
+ */
+export const CONG_PHAP_SLOT_UNLOCK: readonly { slotIdx: number; minRank: CultivationRankId }[] = [];
+
+/** Hard upper bound to prevent accidental runaway arrays. Catalog has 27. */
+export const CONG_PHAP_HARD_CAP = 99;
 
 export const NHAN_SLOT_UNLOCK: readonly { slotIdx: number; minRank: CultivationRankId }[] = [
   { slotIdx: 0, minRank: 'pham_nhan' },
@@ -35,16 +40,15 @@ export const NHAN_SLOT_UNLOCK: readonly { slotIdx: number; minRank: CultivationR
 export const PHAP_KHI_MIN_RANK: CultivationRankId = 'kim_dan';
 
 /**
- * Returns the maximum number of công pháp slots unlocked for the given rank.
- * E.g., Trúc Cơ → 2 slots, Phàm Nhân → 1, Hóa Thần+ → 3.
+ * Returns the maximum number of công pháp slots a user can equip.
+ *
+ * Phase 14.6 — uncapped (returns CONG_PHAP_HARD_CAP). Previously rank-
+ * gated (Trúc Cơ → 2, Hóa Thần → 3). Bill 2026-05-20: "có bn công pháp
+ * trang bị bấy nhiêu". Rank parameter kept on the signature for future
+ * re-gating if needed; currently ignored.
  */
-export function maxCongPhapSlots(rank: CultivationRankId): number {
-  const userIdx = rankIndex(rank);
-  let max = 0;
-  for (const { minRank } of CONG_PHAP_SLOT_UNLOCK) {
-    if (userIdx >= rankIndex(minRank)) max++;
-  }
-  return max;
+export function maxCongPhapSlots(_rank: CultivationRankId): number {
+  return CONG_PHAP_HARD_CAP;
 }
 
 /**
