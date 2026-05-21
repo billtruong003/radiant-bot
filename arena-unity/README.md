@@ -1,6 +1,10 @@
 # Radiant Arena Unity Client — Setup Guide
 
-> Folder này chứa **docs + skill file** để Bill mang qua project Unity riêng. Unity project tự nó **không sống ở đây** (vì Unity asset DB + .meta files không hợp với git monorepo). Đây là blueprint Bill sao chép sang lúc tạo project Unity mới.
+> **⚠️ Note 2026-05-15**: Hiện tại Unity project ĐÃ tồn tại tại `d:\Projects\ArenaPK\` với BillGameCore import sẵn. Docs ở `arena-unity/` là sibling folder của Unity project root. **Không cần** chạy bước "Setup khi tạo Unity project" dưới đây — đó là instruction cho ai bắt đầu từ zero.
+>
+> Để bắt đầu work hiện tại, xem **`ROADMAP.md`** (workflow + priority) → **`SKILL.md`** (persona) → **`TASKS.md`** (scope per Lát). Mỗi Lát = 1 folder ở `tasks/todo/` (empty đến khi Opus enter task).
+
+> Folder này chứa **docs + skill file**. Trong tình huống bắt đầu từ zero, đây là blueprint để sao chép sang Unity project mới (Unity project's `Library/` + `.meta` files không hợp với git monorepo). Trong tình huống hiện tại, docs sống ngang hàng với Unity project — không copy.
 
 ---
 
