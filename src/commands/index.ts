@@ -26,6 +26,7 @@ import { command as phapKhi } from './phap-khi.js';
 import { command as quest } from './quest.js';
 import { command as raidMode } from './raid-mode.js';
 import { command as rank } from './rank.js';
+import { command as selftest } from './selftest.js';
 import { command as shop } from './shop.js';
 import { command as statAlloc } from './stat-alloc.js';
 import { command as stat } from './stat.js';
@@ -100,6 +101,8 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [tutorial.data.name, tutorial as SlashCommand],
   // Phase 14.8 — personalized hub
   [me.data.name, me as SlashCommand],
+  // Phase 14.9 — admin diagnostic
+  [selftest.data.name, selftest as SlashCommand],
 ]);
 
 export function findCommand(name: string): SlashCommand | undefined {
