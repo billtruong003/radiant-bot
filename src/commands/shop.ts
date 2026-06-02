@@ -13,10 +13,26 @@ import {
 import { rankById } from '../config/cultivation.js';
 import { getStore } from '../db/index.js';
 import { RARITY_EMOJI, buyCongPhap, listShopAvailable } from '../modules/combat/cong-phap.js';
-import { NHAN_RARITY_EMOJI, buyNhan, listLockedShopNhan, listShopNhan } from '../modules/combat/nhan-shop.js';
-import { PHAP_KHI_RARITY_EMOJI, buyPhapKhi, listLockedShopPhapKhi, listShopPhapKhi } from '../modules/combat/phap-khi-shop.js';
-import { TIER_ICON, buyWeapon, listLockedShopWeapons, listShopWeapons } from '../modules/combat/weapon-shop.js';
+import {
+  NHAN_RARITY_EMOJI,
+  buyNhan,
+  listLockedShopNhan,
+  listShopNhan,
+} from '../modules/combat/nhan-shop.js';
+import {
+  PHAP_KHI_RARITY_EMOJI,
+  buyPhapKhi,
+  listLockedShopPhapKhi,
+  listShopPhapKhi,
+} from '../modules/combat/phap-khi-shop.js';
+import {
+  TIER_ICON,
+  buyWeapon,
+  listLockedShopWeapons,
+  listShopWeapons,
+} from '../modules/combat/weapon-shop.js';
 import { logger } from '../utils/logger.js';
+import { buildPageNavRow, pageOf } from '../utils/pagination.js';
 
 /**
  * /shop — Phase 14.5 four-tab shop.
@@ -53,7 +69,9 @@ function buildCongPhapEmbed(userId: string): EmbedBuilder {
   const pills = user.pills ?? 0;
   const contrib = user.contribution_points ?? 0;
   const available = listShopAvailable(user.cultivation_rank);
-  const all = store.congPhapCatalog.query(() => true).sort((a, b) => a.cost_contribution - b.cost_contribution);
+  const all = store.congPhapCatalog
+    .query(() => true)
+    .sort((a, b) => a.cost_contribution - b.cost_contribution);
   const locked = all.filter((it) => !available.some((a) => a.slug === it.slug));
   const ownedSlugs = new Set(
     store.userCongPhap.query((uc) => uc.discord_id === userId).map((uc) => uc.cong_phap_slug),
@@ -83,13 +101,18 @@ function buildCongPhapEmbed(userId: string): EmbedBuilder {
     available.length ? available.map((it) => fmt(it, false)).join('\n') : '_Catalog rỗng._',
     locked.length ? '\n**Bị khoá:**' : '',
     locked.map((it) => fmt(it, true)).join('\n'),
-  ].filter(Boolean).join('\n').slice(0, 4000);
+  ]
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, 4000);
 
   return new EmbedBuilder()
     .setColor(0xf4d03f)
     .setTitle('🏪 Shop — 📜 Công pháp')
     .setDescription(lines)
-    .setFooter({ text: '⭐ đang đeo · ✅ sở hữu · 🟢 mua được · ⏳ chưa đủ tiền · 🔒 chưa đủ cảnh giới' });
+    .setFooter({
+      text: '⭐ đang đeo · ✅ sở hữu · 🟢 mua được · ⏳ chưa đủ tiền · 🔒 chưa đủ cảnh giới',
+    });
 }
 
 function buildCongPhapBuyOptions(userId: string): StringSelectMenuOptionBuilder[] {
@@ -98,15 +121,24 @@ function buildCongPhapBuyOptions(userId: string): StringSelectMenuOptionBuilder[
   if (!user) return [];
   const pills = user.pills ?? 0;
   const contrib = user.contribution_points ?? 0;
-  const owned = new Set(store.userCongPhap.query((uc) => uc.discord_id === userId).map((uc) => uc.cong_phap_slug));
-  const buyable = listShopAvailable(user.cultivation_rank)
-    .filter((it) => !owned.has(it.slug) && pills >= it.cost_pills && contrib >= it.cost_contribution)
-    .slice(0, 25);
+  const owned = new Set(
+    store.userCongPhap.query((uc) => uc.discord_id === userId).map((uc) => uc.cong_phap_slug),
+  );
+  const buyable = listShopAvailable(user.cultivation_rank).filter(
+    (it) => !owned.has(it.slug) && pills >= it.cost_pills && contrib >= it.cost_contribution,
+  );
   return buyable.map((it) => {
     const lore = (it as { lore?: string }).lore;
-    const desc = lore ? `${lore.slice(0, 95)}${lore.length > 95 ? '…' : ''}` : `+${it.stat_bonuses.combat_power} LC · ${it.cost_pills}💊+${it.cost_contribution}🪙`;
+    const desc = lore
+      ? `${lore.slice(0, 95)}${lore.length > 95 ? '…' : ''}`
+      : `+${it.stat_bonuses.combat_power} LC · ${it.cost_pills}💊+${it.cost_contribution}🪙`;
     return new StringSelectMenuOptionBuilder()
-      .setLabel(`${it.name} (+${it.stat_bonuses.combat_power} · ${it.cost_pills}💊+${it.cost_contribution}🪙)`.slice(0, 100))
+      .setLabel(
+        `${it.name} (+${it.stat_bonuses.combat_power} · ${it.cost_pills}💊+${it.cost_contribution}🪙)`.slice(
+          0,
+          100,
+        ),
+      )
       .setValue(it.slug)
       .setDescription(desc.slice(0, 100))
       .setEmoji(RARITY_EMOJI[it.rarity] ?? '⚪');
@@ -124,7 +156,9 @@ function buildWeaponEmbed(userId: string): EmbedBuilder {
   const contrib = user.contribution_points ?? 0;
   const available = listShopWeapons(user.cultivation_rank);
   const locked = listLockedShopWeapons(user.cultivation_rank);
-  const ownedSlugs = new Set(store.userWeapons.query((w) => w.discord_id === userId).map((w) => w.weapon_slug));
+  const ownedSlugs = new Set(
+    store.userWeapons.query((w) => w.discord_id === userId).map((w) => w.weapon_slug),
+  );
   const equippedSlug = user.equipped_weapon_slug ?? null;
 
   const fmt = (w: (typeof available)[number], isLocked: boolean): string => {
@@ -146,13 +180,18 @@ function buildWeaponEmbed(userId: string): EmbedBuilder {
     available.length ? available.map((w) => fmt(w, false)).join('\n') : '_Catalog rỗng._',
     locked.length ? '\n**Bị khoá:**' : '',
     locked.map((w) => fmt(w, true)).join('\n'),
-  ].filter(Boolean).join('\n').slice(0, 4000);
+  ]
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, 4000);
 
   return new EmbedBuilder()
     .setColor(0xd4af37)
     .setTitle('🏪 Shop — ⚔️ Vũ khí')
     .setDescription(lines)
-    .setFooter({ text: '⭐ đang đeo · ✅ sở hữu · 🟢 mua được · ⏳ chưa đủ tiền · 🔒 chưa đủ cảnh giới' });
+    .setFooter({
+      text: '⭐ đang đeo · ✅ sở hữu · 🟢 mua được · ⏳ chưa đủ tiền · 🔒 chưa đủ cảnh giới',
+    });
 }
 
 function buildWeaponBuyOptions(userId: string): StringSelectMenuOptionBuilder[] {
@@ -161,13 +200,18 @@ function buildWeaponBuyOptions(userId: string): StringSelectMenuOptionBuilder[] 
   if (!user) return [];
   const pills = user.pills ?? 0;
   const contrib = user.contribution_points ?? 0;
-  const owned = new Set(store.userWeapons.query((w) => w.discord_id === userId).map((w) => w.weapon_slug));
+  const owned = new Set(
+    store.userWeapons.query((w) => w.discord_id === userId).map((w) => w.weapon_slug),
+  );
   const buyable = listShopWeapons(user.cultivation_rank)
     .filter((w) => !owned.has(w.slug))
-    .filter((w) => pills >= (w.shop?.cost_pills ?? 0) && contrib >= (w.shop?.cost_contribution ?? 0))
-    .slice(0, 25);
+    .filter(
+      (w) => pills >= (w.shop?.cost_pills ?? 0) && contrib >= (w.shop?.cost_contribution ?? 0),
+    );
   return buyable.map((w) => {
-    const desc = w.lore ? `${w.lore.slice(0, 95)}${w.lore.length > 95 ? '…' : ''}` : `dmg ${w.stats.damage_base} · ${w.shop?.cost_pills ?? 0}💊+${w.shop?.cost_contribution ?? 0}🪙`;
+    const desc = w.lore
+      ? `${w.lore.slice(0, 95)}${w.lore.length > 95 ? '…' : ''}`
+      : `dmg ${w.stats.damage_base} · ${w.shop?.cost_pills ?? 0}💊+${w.shop?.cost_contribution ?? 0}🪙`;
     return new StringSelectMenuOptionBuilder()
       .setLabel(`${w.display_name} (dmg ${w.stats.damage_base})`.slice(0, 100))
       .setValue(w.slug)
@@ -187,7 +231,9 @@ function buildPhapKhiEmbed(userId: string): EmbedBuilder {
   const contrib = user.contribution_points ?? 0;
   const available = listShopPhapKhi(user.cultivation_rank);
   const locked = listLockedShopPhapKhi(user.cultivation_rank);
-  const ownedSlugs = new Set(store.userPhapKhi.query((u) => u.discord_id === userId).map((u) => u.phap_khi_slug));
+  const ownedSlugs = new Set(
+    store.userPhapKhi.query((u) => u.discord_id === userId).map((u) => u.phap_khi_slug),
+  );
   const equippedSlug = user.equipped_phap_khi_slug ?? null;
 
   const fmt = (it: (typeof available)[number], isLocked: boolean): string => {
@@ -207,13 +253,18 @@ function buildPhapKhiEmbed(userId: string): EmbedBuilder {
     available.length ? available.map((it) => fmt(it, false)).join('\n') : '_Catalog rỗng._',
     locked.length ? '\n**Bị khoá:**' : '',
     locked.map((it) => fmt(it, true)).join('\n'),
-  ].filter(Boolean).join('\n').slice(0, 4000);
+  ]
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, 4000);
 
   return new EmbedBuilder()
     .setColor(0xb09bd3)
     .setTitle('🏪 Shop — ✨ Pháp khí')
     .setDescription(lines)
-    .setFooter({ text: '⭐ đang đeo · ✅ sở hữu · 🟢 mua được · ⏳ chưa đủ tiền · 🔒 chưa đủ cảnh giới (slot mở từ Kim Đan)' });
+    .setFooter({
+      text: '⭐ đang đeo · ✅ sở hữu · 🟢 mua được · ⏳ chưa đủ tiền · 🔒 chưa đủ cảnh giới (slot mở từ Kim Đan)',
+    });
 }
 
 function buildPhapKhiBuyOptions(userId: string): StringSelectMenuOptionBuilder[] {
@@ -222,12 +273,16 @@ function buildPhapKhiBuyOptions(userId: string): StringSelectMenuOptionBuilder[]
   if (!user) return [];
   const pills = user.pills ?? 0;
   const contrib = user.contribution_points ?? 0;
-  const owned = new Set(store.userPhapKhi.query((u) => u.discord_id === userId).map((u) => u.phap_khi_slug));
-  const buyable = listShopPhapKhi(user.cultivation_rank)
-    .filter((it) => !owned.has(it.slug) && pills >= it.cost_pills && contrib >= it.cost_contribution)
-    .slice(0, 25);
+  const owned = new Set(
+    store.userPhapKhi.query((u) => u.discord_id === userId).map((u) => u.phap_khi_slug),
+  );
+  const buyable = listShopPhapKhi(user.cultivation_rank).filter(
+    (it) => !owned.has(it.slug) && pills >= it.cost_pills && contrib >= it.cost_contribution,
+  );
   return buyable.map((it) => {
-    const desc = it.lore ? `${it.lore.slice(0, 95)}${it.lore.length > 95 ? '…' : ''}` : `+${it.stat_bonuses.combat_power} LC · ${it.cost_pills}💊+${it.cost_contribution}🪙`;
+    const desc = it.lore
+      ? `${it.lore.slice(0, 95)}${it.lore.length > 95 ? '…' : ''}`
+      : `+${it.stat_bonuses.combat_power} LC · ${it.cost_pills}💊+${it.cost_contribution}🪙`;
     return new StringSelectMenuOptionBuilder()
       .setLabel(`${it.name} (+${it.stat_bonuses.combat_power})`.slice(0, 100))
       .setValue(it.slug)
@@ -247,7 +302,9 @@ function buildNhanEmbed(userId: string): EmbedBuilder {
   const contrib = user.contribution_points ?? 0;
   const available = listShopNhan(user.cultivation_rank);
   const locked = listLockedShopNhan(user.cultivation_rank);
-  const ownedSlugs = new Set(store.userNhan.query((u) => u.discord_id === userId).map((u) => u.nhan_slug));
+  const ownedSlugs = new Set(
+    store.userNhan.query((u) => u.discord_id === userId).map((u) => u.nhan_slug),
+  );
   const equippedSlugs = new Set(user.equipped_ring_slugs ?? []);
 
   const fmt = (it: (typeof available)[number], isLocked: boolean): string => {
@@ -267,13 +324,18 @@ function buildNhanEmbed(userId: string): EmbedBuilder {
     available.length ? available.map((it) => fmt(it, false)).join('\n') : '_Catalog rỗng._',
     locked.length ? '\n**Bị khoá:**' : '',
     locked.map((it) => fmt(it, true)).join('\n'),
-  ].filter(Boolean).join('\n').slice(0, 4000);
+  ]
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, 4000);
 
   return new EmbedBuilder()
     .setColor(0xd4a574)
     .setTitle('🏪 Shop — 💍 Nhẫn')
     .setDescription(lines)
-    .setFooter({ text: '⭐ đang đeo · ✅ sở hữu · 🟢 mua được · ⏳ chưa đủ tiền · 🔒 chưa đủ cảnh giới (slot 2 mở từ Nguyên Anh)' });
+    .setFooter({
+      text: '⭐ đang đeo · ✅ sở hữu · 🟢 mua được · ⏳ chưa đủ tiền · 🔒 chưa đủ cảnh giới (slot 2 mở từ Nguyên Anh)',
+    });
 }
 
 function buildNhanBuyOptions(userId: string): StringSelectMenuOptionBuilder[] {
@@ -282,12 +344,16 @@ function buildNhanBuyOptions(userId: string): StringSelectMenuOptionBuilder[] {
   if (!user) return [];
   const pills = user.pills ?? 0;
   const contrib = user.contribution_points ?? 0;
-  const owned = new Set(store.userNhan.query((u) => u.discord_id === userId).map((u) => u.nhan_slug));
-  const buyable = listShopNhan(user.cultivation_rank)
-    .filter((it) => !owned.has(it.slug) && pills >= it.cost_pills && contrib >= it.cost_contribution)
-    .slice(0, 25);
+  const owned = new Set(
+    store.userNhan.query((u) => u.discord_id === userId).map((u) => u.nhan_slug),
+  );
+  const buyable = listShopNhan(user.cultivation_rank).filter(
+    (it) => !owned.has(it.slug) && pills >= it.cost_pills && contrib >= it.cost_contribution,
+  );
   return buyable.map((it) => {
-    const desc = it.lore ? `${it.lore.slice(0, 95)}${it.lore.length > 95 ? '…' : ''}` : `+${it.stat_bonuses.combat_power} LC · ${it.cost_pills}💊+${it.cost_contribution}🪙`;
+    const desc = it.lore
+      ? `${it.lore.slice(0, 95)}${it.lore.length > 95 ? '…' : ''}`
+      : `+${it.stat_bonuses.combat_power} LC · ${it.cost_pills}💊+${it.cost_contribution}🪙`;
     return new StringSelectMenuOptionBuilder()
       .setLabel(`${it.name} (+${it.stat_bonuses.combat_power})`.slice(0, 100))
       .setValue(it.slug)
@@ -298,7 +364,10 @@ function buildNhanBuyOptions(userId: string): StringSelectMenuOptionBuilder[] {
 
 // ============== Tab + components ===========================================
 
-function buildTabRow(active: Tab, userId: string): ActionRowBuilder<MessageActionRowComponentBuilder> {
+function buildTabRow(
+  active: Tab,
+  userId: string,
+): ActionRowBuilder<MessageActionRowComponentBuilder> {
   const tabs: Tab[] = ['cong_phap', 'weapon', 'phap_khi', 'nhan'];
   return new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
     ...tabs.map((t) =>
@@ -338,21 +407,33 @@ function buildBuyOptions(tab: Tab, userId: string): StringSelectMenuOptionBuilde
   }
 }
 
-function buildComponents(tab: Tab, userId: string): ActionRowBuilder<MessageActionRowComponentBuilder>[] {
+/**
+ * Build the full component stack for a tab: tab row + (if items) paginated
+ * buy select + (if >25 items) nav row. pageState is mutated to clamp
+ * out-of-bounds indices after a purchase shrinks the list.
+ */
+function buildComponents(
+  tab: Tab,
+  userId: string,
+  pageState: Record<Tab, number>,
+): ActionRowBuilder<MessageActionRowComponentBuilder>[] {
   const rows: ActionRowBuilder<MessageActionRowComponentBuilder>[] = [buildTabRow(tab, userId)];
   const opts = buildBuyOptions(tab, userId);
-  if (opts.length > 0) {
-    rows.push(
-      new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId(`shop:buy:${tab}:${userId}`)
-          .setPlaceholder(`Mua ${TAB_META[tab].label.toLowerCase()}`)
-          .setMinValues(1)
-          .setMaxValues(1)
-          .addOptions(opts),
-      ),
-    );
-  }
+  if (opts.length === 0) return rows;
+  const { slice, pageIdx, totalPages } = pageOf(opts, pageState[tab]);
+  pageState[tab] = pageIdx;
+  rows.push(
+    new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId(`shop:buy:${tab}:${userId}`)
+        .setPlaceholder(`Mua ${TAB_META[tab].label.toLowerCase()}`)
+        .setMinValues(1)
+        .setMaxValues(1)
+        .addOptions(slice),
+    ),
+  );
+  const navRow = buildPageNavRow(`shop:page:${tab}:${userId}`, pageIdx, totalPages);
+  if (navRow) rows.push(navRow);
   return rows;
 }
 
@@ -389,9 +470,16 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   let activeTab: Tab = 'cong_phap';
+  const pageState: Record<Tab, number> = {
+    cong_phap: 0,
+    weapon: 0,
+    phap_khi: 0,
+    nhan: 0,
+  };
+
   const msg = (await interaction.reply({
     embeds: [buildEmbed(activeTab, userId)],
-    components: buildComponents(activeTab, userId),
+    components: buildComponents(activeTab, userId, pageState),
     ephemeral: true,
     fetchReply: true,
   })) as Message;
@@ -405,6 +493,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     try {
       const parts = cmp.customId.split(':');
 
+      // Tab switch — reset page index for the new tab.
       if (parts[1] === 'tab') {
         const next = parts[2] as Tab;
         if (!(next in TAB_META)) {
@@ -412,7 +501,28 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           return;
         }
         activeTab = next;
-        await cmp.update({ embeds: [buildEmbed(activeTab, userId)], components: buildComponents(activeTab, userId) });
+        pageState[next] = 0;
+        await cmp.update({
+          embeds: [buildEmbed(activeTab, userId)],
+          components: buildComponents(activeTab, userId, pageState),
+        });
+        return;
+      }
+
+      // Page nav (◀ prev / ▶ next). buildComponents clamps out-of-bounds.
+      if (parts[1] === 'page') {
+        const tab = parts[2] as Tab;
+        const dir = parts[3];
+        if (!(tab in TAB_META)) {
+          await cmp.deferUpdate();
+          return;
+        }
+        if (dir === 'next') pageState[tab] += 1;
+        else if (dir === 'prev') pageState[tab] -= 1;
+        await cmp.update({
+          embeds: [buildEmbed(activeTab, userId)],
+          components: buildComponents(activeTab, userId, pageState),
+        });
         return;
       }
 
@@ -435,7 +545,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         embed.setFooter({
           text: `✅ Mua \`${slug}\` thành công · Còn ${result.newPills}💊 + ${result.newContribution}🪙`,
         });
-        await cmp.update({ embeds: [embed], components: buildComponents(activeTab, userId) });
+        await cmp.update({
+          embeds: [embed],
+          components: buildComponents(activeTab, userId, pageState),
+        });
       }
     } catch (err) {
       logger.error({ err, userId, customId: cmp.customId }, 'shop: handler failed');
@@ -457,7 +570,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           .setDisabled(true),
       );
       await msg.edit({
-        embeds: [buildEmbed(activeTab, userId).setFooter({ text: '⏱️ Hết phiên — chạy /shop lại để tiếp.' })],
+        embeds: [
+          buildEmbed(activeTab, userId).setFooter({
+            text: '⏱️ Hết phiên — chạy /shop lại để tiếp.',
+          }),
+        ],
         components: [expiredRow],
       });
     } catch {

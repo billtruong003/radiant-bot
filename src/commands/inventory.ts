@@ -12,6 +12,7 @@ import {
   StringSelectMenuOptionBuilder,
 } from 'discord.js';
 import { rankIndex } from '../config/cultivation.js';
+import { getStore } from '../db/index.js';
 import { BAN_MENH_SLUG_PREFIX } from '../modules/arena/forge.js';
 import { getBanMenhDisplay } from '../modules/combat/ban-menh-templates.js';
 import { RARITY_EMOJI, listOwnedCongPhap } from '../modules/combat/cong-phap.js';
@@ -19,8 +20,8 @@ import { readEquippedRingSlugs } from '../modules/combat/equipment-resolver.js';
 import { NHAN_RARITY_EMOJI } from '../modules/combat/nhan-shop.js';
 import { PHAP_KHI_RARITY_EMOJI } from '../modules/combat/phap-khi-shop.js';
 import { TIER_ICON } from '../modules/combat/weapon-shop.js';
-import { getStore } from '../db/index.js';
 import { logger } from '../utils/logger.js';
+import { buildPageNavRow, pageOf } from '../utils/pagination.js';
 
 /**
  * /inventory — Phase 14 redesign: three tabs via button row + equip
@@ -63,9 +64,9 @@ function buildOverviewEmbed(userId: string, displayName: string): EmbedBuilder {
     .map((slug) => {
       const item = store.congPhapCatalog.get(slug);
       if (!item) return null;
-      const lv = store.userCongPhap.query(
-        (uc) => uc.discord_id === userId && uc.cong_phap_slug === slug,
-      )[0]?.level ?? 0;
+      const lv =
+        store.userCongPhap.query((uc) => uc.discord_id === userId && uc.cong_phap_slug === slug)[0]
+          ?.level ?? 0;
       return `${item.icon ?? '📜'} **${item.name}**${lv > 0 ? ` **+${lv}**` : ''}`;
     })
     .filter((s): s is string => s !== null);
@@ -152,7 +153,7 @@ function buildCongPhapEmbed(userId: string): {
     return `${star} ${RARITY_EMOJI[item.rarity] ?? '⚪'} **${item.name}**${lv} (+${item.stat_bonuses.combat_power} LC)`;
   });
 
-  const options = owned.slice(0, 25).map(({ item, ownership }) => {
+  const options = owned.map(({ item, ownership }) => {
     const lvSuffix = (ownership.level ?? 0) > 0 ? ` (+${ownership.level})` : '';
     const equipped = equippedSet.has(item.slug);
     return new StringSelectMenuOptionBuilder()
@@ -170,7 +171,7 @@ function buildCongPhapEmbed(userId: string): {
   const guideLine =
     slotsLeft > 0
       ? `🎯 **Còn ${slotsLeft} slot trống**. Chọn 1 công pháp từ menu để đeo. Có thể chọn lại để gỡ.`
-      : `⛔ **5/5 slot đầy**. Chọn 1 công pháp đang ⭐ để gỡ, hoặc gỡ rồi mới đeo món khác.`;
+      : '⛔ **5/5 slot đầy**. Chọn 1 công pháp đang ⭐ để gỡ, hoặc gỡ rồi mới đeo món khác.';
 
   return {
     embed: new EmbedBuilder()
@@ -178,7 +179,7 @@ function buildCongPhapEmbed(userId: string): {
       .setTitle(`📜 Công pháp — ${equippedSet.size}/5 slot đang đeo`)
       .setDescription([guideLine, '', ...lines].join('\n'))
       .setFooter({
-        text: 'Multi-slot · Max 5 · Chọn từ menu = toggle equip/unequip · Sở hữu ' + owned.length,
+        text: `Multi-slot · Max 5 · Chọn từ menu = toggle equip/unequip · Sở hữu ${owned.length}`,
       }),
     options,
   };
@@ -233,7 +234,7 @@ function buildWeaponEmbed(userId: string): {
     return `${star} ${TIER_ICON[r.tier] ?? '⚔️'} **${r.name}**${lv} _(dmg ${r.dmg})_`;
   });
 
-  const options = valid.slice(0, 25).map((r) => {
+  const options = valid.map((r) => {
     const lvSuffix = r.level > 0 ? ` (+${r.level})` : '';
     return new StringSelectMenuOptionBuilder()
       .setLabel(`${r.name}${lvSuffix}`.slice(0, 100))
@@ -272,10 +273,12 @@ function buildPhapKhiEmbed(userId: string): {
     };
   }
 
-  const resolved = owned.map((up) => {
-    const item = store.phapKhiCatalog.get(up.phap_khi_slug);
-    return item ? { slug: up.phap_khi_slug, item, level: up.level ?? 0 } : null;
-  }).filter((r): r is NonNullable<typeof r> => r !== null);
+  const resolved = owned
+    .map((up) => {
+      const item = store.phapKhiCatalog.get(up.phap_khi_slug);
+      return item ? { slug: up.phap_khi_slug, item, level: up.level ?? 0 } : null;
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
 
   const lines = resolved.map((r) => {
     const star = r.slug === equippedSlug ? '⭐' : '  ';
@@ -283,7 +286,7 @@ function buildPhapKhiEmbed(userId: string): {
     return `${star} ${PHAP_KHI_RARITY_EMOJI[r.item.rarity] ?? '✨'} ${r.item.icon} **${r.item.name}**${lv} _(+${r.item.stat_bonuses.combat_power} LC)_`;
   });
 
-  const options = resolved.slice(0, 25).map((r) => {
+  const options = resolved.map((r) => {
     const lvSuffix = r.level > 0 ? ` (+${r.level})` : '';
     return new StringSelectMenuOptionBuilder()
       .setLabel(`${r.item.name}${lvSuffix}`.slice(0, 100))
@@ -323,10 +326,12 @@ function buildNhanEmbed(userId: string): {
     };
   }
 
-  const resolved = owned.map((un) => {
-    const item = store.nhanCatalog.get(un.nhan_slug);
-    return item ? { slug: un.nhan_slug, item } : null;
-  }).filter((r): r is NonNullable<typeof r> => r !== null);
+  const resolved = owned
+    .map((un) => {
+      const item = store.nhanCatalog.get(un.nhan_slug);
+      return item ? { slug: un.nhan_slug, item } : null;
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
 
   const lines = resolved.map((r) => {
     const slotIdx = equippedSlugs.indexOf(r.slug);
@@ -337,7 +342,7 @@ function buildNhanEmbed(userId: string): {
   // Phase 14.6 — same Discord constraint as CP: maxValues=1 conflicts with
   // multiple defaults. Drop setDefault; rely on ⭐N marker in embed + the
   // option description to communicate state.
-  const options = resolved.slice(0, 25).map((r) => {
+  const options = resolved.map((r) => {
     const equipped = equippedSet.has(r.slug);
     return new StringSelectMenuOptionBuilder()
       .setLabel(`${equipped ? '⭐ ' : ''}${r.item.name}`.slice(0, 100))
@@ -352,7 +357,9 @@ function buildNhanEmbed(userId: string): {
 
   const user2 = getStore().users.get(userId);
   const maxNhan = user2
-    ? (rankIndex(user2.cultivation_rank) >= rankIndex('nguyen_anh') ? 2 : 1)
+    ? rankIndex(user2.cultivation_rank) >= rankIndex('nguyen_anh')
+      ? 2
+      : 1
     : 1;
   const slotsLeft = maxNhan - equippedSlugs.length;
   const guideLine =
@@ -378,7 +385,10 @@ const TAB_META: Record<Tab, { emoji: string; label: string }> = {
   nhan: { emoji: '💍', label: 'Nhẫn' },
 };
 
-function buildTabRow(active: Tab, userId: string): ActionRowBuilder<MessageActionRowComponentBuilder> {
+function buildTabRow(
+  active: Tab,
+  userId: string,
+): ActionRowBuilder<MessageActionRowComponentBuilder> {
   // 5 tabs exactly fits Discord's 5-buttons-per-row limit.
   const tabs: Tab[] = ['overview', 'cong_phap', 'weapon', 'phap_khi', 'nhan'];
   return new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
@@ -415,6 +425,50 @@ function buildSelectRow(
   return new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(select);
 }
 
+/**
+ * Render the active tab end-to-end: embed + tab row + (if item tab) paginated
+ * select row + (if >25 items) nav row. Centralized so the 3 collector
+ * branches (tab-switch / page-nav / equip) share one rendering path.
+ *
+ * pageState is mutated to clamp out-of-bounds page indices (e.g. after equip
+ * shrinks a list or after a tab switch).
+ */
+function renderActiveTab(
+  activeTab: Tab,
+  userId: string,
+  displayName: string,
+  pageState: Record<EquipKind, number>,
+): { embed: EmbedBuilder; rows: ActionRowBuilder<MessageActionRowComponentBuilder>[] } {
+  const rows: ActionRowBuilder<MessageActionRowComponentBuilder>[] = [
+    buildTabRow(activeTab, userId),
+  ];
+
+  if (activeTab === 'overview') {
+    return { embed: buildOverviewEmbed(userId, displayName), rows };
+  }
+
+  const kind: EquipKind = activeTab;
+  const built =
+    kind === 'cong_phap'
+      ? buildCongPhapEmbed(userId)
+      : kind === 'weapon'
+        ? buildWeaponEmbed(userId)
+        : kind === 'phap_khi'
+          ? buildPhapKhiEmbed(userId)
+          : buildNhanEmbed(userId);
+
+  const { slice, pageIdx, totalPages } = pageOf(built.options, pageState[kind]);
+  pageState[kind] = pageIdx;
+
+  const selectRow = buildSelectRow(kind, userId, slice);
+  if (selectRow) rows.push(selectRow);
+
+  const navRow = buildPageNavRow(`inv:page:${kind}:${userId}`, pageIdx, totalPages);
+  if (navRow) rows.push(navRow);
+
+  return { embed: built.embed, rows };
+}
+
 export const data = new SlashCommandBuilder()
   .setName('inventory')
   .setDescription('Túi đồ — currency, công pháp, vũ khí (tab + select-menu equip)')
@@ -436,13 +490,17 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const displayName = member?.displayName ?? interaction.user.username;
 
   let activeTab: Tab = 'overview';
-  const initialComponents: ActionRowBuilder<MessageActionRowComponentBuilder>[] = [
-    buildTabRow(activeTab, userId),
-  ];
+  const pageState: Record<EquipKind, number> = {
+    cong_phap: 0,
+    weapon: 0,
+    phap_khi: 0,
+    nhan: 0,
+  };
 
+  const initial = renderActiveTab(activeTab, userId, displayName, pageState);
   const msg = (await interaction.reply({
-    embeds: [buildOverviewEmbed(userId, displayName)],
-    components: initialComponents,
+    embeds: [initial.embed],
+    components: initial.rows,
     ephemeral: true,
     fetchReply: true,
   })) as Message;
@@ -456,7 +514,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     try {
       const parts = cmp.customId.split(':');
 
-      // Tab switch
+      // Tab switch — reset page index for the new tab so the user lands on page 1.
       if (parts[1] === 'tab' && cmp.componentType === ComponentType.Button) {
         const next = parts[2] as Tab;
         if (!(next in TAB_META)) {
@@ -464,31 +522,28 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           return;
         }
         activeTab = next;
-        if (next === 'overview') {
-          await cmp.update({
-            embeds: [buildOverviewEmbed(userId, displayName)],
-            components: [buildTabRow(activeTab, userId)],
-          });
-          return;
-        }
-        const built =
-          next === 'cong_phap'
-            ? buildCongPhapEmbed(userId)
-            : next === 'weapon'
-              ? buildWeaponEmbed(userId)
-              : next === 'phap_khi'
-                ? buildPhapKhiEmbed(userId)
-                : buildNhanEmbed(userId);
-        const rows: ActionRowBuilder<MessageActionRowComponentBuilder>[] = [
-          buildTabRow(activeTab, userId),
-        ];
-        const selectRow = buildSelectRow(next, userId, built.options);
-        if (selectRow) rows.push(selectRow);
-        await cmp.update({ embeds: [built.embed], components: rows });
+        if (next !== 'overview') pageState[next] = 0;
+        const r = renderActiveTab(activeTab, userId, displayName, pageState);
+        await cmp.update({ embeds: [r.embed], components: r.rows });
         return;
       }
 
-      // Equip select-menu
+      // Page nav (◀ prev / ▶ next). renderActiveTab clamps out-of-bounds.
+      if (parts[1] === 'page' && cmp.componentType === ComponentType.Button) {
+        const kind = parts[2] as EquipKind;
+        const dir = parts[3];
+        if (!(kind in pageState)) {
+          await cmp.deferUpdate();
+          return;
+        }
+        if (dir === 'next') pageState[kind] += 1;
+        else if (dir === 'prev') pageState[kind] -= 1;
+        const r = renderActiveTab(activeTab, userId, displayName, pageState);
+        await cmp.update({ embeds: [r.embed], components: r.rows });
+        return;
+      }
+
+      // Equip select-menu — preserve current page so user stays where they were.
       if (parts[1] === 'equip' && cmp.componentType === ComponentType.StringSelect) {
         const kind = parts[2] as EquipKind;
         const slug = cmp.values[0];
@@ -550,20 +605,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           const { checkEquipBothQuest } = await import('../modules/quests/daily-quest.js');
           void checkEquipBothQuest(userId);
         }
-        const built =
-          kind === 'cong_phap'
-            ? buildCongPhapEmbed(userId)
-            : kind === 'weapon'
-              ? buildWeaponEmbed(userId)
-              : kind === 'phap_khi'
-                ? buildPhapKhiEmbed(userId)
-                : buildNhanEmbed(userId);
-        const rows: ActionRowBuilder<MessageActionRowComponentBuilder>[] = [
-          buildTabRow(activeTab, userId),
-        ];
-        const selectRow = buildSelectRow(kind, userId, built.options);
-        if (selectRow) rows.push(selectRow);
-        await cmp.update({ embeds: [built.embed], components: rows });
+        const r = renderActiveTab(activeTab, userId, displayName, pageState);
+        await cmp.update({ embeds: [r.embed], components: r.rows });
       }
     } catch (err) {
       logger.error({ err, userId, customId: cmp.customId }, 'inventory: handler failed');
