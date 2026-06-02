@@ -528,10 +528,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         return;
       }
 
-      // Page nav (◀ prev / ▶ next). renderActiveTab clamps out-of-bounds.
+      // Page nav. customId = `inv:page:<kind>:<userId>:<dir>` → dir at parts[4],
+      // not parts[3] (that's the userId). renderActiveTab clamps out-of-bounds.
       if (parts[1] === 'page' && cmp.componentType === ComponentType.Button) {
         const kind = parts[2] as EquipKind;
-        const dir = parts[3];
+        const dir = parts[4];
         if (!(kind in pageState)) {
           await cmp.deferUpdate();
           return;

@@ -509,10 +509,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         return;
       }
 
-      // Page nav (◀ prev / ▶ next). buildComponents clamps out-of-bounds.
+      // Page nav. customId = `shop:page:<tab>:<userId>:<dir>` → dir at parts[4],
+      // not parts[3] (that's the userId). buildComponents clamps out-of-bounds.
       if (parts[1] === 'page') {
         const tab = parts[2] as Tab;
-        const dir = parts[3];
+        const dir = parts[4];
         if (!(tab in TAB_META)) {
           await cmp.deferUpdate();
           return;
