@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { type IncomingMessage, type Server, type ServerResponse, createServer } from 'node:http';
-import type { Client } from 'discord.js';
+import { ChannelType, type Client, type TextChannel } from 'discord.js';
+import { canonicalChannelName } from '../config/channels.js';
 import { env } from '../config/env.js';
 import { getStore } from '../db/index.js';
 import type { ArenaOutcome, ArenaSession } from '../db/types.js';
@@ -22,6 +23,7 @@ import { logger } from './logger.js';
  */
 
 let server: Server | null = null;
+let botClient: Client | null = null;   // dùng cho /api/agent/* (Lucy điều khiển Aki)
 
 function buildHealthPayload(client: Client | null): { status: number; body: string } {
   const ready = client?.isReady() ?? false;
@@ -63,6 +65,7 @@ export function startHealthServer(port: number, client: Client): void {
     logger.warn('health: already started, skipping');
     return;
   }
+  botClient = client;
   server = createServer((req, res) => {
     if (req.url === '/health') {
       const { status, body } = buildHealthPayload(client);
@@ -76,6 +79,14 @@ export function startHealthServer(port: number, client: Client): void {
     }
     if (req.url === '/api/arena/result' && req.method === 'POST') {
       void handleArenaResultApi(req, res);
+      return;
+    }
+    if (req.url === '/api/agent/post' && req.method === 'POST') {
+      void handleAgentPost(req, res);
+      return;
+    }
+    if (req.url === '/api/agent/channel' && req.method === 'POST') {
+      void handleAgentChannel(req, res);
       return;
     }
     res.writeHead(404, { 'content-type': 'text/plain' });
@@ -321,9 +332,131 @@ async function handleArenaResultApi(req: IncomingMessage, res: ServerResponse): 
   }
 }
 
+/**
+ * Lucy agent control API — POST /api/agent/post + /api/agent/channel.
+ * HMAC header: X-Lucy-Signature: sha256=<hex over raw body>, secret env.AGENT_HMAC_SECRET.
+ * Cho Lucy (hub) ra lệnh Aki: đẩy báo cáo vào kênh / tạo kênh-thread. Empty secret = 503.
+ */
+async function readAgentBody(req: IncomingMessage, res: ServerResponse): Promise<Buffer | null> {
+  const secret = env.AGENT_HMAC_SECRET;
+  if (!secret) {
+    res.writeHead(503, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: 'agent api disabled: AGENT_HMAC_SECRET not set' }));
+    return null;
+  }
+  const chunks: Buffer[] = [];
+  for await (const c of req) {
+    chunks.push(c as Buffer);
+    if (Buffer.concat(chunks).length > 32 * 1024) {
+      res.writeHead(413, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'body too large' }));
+      return null;
+    }
+  }
+  const rawBody = Buffer.concat(chunks);
+  const sig = (req.headers['x-lucy-signature'] as string | undefined) ?? '';
+  if (!verifyBody(rawBody, sig, secret)) {
+    res.writeHead(401, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: 'invalid signature' }));
+    return null;
+  }
+  return rawBody;
+}
+
+/** Tìm kênh trong guild theo ID trước, rồi theo tên (đã chuẩn hoá bỏ emoji). */
+function resolveChannel(idOrName: string): TextChannel | null {
+  const guild = botClient?.guilds.cache.get(env.DISCORD_GUILD_ID);
+  if (!guild) return null;
+  const byId = guild.channels.cache.get(idOrName);
+  if (byId?.type === ChannelType.GuildText) return byId as TextChannel;
+  const q = canonicalChannelName(idOrName);
+  for (const ch of guild.channels.cache.values()) {
+    if (ch.type === ChannelType.GuildText && canonicalChannelName(ch.name) === q) return ch as TextChannel;
+  }
+  return null;
+}
+
+async function handleAgentPost(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  try {
+    const body = await readAgentBody(req, res);
+    if (!body) return;
+    const json = JSON.parse(body.toString('utf-8')) as { channel?: unknown; text?: unknown };
+    if (typeof json.channel !== 'string' || typeof json.text !== 'string' || !json.text.trim()) {
+      res.writeHead(400, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'cần channel + text' }));
+      return;
+    }
+    const ch = resolveChannel(json.channel);
+    if (!ch) {
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'không tìm thấy kênh' }));
+      return;
+    }
+    // Discord giới hạn 2000 ký tự; cắt an toàn. allowedMentions parse:[] -> không ping nhầm.
+    const sent = await ch.send({ content: json.text.slice(0, 1900), allowedMentions: { parse: [] } });
+    logger.info({ channel: ch.id }, '/api/agent/post: Lucy đẩy báo cáo qua Aki');
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, channel_id: ch.id, message_id: sent.id }));
+  } catch (err) {
+    logger.error({ err }, '/api/agent/post: handler error');
+    res.writeHead(500, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: 'internal' }));
+  }
+}
+
+async function handleAgentChannel(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  try {
+    const body = await readAgentBody(req, res);
+    if (!body) return;
+    const json = JSON.parse(body.toString('utf-8')) as { name?: unknown; type?: unknown; parent?: unknown; message?: unknown };
+    if (typeof json.name !== 'string' || !json.name.trim()) {
+      res.writeHead(400, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'cần name' }));
+      return;
+    }
+    const guild = botClient?.guilds.cache.get(env.DISCORD_GUILD_ID);
+    if (!guild) {
+      res.writeHead(503, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'guild chưa sẵn sàng' }));
+      return;
+    }
+    const name = json.name.slice(0, 90);
+    if (json.type === 'thread') {
+      const parent = typeof json.parent === 'string' ? resolveChannel(json.parent) : null;
+      if (!parent) {
+        res.writeHead(400, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: 'thread cần parent (kênh text hợp lệ)' }));
+        return;
+      }
+      let threadId: string;
+      if (typeof json.message === 'string' && json.message.trim()) {
+        const starter = await parent.send({ content: json.message.slice(0, 1900), allowedMentions: { parse: [] } });
+        const thread = await starter.startThread({ name, autoArchiveDuration: 10080 });
+        threadId = thread.id;
+      } else {
+        const thread = await parent.threads.create({ name, autoArchiveDuration: 10080, type: ChannelType.PublicThread });
+        threadId = thread.id;
+      }
+      logger.info({ parent: parent.id, thread: threadId }, '/api/agent/channel: Lucy tạo thread qua Aki');
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, thread_id: threadId }));
+      return;
+    }
+    const created = await guild.channels.create({ name, type: ChannelType.GuildText, reason: 'api/agent: Lucy tạo kênh' });
+    logger.info({ channel: created.id }, '/api/agent/channel: Lucy tạo kênh qua Aki');
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, channel_id: created.id }));
+  } catch (err) {
+    logger.error({ err }, '/api/agent/channel: handler error');
+    res.writeHead(500, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: 'internal' }));
+  }
+}
+
 export function stopHealthServer(): void {
   if (!server) return;
   server.close();
   server = null;
+  botClient = null;
   logger.info('health: stopped');
 }
