@@ -84,6 +84,13 @@ const envSchema = z.object({
    * side doesn't compromise both. Empty disables the endpoint with 503.
    */
   ARENA_RESULT_SECRET: z.string().default(''),
+
+  // --- Lucy agent control API (Lucy hub điều khiển Aki) ---
+  /**
+   * HMAC secret cho POST /api/agent/* (Lucy → Aki: post báo cáo vào kênh,
+   * tạo kênh/thread). Empty = endpoint tắt (503). Chia sẻ với Lucy hub.
+   */
+  AGENT_HMAC_SECRET: z.string().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;
