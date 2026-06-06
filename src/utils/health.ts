@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { type IncomingMessage, type Server, type ServerResponse, createServer } from 'node:http';
-import { ChannelType, type Client, type TextChannel } from 'discord.js';
+import { ChannelType, type Client, type TextChannel, type ThreadChannel } from 'discord.js';
 import { canonicalChannelName } from '../config/channels.js';
 import { env } from '../config/env.js';
 import { getStore } from '../db/index.js';
@@ -363,12 +363,20 @@ async function readAgentBody(req: IncomingMessage, res: ServerResponse): Promise
   return rawBody;
 }
 
-/** Tìm kênh trong guild theo ID trước, rồi theo tên (đã chuẩn hoá bỏ emoji). */
-function resolveChannel(idOrName: string): TextChannel | null {
+/** Tìm kênh/thread gửi được: theo ID (kể cả thread, fetch nếu chưa cache) trước, rồi theo tên text. */
+async function resolveChannel(idOrName: string): Promise<TextChannel | ThreadChannel | null> {
   const guild = botClient?.guilds.cache.get(env.DISCORD_GUILD_ID);
   if (!guild) return null;
-  const byId = guild.channels.cache.get(idOrName);
-  if (byId?.type === ChannelType.GuildText) return byId as TextChannel;
+  // Theo ID (text hoặc thread) — fetch từ API nếu chưa có trong cache.
+  let byId = guild.channels.cache.get(idOrName) ?? null;
+  if (!byId) {
+    try { byId = await guild.channels.fetch(idOrName); } catch { byId = null; }
+  }
+  if (byId) {
+    if (byId.type === ChannelType.GuildText) return byId as TextChannel;
+    if (byId.isThread()) return byId as ThreadChannel;
+  }
+  // Theo tên (chỉ text channel, đã chuẩn hoá bỏ emoji).
   const q = canonicalChannelName(idOrName);
   for (const ch of guild.channels.cache.values()) {
     if (ch.type === ChannelType.GuildText && canonicalChannelName(ch.name) === q) return ch as TextChannel;
@@ -386,7 +394,7 @@ async function handleAgentPost(req: IncomingMessage, res: ServerResponse): Promi
       res.end(JSON.stringify({ error: 'cần channel + text' }));
       return;
     }
-    const ch = resolveChannel(json.channel);
+    const ch = await resolveChannel(json.channel);
     if (!ch) {
       res.writeHead(404, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ error: 'không tìm thấy kênh' }));
@@ -422,7 +430,8 @@ async function handleAgentChannel(req: IncomingMessage, res: ServerResponse): Pr
     }
     const name = json.name.slice(0, 90);
     if (json.type === 'thread') {
-      const parent = typeof json.parent === 'string' ? resolveChannel(json.parent) : null;
+      const parentCh = typeof json.parent === 'string' ? await resolveChannel(json.parent) : null;
+      const parent = parentCh && parentCh.type === ChannelType.GuildText ? (parentCh as TextChannel) : null;
       if (!parent) {
         res.writeHead(400, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ error: 'thread cần parent (kênh text hợp lệ)' }));
