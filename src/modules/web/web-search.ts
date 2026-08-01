@@ -90,7 +90,24 @@ export async function searchWeb(query: string): Promise<WebSearchResult | null> 
   }
 }
 
-const WEB_INTENT_PROMPT = [
+/**
+ * Today's date, Vietnam time.
+ *
+ * Without this the model dates its own search queries from its training
+ * cutoff. On 2026-08-01 a member asked Aki to compare the strongest
+ * current models; she searched "best AI models 2025", got last year's
+ * results, and presented them as current. His reply was "cái đéo mà bịa à".
+ */
+export function todayInVietnam(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(now);
+}
+
+const WEB_INTENT_PROMPT_BASE = [
   'Bạn quyết định xem câu hỏi có CẦN TRA CỨU INTERNET hay không.',
   '',
   'Trả về DUY NHẤT JSON: {"needsWeb": true/false, "query": "câu truy vấn tìm kiếm hoặc null"}',
@@ -101,8 +118,14 @@ const WEB_INTENT_PROMPT = [
   'không cần số liệu mới, hoặc hỏi về thành viên trong server.',
   '',
   'query nên viết NGẮN GỌN bằng tiếng Anh nếu là chủ đề kỹ thuật (kết quả tốt hơn).',
+  'TUYỆT ĐỐI KHÔNG tự thêm năm vào query theo trí nhớ của bạn — trí nhớ đó đã cũ.',
+  'Nếu câu hỏi ngụ ý "mới nhất/hiện nay", dùng đúng năm hôm nay ghi ở trên.',
   'Chỉ in JSON.',
 ].join('\n');
+
+function webIntentPrompt(): string {
+  return `HÔM NAY LÀ ${todayInVietnam()} (múi giờ Việt Nam).\n\n${WEB_INTENT_PROMPT_BASE}`;
+}
 
 export interface WebIntent {
   needsWeb: boolean;
@@ -134,7 +157,7 @@ export function parseWebIntent(raw: string): WebIntent {
 export async function detectWebIntent(question: string): Promise<WebIntent> {
   try {
     const result = await llm.complete('aki-triage', {
-      systemPrompt: WEB_INTENT_PROMPT,
+      systemPrompt: webIntentPrompt(),
       userPrompt: question,
       maxOutputTokens: 600,
       temperature: 0,

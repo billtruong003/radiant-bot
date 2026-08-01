@@ -6,6 +6,7 @@ import { sanitizeForLlmBody, sanitizeForLlmPrompt } from '../../utils/sanitize.j
 import { llm } from '../llm/index.js';
 import type { LlmFilterStage, TaskId } from '../llm/types.js';
 import { AKI_SYSTEM_PROMPT } from './persona.js';
+import { todayInVietnam } from '../web/web-search.js';
 
 /**
  * Aki's answer engine.
@@ -353,7 +354,13 @@ export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
 
   // Append standing to the system prompt so identity is a rule, not a
   // detail in the conversation.
-  const baseSystem = input.systemPromptOverride ?? AKI_SYSTEM_PROMPT;
+  // The model has no clock. Left to itself it answers "the newest model
+  // is X" from its training cutoff and states it as fact — which is how
+  // she got called out for bịa on 2026-08-01. Anchor it every call.
+  const dated = `HÔM NAY LÀ ${todayInVietnam()} (giờ Việt Nam). Kiến thức tự nhớ của bạn đã CŨ hơn mốc này — với bất cứ thứ gì thay đổi theo thời gian (phiên bản, model AI, giá, tin tức), chỉ trả lời dựa trên dữ liệu tra cứu được cấp; không có thì nói thẳng là không rõ.
+
+`;
+  const baseSystem = dated + (input.systemPromptOverride ?? AKI_SYSTEM_PROMPT);
   // askerStanding arrives pre-sanitised from describeAsker(). Re-running
   // sanitizeForLlmPrompt here would truncate it to 40 chars (see the note
   // in standing.ts) and strip the very fact we need Aki to read.
