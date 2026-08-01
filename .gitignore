@@ -39,3 +39,6 @@ yarn-debug.log*
 yarn-error.log*
 .pm2/
 .lh/
+
+# vitest scratch dirs (store/WAL fixtures)
+tests/.tmp/

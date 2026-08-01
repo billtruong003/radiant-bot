@@ -33,23 +33,85 @@ const envSchema = z.object({
   /** Health-check HTTP port. 0 disables. Default 3030 for prod, 0 for dev. */
   HEALTH_PORT: z.coerce.number().int().nonnegative().default(0),
 
-  // --- Aki AI helper (Phase 10) ---
-  /** xAI API key. Empty disables /ask command. Format: xai-... */
+  // --- Aki AI helper (Phase 10; moved to free-tier models in Phase 15) ---
+  /**
+   * @deprecated Phase 15 — xAI Grok was cut. Nothing reads this any more;
+   * Aki answers via the free-model chains in `llm/router.ts`. Kept only so
+   * an existing .env with the key still parses. Safe to delete once every
+   * deployment has dropped the line.
+   */
   XAI_API_KEY: z.string().default(''),
-  /** Model ID. Default: grok-4-1-fast-reasoning ($0.20/$0.50/$0.05 cached per 1M). */
-  AKI_MODEL: z.string().default('grok-4-1-fast-reasoning'),
-  /** Max output tokens per Aki call. Keep tight for cost — Discord 2000 char limit caps usefulness past ~600 tokens anyway. */
-  AKI_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(600),
-  /** Server-wide cap on Aki cost per VN-calendar-day. Above this, /ask refuses. */
+  /**
+   * Max output tokens per Aki answer. Raised from 600 in Phase 15: models
+   * are free now, so the budget is sized for usefulness (long
+   * explanations, code blocks — replies get chunked across messages past
+   * Discord's 2000-char limit) instead of for price. Reasoning models on
+   * the hard chain also spend part of this on hidden chain-of-thought.
+   */
+  AKI_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(2000),
+  /**
+   * Server-wide daily cost cap. Effectively inert since Phase 15 (every
+   * call costs 0), kept so the admin/analytics surfaces keep working and
+   * a paid model can be re-introduced safely.
+   */
   AKI_DAILY_BUDGET_USD: z.coerce.number().nonnegative().default(2.0),
 
   /** Google Gemini API key (LLM router fallback provider). Empty = skip in router fallback chain. */
   GEMINI_API_KEY: z.string().default(''),
-  /** Legacy: Gemini model for filter. Now per-task in `llm/router.ts`. Kept for Gemini-only single-key mode. */
-  AKI_FILTER_MODEL: z.string().default('gemini-2.0-flash'),
 
   /** Groq API key (LLM router primary provider). Free tier 30 RPM / 14.4K RPD for 8B. Empty = router falls back to Gemini. */
   GROQ_API_KEY: z.string().default(''),
+
+  /** OpenCode Zen API key (LLM router extra free-model provider, OpenAI-compat). Empty = skip in router fallback chain. */
+  OPENCODE_ZEN_API_KEY: z.string().default(''),
+
+  // --- Phase 15: member knowledge base ---
+  /**
+   * Infer per-member character sketches from recent public chat and post
+   * a digest to #bot-log. Off by default — it profiles real people, so it
+   * should be an explicit opt-in per deployment.
+   */
+  MEMBER_PROFILING_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
+  /**
+   * Cron for the learn-and-infer run, VN timezone. Daily at 09:00 per
+   * Bill's call — the knowledge base should track how people actually
+   * change. Activity ANALYTICS is the weekly job (see
+   * GROUP_ANALYTICS_CRON); this one is the daily learning pass.
+   */
+  MEMBER_PROFILING_CRON: z.string().default('0 9 * * *'),
+  /**
+   * Weekly activity analytics digest (who is active, who went quiet, how
+   * the group is trending). Sunday 20:00 VN — lands with the weekly
+   * leaderboard so the sect leaders get one review moment, not two.
+   */
+  GROUP_ANALYTICS_CRON: z.string().default('0 20 * * 0'),
+
+  // --- Phase 16: searchable message archive ---
+  /**
+   * Store message bodies in a SQLite archive so staff can search "what did
+   * X say about Y". Off by default — this is chat surveillance of real
+   * people and must be an explicit choice per deployment.
+   */
+  ARCHIVE_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
+  /**
+   * Days to keep archived messages. Rows older than this are deleted
+   * nightly. Keeping chat forever is a liability, not a feature.
+   */
+  ARCHIVE_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
+
+  // --- Phase 18: web lookup ---
+  /**
+   * Tavily API key. Empty = Aki has no internet access and simply never
+   * runs a web lookup (she still answers from training data + server
+   * context). Shared with the Lucy stack.
+   */
+  TAVILY_API_KEY: z.string().default(''),
 
   // --- Phase 12 Lát 9 — docs threads pipeline ---
   /**

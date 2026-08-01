@@ -1,6 +1,7 @@
 import { logger } from '../../utils/logger.js';
 import { geminiProvider } from './providers/gemini.js';
 import { groqProvider } from './providers/groq.js';
+import { opencodeZenProvider } from './providers/opencode-zen.js';
 import {
   type CompletionResult,
   type LlmProvider,
@@ -37,59 +38,139 @@ interface Route {
 }
 
 const TASK_ROUTES: Record<TaskId, readonly Route[]> = {
-  // FILTER — classification + VN sass. Live test (2026-05-14): Llama 3.1
-  // 8B misclassified "Aki ở đâu?" as trash → incoherent improvisation.
-  // 2026 best picks for VN classification on Groq free tier:
-  //   - Qwen 3 32B (Alibaba) — strongest multilingual for Asian langs,
-  //     60 RPM / 1K RPD — best primary
-  //   - Llama 3.3 70B Versatile — solid backup quality
-  //   - Llama 4 Scout 17B-16E (MoE) — newer arch, 30K TPM
-  //   - Llama 3.1 8B Instant — fast path (14.4K RPD) when above exhausted
-  // Then Gemini chain. Gemini 2.0 Flash dropped — superseded by 2.5/3.x.
+  // FILTER — decides whether a member's question is worth answering at all.
+  // 2026-08-01: moved onto the same DS/Ling/MiMo tier as the answer path.
+  // A weak model here is expensive: on 2026-07-29 it rejected the Chưởng
+  // Môn's own moderation report as junk.
+  //
+  // Two Gemini models at the tail, unlike the other Aki chains: the filter
+  // runs on EVERY question, so it exhausts free quota first. Each Gemini
+  // model has its own RPM/RPD bucket, so the second entry doubles the
+  // emergency headroom for days when OpenCode Zen is down.
   'aki-filter': [
-    { provider: 'groq', model: 'qwen/qwen3-32b' },
-    { provider: 'groq', model: 'llama-3.3-70b-versatile' },
-    { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
-    { provider: 'groq', model: 'llama-3.1-8b-instant' },
+    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
+    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
     { provider: 'gemini', model: 'gemini-2.5-flash' },
-    { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
     { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
   ],
-  // NUDGE — short "kiềm chế lời" reminders. 8B is fine (no classification),
-  // Llama 4 Scout as quality bump if 8B throttled.
+  // NUDGE — short "kiềm chế lời" reminders. Same tier: the nudge is aimed
+  // at a real member being told off, so tone precision matters.
   'aki-nudge': [
-    { provider: 'groq', model: 'llama-3.1-8b-instant' },
-    { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
-    { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
+    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
+    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
+    { provider: 'gemini', model: 'gemini-2.5-flash' },
+  ],
+  // ── Phase 15: Aki's answer engine, fully free-tier ──
+  //
+  // TRIAGE — one cheap call that decides easy vs hard. Ling leads: it
+  // emits hidden reasoning but the output here is one word, which the
+  // 600-token budget absorbs.
+  //
+  // Bill's call (2026-08-01): Aki's answer path runs on DS V4 / Ling / MiMo
+  // ONLY. The weaker free models (laguna, north-mini, nemotron) and the
+  // Groq llamas were dropped — members were visibly noticing the drop in
+  // quality ("Dm ngu vl", "Não cá vàng 3s", "Hiểu ngữ cảnh ko đc ổn lắm").
+  // gemini-2.5-flash stays as the LAST hop only: it is a strong model, not
+  // a weak lane, and without any tail a single OpenCode outage would leave
+  // Aki completely mute.
+  'aki-triage': [
+    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
+    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
+    { provider: 'gemini', model: 'gemini-2.5-flash' },
+  ],
+  // EASY — chit-chat, short factual answers, persona banter. MiMo first
+  // (fast, and the only free vision model here, so behaviour stays
+  // consistent between the text and image paths).
+  'aki-answer-easy': [
+    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
+    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
+    { provider: 'opencode-zen', model: 'deepseek-v4-flash-free' },
+    { provider: 'gemini', model: 'gemini-2.5-flash' },
+  ],
+  // HARD — code, debugging, multi-step explanation.
+  //
+  // DS V4 now LEADS the hard chain (was behind llama-70b). It previously
+  // returned empty because 2000 tokens all went to hidden reasoning — so
+  // `answerTokenBudget()` was raised to 3000 for this chain specifically.
+  // `tryRoute` still treats an empty completion as a failure, so a stall
+  // costs one hop rather than a blank reply.
+  'aki-answer-hard': [
+    { provider: 'opencode-zen', model: 'deepseek-v4-flash-free' },
+    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
+    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
+    { provider: 'gemini', model: 'gemini-2.5-flash' },
+  ],
+  // VISION — must stay on models that accept image parts. MiMo v2.5 is
+  // the free vision model; Gemini closes the chain. Never add a text-only
+  // model here: it would silently answer without seeing the image.
+  'aki-answer-vision': [
+    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
+    { provider: 'gemini', model: 'gemini-2.5-flash' },
+  ],
+  // MEMBER-PROFILE + GROUP-ANALYTICS — Phase 15 knowledge base.
+  //
+  // Background jobs, same DS/Ling/MiMo tier (2026-08-01). MiMo is
+  // non-reasoning and returns JSON reliably; Ling backs it up. Gemini is
+  // the tail so an OpenCode outage still produces a report.
+  //
+  // Reasoning-heavy free models are deliberately NOT here: they were
+  // observed spending the entire token budget on hidden chain-of-thought
+  // and returning empty, which for a JSON task means a parse failure.
+  'member-profile': [
+    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
+    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
+    { provider: 'gemini', model: 'gemini-2.5-flash' },
+  ],
+  'group-analytics': [
+    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
+    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
+    { provider: 'gemini', model: 'gemini-2.5-flash' },
   ],
   // DOC-VALIDATE — Phase 12 Lát 9 doc gatekeeper. Needs reliable JSON
   // output + strong VN reading comprehension. Llama 3.3 70B has the best
   // tradeoff (no reasoning overhead, supports JSON mode, strong VN).
+  // 2026-07-28: added 2 OpenCode Zen free models before Gemini — 600-token
+  // budget here tolerates their hidden-reasoning overhead fine (verified
+  // live). `north-mini-code-free` picked for its code/technical framing,
+  // matching this task's "doc gatekeeper" role.
   'doc-validate': [
     { provider: 'groq', model: 'llama-3.3-70b-versatile' },
     { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
+    { provider: 'opencode-zen', model: 'north-mini-code-free' },
+    { provider: 'opencode-zen', model: 'deepseek-v4-flash-free' },
     { provider: 'gemini', model: 'gemini-2.5-flash' },
     { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
   ],
   // DIVINE-JUDGMENT — Phase 12.4 Áp Chế Thiên Đạo. Same shape as
   // doc-validate (strict JSON, VN reasoning). Reuse the chain.
+  // 2026-07-28: added `nemotron-3-ultra-free` (heavy-reasoning free
+  // model — thematically apt for a "judgment" task, 600-token budget
+  // tolerates it) + `ling-3.0-flash-free` before Gemini.
   'divine-judgment': [
     { provider: 'groq', model: 'llama-3.3-70b-versatile' },
     { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
+    { provider: 'opencode-zen', model: 'nemotron-3-ultra-free' },
+    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
     { provider: 'gemini', model: 'gemini-2.5-flash' },
     { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
   ],
   // NARRATION — cultivation-themed prose. Llama 3.3 70B first because it
   // is non-reasoning (no `<think>` overhead, every token goes to prose)
-  // and gives strong VN xianxia output. Qwen 3 32B + gpt-oss-120b are
-  // reasoning models — kept in chain as fallback but they burn output
-  // budget on chain-of-thought even with `reasoning_format: 'hidden'`,
-  // which on 2026-05-14 caused empty/truncated narration in prod.
+  // and gives strong VN xianxia output. gpt-oss-120b is a reasoning
+  // model — kept in chain as fallback but it burns output budget on
+  // chain-of-thought even with `reasoning_format: 'hidden'`, which on
+  // 2026-05-14 caused empty/truncated narration in prod (only 400-token
+  // budget here). 2026-07-28: dropped `qwen/qwen3-32b` (Groq retired the
+  // model, was 404-ing every call). Deliberately did NOT replace it with
+  // one of the new OpenCode Zen reasoning models (north-mini/ling/
+  // nemotron all emit hidden reasoning first) — same failure mode as the
+  // 2026-05-14 incident. Added `laguna-s-2.1-free` instead: verified live
+  // to answer directly with no reasoning overhead, safe for this budget.
   narration: [
     { provider: 'groq', model: 'llama-3.3-70b-versatile' },
     { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
-    { provider: 'groq', model: 'qwen/qwen3-32b' },
     { provider: 'groq', model: 'openai/gpt-oss-120b' },
+    { provider: 'opencode-zen', model: 'laguna-s-2.1-free' },
     { provider: 'gemini', model: 'gemini-2.5-flash' },
     { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
     { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
@@ -99,6 +180,7 @@ const TASK_ROUTES: Record<TaskId, readonly Route[]> = {
 const PROVIDERS: Record<ProviderName, LlmProvider> = {
   groq: groqProvider,
   gemini: geminiProvider,
+  'opencode-zen': opencodeZenProvider,
 };
 
 /**
@@ -126,6 +208,8 @@ export interface RouterInput {
   maxOutputTokens?: number;
   temperature?: number;
   responseFormat?: 'text' | 'json';
+  /** Only meaningful on the 'aki-answer-vision' chain. */
+  imageUrl?: string;
 }
 
 export interface RouterResult extends CompletionResult {
@@ -143,14 +227,40 @@ async function tryRoute(
   if (isThrottled(route, now)) return null;
 
   try {
-    return await provider.complete({
+    const result = await provider.complete({
       systemPrompt: input.systemPrompt,
       userPrompt: input.userPrompt,
       model: route.model,
       maxOutputTokens: input.maxOutputTokens,
       temperature: input.temperature,
       responseFormat: input.responseFormat,
+      imageUrl: input.imageUrl,
     });
+
+    // An empty completion is a FAILURE, not a success — fall through to
+    // the next route instead of handing callers a blank answer.
+    //
+    // This is the dominant failure mode of reasoning models (DeepSeek V4
+    // Flash, Nemotron, north-mini, Ling): they spend the whole
+    // maxOutputTokens budget on hidden chain-of-thought and return
+    // content:'' with finish_reason:'stop'. Observed live 2026-07-28 —
+    // deepseek-v4-flash-free returned 0 chars for a code question even at
+    // a 2000-token budget. Without this guard the router reported success
+    // and Aki replied with nothing at all.
+    if (result.text.trim().length === 0) {
+      logger.warn(
+        {
+          provider: route.provider,
+          model: route.model,
+          tokensOut: result.tokensOut,
+          maxOutputTokens: input.maxOutputTokens,
+        },
+        'llm: route returned empty content (likely reasoning ate the budget), trying next',
+      );
+      return null;
+    }
+
+    return result;
   } catch (err) {
     if (err instanceof LlmRateLimitError) {
       throttleFor(route, err.retryAfterMs ?? 30_000, now);

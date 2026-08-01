@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * Router unit tests. Mocks `src/modules/llm/providers/groq.ts` and
- * `src/modules/llm/providers/gemini.ts` via vi.doMock + dynamic
+ * Router unit tests. Mocks `src/modules/llm/providers/groq.ts`,
+ * `src/modules/llm/providers/gemini.ts`, and
+ * `src/modules/llm/providers/opencode-zen.ts` via vi.doMock + dynamic
  * re-import so we can drive both primary and fallback paths
  * deterministically without hitting real APIs.
  */
@@ -10,7 +11,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 type RouterModule = typeof import('../../src/modules/llm/router.js');
 
 interface ProviderStub {
-  name: 'groq' | 'gemini';
+  name: 'groq' | 'gemini' | 'opencode-zen';
   isEnabled: ReturnType<typeof vi.fn>;
   complete: ReturnType<typeof vi.fn>;
 }
@@ -18,6 +19,7 @@ interface ProviderStub {
 async function loadRouterWith(opts: {
   groq?: (types: typeof import('../../src/modules/llm/types.js')) => Partial<ProviderStub>;
   gemini?: (types: typeof import('../../src/modules/llm/types.js')) => Partial<ProviderStub>;
+  opencodeZen?: (types: typeof import('../../src/modules/llm/types.js')) => Partial<ProviderStub>;
 }): Promise<{
   router: RouterModule;
   types: typeof import('../../src/modules/llm/types.js');
@@ -31,8 +33,15 @@ async function loadRouterWith(opts: {
 
   const groqOverride = opts.groq?.(types) ?? {};
   const geminiOverride = opts.gemini?.(types) ?? {};
+  // Default OFF unlike groq/gemini: most existing tests predate opencode-zen
+  // and assert on a 2-provider (groq+gemini) chain. Tests that care about
+  // opencode-zen opt in explicitly via `opencodeZen: () => ({ isEnabled: ... })`.
+  const opencodeZenOverride = opts.opencodeZen?.(types) ?? { isEnabled: vi.fn().mockReturnValue(false) };
 
-  const makeStub = (name: 'groq' | 'gemini', override: Partial<ProviderStub>): ProviderStub => ({
+  const makeStub = (
+    name: 'groq' | 'gemini' | 'opencode-zen',
+    override: Partial<ProviderStub>,
+  ): ProviderStub => ({
     name,
     isEnabled: override.isEnabled ?? vi.fn().mockReturnValue(true),
     complete:
@@ -54,6 +63,9 @@ async function loadRouterWith(opts: {
   vi.doMock('../../src/modules/llm/providers/gemini.js', () => ({
     geminiProvider: makeStub('gemini', geminiOverride),
   }));
+  vi.doMock('../../src/modules/llm/providers/opencode-zen.js', () => ({
+    opencodeZenProvider: makeStub('opencode-zen', opencodeZenOverride),
+  }));
 
   const router = await import('../../src/modules/llm/router.js');
   return { router, types };
@@ -63,12 +75,15 @@ describe('LLM router', () => {
   afterEach(() => {
     vi.doUnmock('../../src/modules/llm/providers/groq.js');
     vi.doUnmock('../../src/modules/llm/providers/gemini.js');
+    vi.doUnmock('../../src/modules/llm/providers/opencode-zen.js');
     vi.restoreAllMocks();
   });
 
   describe('happy path', () => {
     it('uses primary provider when enabled and not throttled', async () => {
-      const { router } = await loadRouterWith({});
+      const { router } = await loadRouterWith({
+        opencodeZen: () => ({ isEnabled: vi.fn().mockReturnValue(true) }),
+      });
       router.__for_testing.throttledUntil.clear();
 
       const result = await router.complete('aki-filter', {
@@ -77,7 +92,7 @@ describe('LLM router', () => {
       });
 
       expect(result).not.toBeNull();
-      expect(result?.provider).toBe('groq');
+      expect(result?.provider).toBe('opencode-zen');
       expect(result?.routeIndex).toBe(0);
     });
 
@@ -103,9 +118,10 @@ describe('LLM router', () => {
   });
 
   describe('failover', () => {
-    it('falls back to gemini when groq throws LlmProviderError', async () => {
+    it('falls back to gemini when the primary throws LlmProviderError', async () => {
       const { router } = await loadRouterWith({
-        groq: (types) => ({
+        opencodeZen: (types) => ({
+          isEnabled: vi.fn().mockReturnValue(true),
           complete: vi.fn().mockRejectedValue(new types.LlmProviderError('boom')),
         }),
       });
@@ -118,7 +134,8 @@ describe('LLM router', () => {
 
     it('throttles route on 429 and uses fallback', async () => {
       const { router } = await loadRouterWith({
-        groq: (types) => ({
+        opencodeZen: (types) => ({
+          isEnabled: vi.fn().mockReturnValue(true),
           complete: vi.fn().mockRejectedValue(new types.LlmRateLimitError('429', 60_000)),
         }),
       });
@@ -126,23 +143,23 @@ describe('LLM router', () => {
 
       const result = await router.complete('aki-filter', { systemPrompt: 's', userPrompt: 'u' });
       expect(result?.provider).toBe('gemini');
-      // Throttle key is now `${provider}:${model}` — verify the route is marked.
-      const groqRoute = router.__for_testing.TASK_ROUTES['aki-filter'][0];
+      // Throttle key is `${provider}:${model}` — verify the route is marked.
+      const primary = router.__for_testing.TASK_ROUTES['aki-filter'][0];
       expect(
-        router.__for_testing.throttledUntil.has(`${groqRoute?.provider}:${groqRoute?.model}`),
+        router.__for_testing.throttledUntil.has(`${primary?.provider}:${primary?.model}`),
       ).toBe(true);
     });
 
-    it('skips all throttled groq routes and lands on gemini', async () => {
-      const groqComplete = vi.fn();
+    it('skips all throttled opencode-zen routes and lands on gemini', async () => {
+      const zenComplete = vi.fn();
       const { router } = await loadRouterWith({
-        groq: () => ({ complete: groqComplete }),
+        opencodeZen: () => ({ isEnabled: vi.fn().mockReturnValue(true), complete: zenComplete }),
       });
-      // aki-filter now has 2 groq routes (70B + 8B). Throttle both so
-      // the chain falls through to the first gemini route.
+      // aki-filter leads with 2 opencode-zen routes. Throttle both so the
+      // chain falls through to the first gemini route.
       const chain = router.__for_testing.TASK_ROUTES['aki-filter'];
       for (const route of chain) {
-        if (route.provider === 'groq') {
+        if (route.provider === 'opencode-zen') {
           router.__for_testing.throttledUntil.set(
             `${route.provider}:${route.model}`,
             Date.now() + 60_000,
@@ -152,13 +169,14 @@ describe('LLM router', () => {
 
       const result = await router.complete('aki-filter', { systemPrompt: 's', userPrompt: 'u' });
       expect(result?.provider).toBe('gemini');
-      expect(groqComplete).not.toHaveBeenCalled();
+      expect(zenComplete).not.toHaveBeenCalled();
     });
 
-    it('returns null when both providers disabled', async () => {
+    it('returns null when every provider is disabled', async () => {
       const { router } = await loadRouterWith({
         groq: () => ({ isEnabled: vi.fn().mockReturnValue(false) }),
         gemini: () => ({ isEnabled: vi.fn().mockReturnValue(false) }),
+        opencodeZen: () => ({ isEnabled: vi.fn().mockReturnValue(false) }),
       });
       router.__for_testing.throttledUntil.clear();
 
@@ -166,13 +184,17 @@ describe('LLM router', () => {
       expect(result).toBeNull();
     });
 
-    it('returns null when both providers fail', async () => {
+    it('returns null when every provider fails', async () => {
       const { router } = await loadRouterWith({
         groq: (types) => ({
           complete: vi.fn().mockRejectedValue(new types.LlmProviderError('groq down')),
         }),
         gemini: (types) => ({
           complete: vi.fn().mockRejectedValue(new types.LlmProviderError('gemini down')),
+        }),
+        opencodeZen: (types) => ({
+          isEnabled: vi.fn().mockReturnValue(true),
+          complete: vi.fn().mockRejectedValue(new types.LlmProviderError('zen down')),
         }),
       });
       router.__for_testing.throttledUntil.clear();
@@ -183,34 +205,56 @@ describe('LLM router', () => {
   });
 
   describe('task routes', () => {
-    it('aki-filter primary (index 0) = groq qwen3-32b (best VN classification)', async () => {
+    // Bill's call 2026-08-01: Aki's whole conversational path (filter,
+    // nudge, triage, answers) runs on DS V4 / Ling / MiMo only. The filter
+    // sits on this tier too because a weak filter rejected the Chưởng
+    // Môn's own moderation report as junk on 2026-07-29.
+    it('aki-filter primary (index 0) = opencode-zen mimo', async () => {
       const { router } = await loadRouterWith({});
       const chain = router.__for_testing.TASK_ROUTES['aki-filter'];
-      expect(chain[0]?.provider).toBe('groq');
-      expect(chain[0]?.model).toBe('qwen/qwen3-32b');
+      expect(chain[0]?.provider).toBe('opencode-zen');
+      expect(chain[0]?.model).toBe('mimo-v2.5-free');
     });
 
-    it('aki-filter chain has llama-3.3-70b + 8B + scout as groq fallbacks', async () => {
+    it('no weak free lane survives in any Aki conversational chain', async () => {
       const { router } = await loadRouterWith({});
-      const groqModels = router.__for_testing.TASK_ROUTES['aki-filter']
-        .filter((r) => r.provider === 'groq')
-        .map((r) => r.model);
-      expect(groqModels).toContain('llama-3.3-70b-versatile');
-      expect(groqModels).toContain('llama-3.1-8b-instant');
-      expect(groqModels).toContain('meta-llama/llama-4-scout-17b-16e-instruct');
+      const banned = [
+        'laguna-s-2.1-free',
+        'north-mini-code-free',
+        'nemotron-3-ultra-free',
+        'llama-3.1-8b-instant',
+        'llama-3.3-70b-versatile',
+        'meta-llama/llama-4-scout-17b-16e-instruct',
+      ];
+      const akiTasks = [
+        'aki-filter',
+        'aki-nudge',
+        'aki-triage',
+        'aki-answer-easy',
+        'aki-answer-hard',
+        'aki-answer-vision',
+      ] as const;
+      for (const task of akiTasks) {
+        const models = router.__for_testing.TASK_ROUTES[task].map((r) => r.model);
+        for (const bad of banned) {
+          expect(models, `${task} still routes to ${bad}`).not.toContain(bad);
+        }
+      }
     });
 
     it('narration primary (index 0) = Llama 3.3 70B (non-reasoning prose)', async () => {
       // Qwen 3 32B was primary briefly but emitted <think> chain-of-thought
       // even with reasoning_format=hidden, truncating prod narration on
       // 2026-05-14. Swapped to Llama 3.3 70B which has no reasoning step.
+      // 2026-07-28: Qwen 3 32B removed entirely — Groq retired the model
+      // (404 on every call). Not replaced with another reasoning model in
+      // this chain (same overhead risk that caused the 2026-05-14 bug).
       const { router } = await loadRouterWith({});
       const chain = router.__for_testing.TASK_ROUTES.narration;
       expect(chain[0]?.provider).toBe('groq');
       expect(chain[0]?.model).toBe('llama-3.3-70b-versatile');
-      // Qwen still in chain as a fallback for diversity.
       const allModels = chain.map((r) => r.model);
-      expect(allModels).toContain('qwen/qwen3-32b');
+      expect(allModels).not.toContain('qwen/qwen3-32b');
     });
 
     it('narration chain includes gpt-oss-120b (biggest model)', async () => {
@@ -219,10 +263,11 @@ describe('LLM router', () => {
       expect(models).toContain('openai/gpt-oss-120b');
     });
 
-    it('aki-nudge primary shares 8B model with filter (cost-light task)', async () => {
+    it('aki-nudge shares the same tier as the filter (tone precision matters)', async () => {
       const { router } = await loadRouterWith({});
       const chain = router.__for_testing.TASK_ROUTES['aki-nudge'];
-      expect(chain[0]?.model).toBe('llama-3.1-8b-instant');
+      expect(chain[0]?.provider).toBe('opencode-zen');
+      expect(chain[0]?.model).toBe('mimo-v2.5-free');
     });
 
     it('all tasks have at least one gemini fallback', async () => {
@@ -234,9 +279,14 @@ describe('LLM router', () => {
       }
     });
 
-    it('aki-filter has ≥4 routes (groq 70B+8B + multi-model gemini rotation)', async () => {
+    // The filter runs on every question, so it exhausts free quota first.
+    // Two Gemini entries at the tail = two independent RPM/RPD buckets.
+    it('aki-filter keeps 2 gemini tail routes for quota rotation', async () => {
       const { router } = await loadRouterWith({});
-      expect(router.__for_testing.TASK_ROUTES['aki-filter'].length).toBeGreaterThanOrEqual(4);
+      const gemini = router.__for_testing.TASK_ROUTES['aki-filter'].filter(
+        (r) => r.provider === 'gemini',
+      );
+      expect(gemini.length).toBeGreaterThanOrEqual(2);
     });
 
     it('narration prioritises 2.5-flash over flash-lite for prose quality', async () => {

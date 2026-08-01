@@ -20,13 +20,41 @@
  *     `LlmProvider` impl, no caller changes.
  */
 
-export type ProviderName = 'groq' | 'gemini';
+export type ProviderName = 'groq' | 'gemini' | 'opencode-zen';
+
+/**
+ * Where an Aki filter verdict came from: either a provider that actually
+ * ran, or one of the short-circuit outcomes.
+ *
+ * SINGLE SOURCE OF TRUTH. This union used to be hand-copied into six
+ * files (db/types.ts, aki/client.ts x2, aki/filter.ts, commands/ask.ts,
+ * npc/ask-runner.ts) — adding the 'opencode-zen' provider meant editing
+ * all six, which is exactly how the copies drift apart.
+ */
+export type LlmFilterStage = ProviderName | 'pre-filter' | 'fail-open' | 'disabled';
 
 /**
  * Logical tasks. Each maps to (primary provider+model, fallback +model)
  * in `router.ts`. Add a task here when introducing a new LLM feature.
  */
-export type TaskId = 'aki-filter' | 'aki-nudge' | 'narration' | 'doc-validate' | 'divine-judgment';
+export type TaskId =
+  | 'aki-filter'
+  | 'aki-nudge'
+  | 'narration'
+  | 'doc-validate'
+  | 'divine-judgment'
+  // Phase 15 — Aki's answer engine moved off paid xAI Grok onto free
+  // models. `aki-triage` classifies the question cheap/easy vs hard, then
+  // the answer goes to the matching chain. See modules/aki/client.ts.
+  | 'aki-triage'
+  | 'aki-answer-easy'
+  | 'aki-answer-hard'
+  // Vision: only routed to models that actually accept image parts.
+  | 'aki-answer-vision'
+  // Phase 15 — infers a member's character sketch from recent messages.
+  | 'member-profile'
+  // Phase 15 — weekly activity digest for the sect leaders.
+  | 'group-analytics';
 
 export interface CompletionInput {
   systemPrompt: string;
@@ -38,6 +66,13 @@ export interface CompletionInput {
   temperature?: number;
   /** When 'json', request strict JSON output (provider feature). */
   responseFormat?: 'text' | 'json';
+  /**
+   * Image URL for vision-capable models. Providers that can't do vision
+   * MUST ignore this rather than fail — the router only sends it down
+   * chains that are known to handle it, but a fallback hop could still
+   * land on a text-only model.
+   */
+  imageUrl?: string;
 }
 
 export interface CompletionResult {
