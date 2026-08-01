@@ -3,6 +3,7 @@ import { getBudgetStatus, isBudgetExhausted } from '../modules/aki/budget.js';
 import { askAki, isAkiEnabled, logRefusal } from '../modules/aki/client.js';
 import { runFilter } from '../modules/aki/filter.js';
 import { tryAcquireAskQuota } from '../modules/aki/rate-limit.js';
+import type { LlmFilterStage } from '../modules/llm/types.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -171,7 +172,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   //    can't see attachments, and an image with a one-word caption
   //    would otherwise get rejected as "xàm").
   let filterMeta: {
-    stage: 'groq' | 'gemini' | 'pre-filter' | 'fail-open' | 'disabled';
+    stage: LlmFilterStage;
     tokensIn: number;
     tokensOut: number;
     costUsd: number;

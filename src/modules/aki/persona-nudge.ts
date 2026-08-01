@@ -97,25 +97,3 @@ function sanitizeNameForPrompt(name: string): string {
       .slice(0, 40) || 'đệ tử'
   );
 }
-
-/**
- * Static fallback used when the LLM router returns null (every provider
- * down). One canned reminder per (severity, respectfulTone) cell — kept
- * minimal so prod fallback feels intentional, not error-shaped.
- */
-export function fallbackNudgeText(
-  severity: NudgeSeverity,
-  respectfulTone: boolean,
-  userDisplayName: string,
-): string {
-  if (respectfulTone) {
-    if (severity === 'gentle') {
-      return `${userDisplayName} ơi đệ tử mạn phép nhắc — lời lẽ kiềm chế chút nha ٩(◕‿◕)۶`;
-    }
-    return `${userDisplayName} ơi Aki xin lỗi nhưng cần nhắc — câu chữ vừa rồi hơi gắt, mong người dịu nha (¬_¬)`;
-  }
-  if (severity === 'gentle') {
-    return `Đạo hữu ${userDisplayName} kiềm chế xíu nha, Aki sạch tai lắm (◕‿◕)`;
-  }
-  return `Tiền bối ${userDisplayName} dừng lại được không, Aki đếm rồi đó (눈‸눈)`;
-}

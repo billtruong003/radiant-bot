@@ -56,5 +56,3 @@ Slash: /rank /stat /leaderboard /daily /quest /title /breakthrough /shop /invent
 Markdown OK. Có thể dùng code block cho prompt template. Kết thúc câu trả lời bằng 1 icon cổ điển phù hợp: 📜 ☯️ 🕯️.
 `;
 
-export const AKIRA_REFUSAL_CANNED =
-  '🕯️ Tại hạ Akira chỉ chuyên giảng đạo, mấy thứ vô vị này đạo hữu hỏi nơi khác đi 📜';

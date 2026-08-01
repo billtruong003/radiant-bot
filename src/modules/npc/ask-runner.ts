@@ -1,7 +1,30 @@
 import type { Attachment, ChatInputCommandInteraction } from 'discord.js';
 import { logger } from '../../utils/logger.js';
+import { env } from '../../config/env.js';
+import { STAFF_ROLE_NAMES } from '../../config/roles.js';
+import { describeAsker, readStandingFromMember } from '../insights/standing.js';
+import {
+  canSearchChat,
+  detectSearchIntent,
+  formatHitsForPrompt,
+  runSearch,
+} from '../archive/search-tool.js';
+import type { LlmFilterStage } from '../llm/types.js';
 import { getBudgetStatus, isBudgetExhausted } from '../aki/budget.js';
+import {
+  detectWebIntent,
+  formatWebForPrompt,
+  isWebSearchEnabled,
+  searchWeb,
+} from '../web/web-search.js';
 import { askAki, isAkiEnabled, logRefusal } from '../aki/client.js';
+import {
+  SAFE_FALLBACK_REPLY,
+  checkOutput,
+  guardAbsurdTask,
+  inspectEncodedPayload,
+  isInColdMode,
+} from '../aki/guards.js';
 import { runFilter } from '../aki/filter.js';
 import { tryAcquireAskQuota } from '../aki/rate-limit.js';
 
@@ -16,7 +39,7 @@ import { tryAcquireAskQuota } from '../aki/rate-limit.js';
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
 const DISCORD_MSG_LIMIT = 2000;
-const RECENT_CONTEXT_MAX = 5;
+const RECENT_CONTEXT_MAX = 15;
 const RECENT_CONTEXT_CONTENT_LIMIT = 300;
 
 export interface RunAskInput {
@@ -48,7 +71,7 @@ async function collectRecentContext(
 ): Promise<Array<{ authorDisplayName: string; content: string }>> {
   const channel = interaction.channel;
   if (!channel || !('messages' in channel)) return [];
-  const fetched = await channel.messages.fetch({ limit: 10 });
+  const fetched = await channel.messages.fetch({ limit: 30 });
   const collected: Array<{ authorDisplayName: string; content: string; created: number }> = [];
   for (const msg of fetched.values()) {
     if (msg.author.bot) continue;
@@ -99,6 +122,21 @@ export async function runAskFlow(input: RunAskInput): Promise<void> {
     return;
   }
 
+  // Đợt 1 guards — same rules as the @-mention path, so a troll can't just
+  // switch to /ask to get around them. Both run before the quota check.
+  const absurd = guardAbsurdTask(question, userId);
+  if (absurd.blocked) {
+    logger.info({ discord_id: userId, reason: absurd.reason }, 'guard: absurd task blocked');
+    await interaction.reply({ content: absurd.reply });
+    return;
+  }
+  const encoded = await inspectEncodedPayload(question);
+  if (encoded.blocked) {
+    logger.warn({ discord_id: userId, reason: encoded.reason }, 'guard: encoded payload blocked');
+    await interaction.reply({ content: encoded.reply });
+    return;
+  }
+
   const quota = tryAcquireAskQuota(userId);
   if (!quota.ok) {
     const msg =
@@ -123,12 +161,19 @@ export async function runAskFlow(input: RunAskInput): Promise<void> {
   await interaction.deferReply();
 
   let filterMeta: {
-    stage: 'groq' | 'gemini' | 'pre-filter' | 'fail-open' | 'disabled';
+    stage: LlmFilterStage;
     tokensIn: number;
     tokensOut: number;
     costUsd: number;
   };
-  if (imgCheck.url) {
+  // Staff skip the junk filter — see mention-handler.ts for the rationale
+  // (it rejected the Chưởng Môn's own moderation report as nonsense).
+  const askerIsStaff =
+    interaction.inCachedGuild() && interaction.member
+      ? [...interaction.member.roles.cache.values()].some((r) => STAFF_ROLE_NAMES.has(r.name))
+      : false;
+
+  if (imgCheck.url || askerIsStaff) {
     filterMeta = { stage: 'disabled', tokensIn: 0, tokensOut: 0, costUsd: 0 };
   } else {
     const filter = await runFilter(question);
@@ -156,6 +201,52 @@ export async function runAskFlow(input: RunAskInput): Promise<void> {
       : askerUsername;
   const recentMessages = await collectRecentContext(interaction).catch(() => []);
 
+  // Phase 16 — archive lookup. Gated twice: the feature flag, and the
+  // asker's role. Only Chưởng Môn / Tiên Nhân may pull another member's
+  // history, so an unprivileged asker never even triggers the intent call.
+  let searchContext = '';
+  if (
+    env.ARCHIVE_ENABLED &&
+    interaction.inCachedGuild() &&
+    canSearchChat(interaction.member) &&
+    interaction.guild
+  ) {
+    try {
+      const intent = await detectSearchIntent(question);
+      if (intent.needsSearch) {
+        const found = runSearch(interaction.guild, intent);
+        searchContext = formatHitsForPrompt(found.hits);
+        logger.info(
+          { discord_id: userId, hits: found.hits.length, note: found.note },
+          'ask-runner: archive lookup performed',
+        );
+      }
+    } catch (err) {
+      // Lookup is an enhancement — never let it break the answer.
+      logger.warn({ err, discord_id: userId }, 'ask-runner: archive lookup failed');
+    }
+  }
+
+  // Phase 18 — web lookup. Runs for ANY member (unlike the archive
+  // search, which is privileged): looking something up on the internet
+  // reveals nothing private about anyone here.
+  let webContext = '';
+  if (isWebSearchEnabled()) {
+    try {
+      const webIntent = await detectWebIntent(question);
+      if (webIntent.needsWeb && webIntent.query) {
+        const found = await searchWeb(webIntent.query);
+        webContext = formatWebForPrompt(found, webIntent.query);
+        logger.info(
+          { query: webIntent.query, hits: found?.hits.length ?? 0 },
+          'web-search: lookup performed',
+        );
+      }
+    } catch (err) {
+      logger.warn({ err }, 'web-search: lookup failed');
+    }
+  }
+
   try {
     const result = await askAki({
       discordId: userId,
@@ -165,9 +256,28 @@ export async function runAskFlow(input: RunAskInput): Promise<void> {
       askerDisplayName,
       recentMessages,
       filterMeta,
+      webContext,
+      askerStanding:
+        interaction.inCachedGuild() && interaction.member
+          ? describeAsker(interaction.member.displayName, readStandingFromMember(interaction.member))
+          : undefined,
+      searchContext,
+      coldMode: isInColdMode(userId),
       systemPromptOverride,
     });
-    const chunks = chunkForDiscord(result.reply);
+
+    // B3 — screen Aki's own output before it reaches the channel.
+    const outVerdict = await checkOutput(result.reply);
+    if (!outVerdict.ok) {
+      logger.warn(
+        { discord_id: userId, reason: outVerdict.reason },
+        'guard: output blocked, sending safe fallback',
+      );
+      await interaction.editReply({ content: SAFE_FALLBACK_REPLY });
+      return;
+    }
+
+    const chunks = chunkForDiscord(outVerdict.cleaned);
     // allowedMentions.parse=[] hard-blocks any @everyone / role / user
     // ping the LLM might emit. Belt-and-suspenders alongside the
     // persona system prompt that already says "no pings".
@@ -179,9 +289,9 @@ export async function runAskFlow(input: RunAskInput): Promise<void> {
       });
     }
   } catch (err) {
-    logger.error({ err, discord_id: userId, npc: npcName }, 'ask-runner: Grok call failed');
+    logger.error({ err, discord_id: userId, npc: npcName }, 'ask-runner: LLM call failed');
     await interaction
-      .editReply({ content: `😵 ${npcName} gặp lỗi gọi Grok... thử lại sau (；⌣́_⌣́)` })
+      .editReply({ content: `😵 ${npcName} gặp lỗi... thử lại sau (；⌣́_⌣́)` })
       .catch(() => undefined);
   }
 }

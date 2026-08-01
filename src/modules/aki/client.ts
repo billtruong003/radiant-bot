@@ -1,44 +1,126 @@
-import OpenAI from 'openai';
 import { ulid } from 'ulid';
 import { env } from '../../config/env.js';
 import { getStore } from '../../db/index.js';
 import { logger } from '../../utils/logger.js';
 import { sanitizeForLlmBody, sanitizeForLlmPrompt } from '../../utils/sanitize.js';
+import { llm } from '../llm/index.js';
+import type { LlmFilterStage, TaskId } from '../llm/types.js';
 import { AKI_SYSTEM_PROMPT } from './persona.js';
 
 /**
- * xAI Grok client wrapper for Aki. Uses the OpenAI Node SDK pointed at
- * the xAI compat endpoint — no separate xAI SDK needed.
+ * Aki's answer engine.
  *
- * Pricing (per 1M tokens, grok-4-1-fast-reasoning):
- *   - input uncached : $0.20
- *   - input cached   : $0.05  (auto via prompt caching)
- *   - output         : $0.50
+ * Phase 15 (2026-07-28): xAI Grok was CUT ENTIRELY. Every answer now runs
+ * on free-tier models through the shared LLM router, so `costUsd` is
+ * always 0 and there is no paid provider left in this path.
  *
- * Caller is responsible for rate-limit + budget gating BEFORE calling
- * askAki. This function persists an AkiCallLog with cost + token
- * breakdown for budget tracking in subsequent calls.
+ * Routing:
+ *   image present  → 'aki-answer-vision' (mimo-v2.5-free — the only free
+ *                    vision model in the chain; never route vision to a
+ *                    text-only model, it would answer without looking)
+ *   otherwise      → one cheap 'aki-triage' call classifies the question,
+ *                    then 'aki-answer-easy' (MiMo) or 'aki-answer-hard'
+ *                    (DeepSeek V4 Flash) handles it.
+ *
+ * Triage failure is non-fatal: we default to the HARD chain, because
+ * under-serving a hard question is worse than spending a bit more on an
+ * easy one when both are free anyway.
+ *
+ * Callers still gate rate-limit before calling. Budget gating is now
+ * vestigial (cost is always 0) but left in place so the analytics and the
+ * admin surfaces keep working.
  */
 
-const PRICING = {
-  inputUncachedPer1M: 0.2,
-  inputCachedPer1M: 0.05,
-  outputPer1M: 0.5,
-} as const;
+/** Everything is free-tier now. Kept as a named constant so the cost math
+ *  reads intentional rather than looking like a forgotten TODO. */
+const FREE_TIER_COST_USD = 0;
 
-let _client: OpenAI | null = null;
+/**
+ * Answer budget. Free models cost nothing, so this is sized for
+ * usefulness (long explanations, code blocks) rather than price. Reasoning
+ * models on the hard chain burn part of this on hidden chain-of-thought
+ * before emitting any answer, so it must stay generous — an under-funded
+ * reasoning model returns an empty string.
+ */
+function answerTokenBudget(task?: TaskId): number {
+  // DS V4 Flash leads the hard chain since 2026-08-01 and spends a large
+  // slice of its budget on hidden reasoning before emitting a single
+  // visible token — at 2000 it returned an empty string outright. The hard
+  // chain therefore gets a bigger floor than the chat path.
+  const floor = task === 'aki-answer-hard' ? 3000 : 1500;
+  return Math.max(env.AKI_MAX_OUTPUT_TOKENS, floor);
+}
 
-function getClient(): OpenAI {
-  if (!_client) {
-    if (!env.XAI_API_KEY) {
-      throw new Error('XAI_API_KEY not set — Aki disabled');
-    }
-    _client = new OpenAI({
-      apiKey: env.XAI_API_KEY,
-      baseURL: 'https://api.x.ai/v1',
-    });
+const TRIAGE_SYSTEM_PROMPT = [
+  'Bạn là bộ phân loại câu hỏi. Đọc câu hỏi và trả lời DUY NHẤT một từ:',
+  '- "HARD" nếu câu hỏi cần viết/sửa/giải thích code, debug lỗi, so sánh kỹ thuật,',
+  '  tính toán nhiều bước, hoặc cần lập luận dài.',
+  '- "EASY" nếu là chuyện phiếm, hỏi đáp ngắn, hỏi về server/game, hoặc câu hỏi',
+  '  kiến thức đơn giản trả lời được trong vài câu.',
+  'Chỉ in ra HARD hoặc EASY. Không giải thích.',
+].join('\n');
+
+/**
+ * Lát 5 — cheap heuristic so the unambiguous cases skip the triage call
+ * entirely (saves ~1-2s latency + one free-tier request per question).
+ * Code fences, error/debug vocabulary and language names are HARD without
+ * asking; a short question with none of those markers is EASY chitchat.
+ * Anything gray returns null and pays for the LLM triage as before.
+ */
+const HARD_MARKERS =
+  /```|\berror\b|\bexception\b|\bstack\s?trace\b|\btraceback\b|\bdebug\b|\bcompile\b|\bregex\b|\bsql\b|\btypescript\b|\bjavascript\b|\bpython\b|\brust\b|\bdocker\b|lỗi|sửa code|viết hàm|thuật toán|giải thích code|so sánh/i;
+
+export function triageHeuristic(question: string): 'easy' | 'hard' | null {
+  if (HARD_MARKERS.test(question)) return 'hard';
+  // Short, no hard markers, no big numbers to compute with → chitchat.
+  if (question.length < 60 && !/\d{3,}/.test(question)) return 'easy';
+  return null;
+}
+
+/**
+ * One cheap call to decide which answer chain to use. Returns the TaskId
+ * directly so the caller can't mix up the mapping.
+ *
+ * Defaults to the hard chain on any failure (no provider, unparseable
+ * output, timeout) — see the module doc for why.
+ */
+async function triageQuestion(question: string): Promise<{
+  task: Extract<TaskId, 'aki-answer-easy' | 'aki-answer-hard'>;
+  tokensIn: number;
+  tokensOut: number;
+}> {
+  const quick = triageHeuristic(question);
+  if (quick) {
+    return {
+      task: quick === 'easy' ? 'aki-answer-easy' : 'aki-answer-hard',
+      tokensIn: 0,
+      tokensOut: 0,
+    };
   }
-  return _client;
+  try {
+    const result = await llm.complete('aki-triage', {
+      systemPrompt: TRIAGE_SYSTEM_PROMPT,
+      userPrompt: question,
+      // Ling emits hidden reasoning before the verdict; 200 tokens was not
+      // enough (returned empty on the harder sample, live 2026-07-28).
+      // The verdict itself is one word, so the extra budget is only ever
+      // spent when the model actually needs to think.
+      maxOutputTokens: 600,
+      temperature: 0,
+    });
+    if (!result) return { task: 'aki-answer-hard', tokensIn: 0, tokensOut: 0 };
+
+    // Reasoning models may wrap the verdict in prose; look for the token
+    // rather than requiring an exact match.
+    const isEasy = /\beasy\b/i.test(result.text) && !/\bhard\b/i.test(result.text);
+    return {
+      task: isEasy ? 'aki-answer-easy' : 'aki-answer-hard',
+      tokensIn: result.tokensIn,
+      tokensOut: result.tokensOut,
+    };
+  } catch {
+    return { task: 'aki-answer-hard', tokensIn: 0, tokensOut: 0 };
+  }
 }
 
 export interface AskAkiInput {
@@ -50,15 +132,48 @@ export interface AskAkiInput {
   askerUsername?: string;
   /** Asker's server display name (nickname or fallback to username). */
   askerDisplayName?: string;
-  /** Most recent channel messages (excluding bots + the /ask interaction), oldest → newest. */
+  /**
+   * Most recent channel messages, oldest → newest. Since Lát 1 this
+   * INCLUDES Aki's own previous replies (labelled "Aki (bạn)" by the
+   * caller) — without them, follow-up questions had nothing to refer to.
+   */
   recentMessages?: ReadonlyArray<{ authorDisplayName: string; content: string }>;
+  /**
+   * Lát 2 — the message the user is replying to. Highest-signal context
+   * there is (the user literally pointed at it), so it gets its own block
+   * right next to the question instead of drowning in recentMessages.
+   */
+  repliedTo?: { authorDisplayName: string; content: string };
   /** Filter stage attribution (Phase 10 chunk 7 / Phase 11 LLM router). */
   filterMeta?: {
-    stage: 'groq' | 'gemini' | 'pre-filter' | 'fail-open' | 'disabled';
+    stage: LlmFilterStage;
     tokensIn: number;
     tokensOut: number;
     costUsd: number;
   };
+  /**
+   * Phase 17 — who the asker is in the sect (roles, rank, authority).
+   * Without this Aki treats the server owner like a random member — she
+   * did exactly that on 2026-07-29. Built by `describeAsker()`.
+   */
+  askerStanding?: string;
+  /**
+   * B4 — the asker has already pushed ≥2 absurd demands in the last 10
+   * minutes. Tells the model to answer curtly and stop performing, since
+   * a flustered Aki is exactly what the troll is farming.
+   */
+  coldMode?: boolean;
+  /**
+   * Phase 18 — web lookup results, already fetched by the caller.
+   * Injected as facts. Empty when the question needed no lookup.
+   */
+  webContext?: string;
+  /**
+   * Phase 16 — archive search results, already run and authorised by the
+   * caller. Injected verbatim into the prompt. Empty when the asker has no
+   * search privilege or the question didn't need a lookup.
+   */
+  searchContext?: string;
   /**
    * Phase 12 Lát 5 — override system prompt for alt NPCs (Akira, Meifeng).
    * Defaults to AKI_SYSTEM_PROMPT when omitted. The LLM still uses Aki's
@@ -76,35 +191,41 @@ export interface AkiResponse {
 }
 
 /**
- * Compute USD cost from token usage. Pure — exported for tests + budget
- * calculations that need to estimate cost without making a call.
+ * Compute USD cost from token usage.
+ *
+ * Phase 15: always 0 — every model Aki can reach is free-tier. Kept (and
+ * still exported) so budget/analytics callers and their tests don't have
+ * to change, and so re-introducing a paid model later has one obvious
+ * place to put pricing back.
  */
 export function computeCost(
-  promptTokens: number,
-  cachedTokens: number,
-  completionTokens: number,
+  _promptTokens: number,
+  _cachedTokens: number,
+  _completionTokens: number,
 ): number {
-  const uncached = Math.max(0, promptTokens - cachedTokens);
-  return (
-    (uncached * PRICING.inputUncachedPer1M +
-      cachedTokens * PRICING.inputCachedPer1M +
-      completionTokens * PRICING.outputPer1M) /
-    1_000_000
-  );
-}
-
-export function isAkiEnabled(): boolean {
-  return env.XAI_API_KEY.length > 0;
+  return FREE_TIER_COST_USD;
 }
 
 /**
- * Call Grok with Aki persona. Persists an AkiCallLog on success or
- * refusal. Throws only on network / SDK errors — callers should
- * handle with try/catch and fall back to a generic error reply.
+ * Aki is available whenever ANY provider in the answer chains has a key.
+ * Previously this was `XAI_API_KEY.length > 0`; Grok is gone, so the gate
+ * now follows the free providers actually used by 'aki-answer-*'.
+ */
+export function isAkiEnabled(): boolean {
+  return (
+    env.OPENCODE_ZEN_API_KEY.length > 0 ||
+    env.GROQ_API_KEY.length > 0 ||
+    env.GEMINI_API_KEY.length > 0
+  );
+}
+
+/**
+ * Answer as Aki using the free-model chains. Persists an AkiCallLog on
+ * success or refusal. Throws on network errors AND when every route in
+ * the chain is unavailable — callers already try/catch and fall back to a
+ * generic error reply.
  */
 export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
-  const client = getClient();
-
   // Phase 12 B7 — memory opt-in: if user has aki_memory_opt_in=true,
   // fetch last 3 of their stored question_text + summarize into the
   // user prompt for continuity. Read fail = silent skip (don't break
@@ -120,9 +241,18 @@ export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
         .query((l) => l.discord_id === input.discordId && l.question_text != null && !l.refusal)
         .slice(-3);
       if (prior.length > 0) {
+        // Lát 5 — Q AND A. Question-only memory told Aki what was asked
+        // but not what she answered, so she could contradict herself one
+        // message later.
         memoryBlock = [
-          '[Câu hỏi gần đây của user (do user opt-in cho Aki nhớ):',
-          ...prior.map((p, i) => `  ${i + 1}. ${(p.question_text ?? '').slice(0, 200)}`),
+          '[Trao đổi gần đây với user này (do user opt-in cho Aki nhớ):',
+          ...prior.map((p, i) => {
+            const q = `  ${i + 1}. User hỏi: ${(p.question_text ?? '').slice(0, 200)}`;
+            const a = typeof p.reply_text === 'string' && p.reply_text.length > 0
+              ? `\n     Bạn đã đáp: ${p.reply_text.slice(0, 200)}`
+              : '';
+            return q + a;
+          }),
           ']',
         ].join('\n');
       }
@@ -140,6 +270,12 @@ export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
   const safeQuestion = sanitizeForLlmBody(input.question, { maxLen: 1500 });
 
   // Build the user prompt with optional identity + memory + channel context.
+  // Standing goes in the SYSTEM prompt (see systemPrompt below), not here.
+  // It was originally appended to the user message and the small free
+  // models skimmed past it — buried under 15 context messages, a profile
+  // block and search hits, Aki read "LÀ CHƯỞNG MÔN" and still concluded
+  // she was talking to a random elder. System-prompt content gets weighted
+  // far more heavily.
   const identityLine =
     input.askerDisplayName || input.askerUsername
       ? `[Người hỏi: ${safeDisplay}${
@@ -148,10 +284,36 @@ export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
             : ''
         }]`
       : '';
+
+  // What Aki has previously learned about this person, if the knowledge
+  // base has profiled them. Makes her recognise regulars instead of
+  // meeting everyone fresh every time.
+  let profileBlock = '';
+  try {
+    const p = getStore().memberProfiles.get(input.discordId);
+    if (p?.summary) {
+      profileBlock = `[Bạn đã biết về người này: ${sanitizeForLlmBody(p.summary, { maxLen: 300 })}]`;
+    }
+  } catch {
+    // Optional context.
+  }
+  // Lát 2 — the replied-to message sits right next to the question so it
+  // carries the most weight of all context blocks.
+  const repliedToBlock = input.repliedTo
+    ? [
+        '[Người hỏi đang TRẢ LỜI trực tiếp tin nhắn này — ngữ cảnh quan trọng nhất:',
+        `  ${sanitizeForLlmPrompt(input.repliedTo.authorDisplayName)}: ${sanitizeForLlmBody(
+          input.repliedTo.content,
+          { maxLen: 600 },
+        )}`,
+        ']',
+      ].join('\n')
+    : '';
+
   const contextBlock =
     input.recentMessages && input.recentMessages.length > 0
       ? [
-          '[Đoạn chat gần nhất trong kênh:',
+          '[Hội thoại gần đây trong kênh — gồm cả những câu chính bạn (Aki) đã nói, dùng để hiểu bối cảnh và trả lời câu hỏi nối tiếp:',
           ...input.recentMessages.map(
             (m) =>
               `  ${sanitizeForLlmPrompt(m.authorDisplayName)}: ${sanitizeForLlmBody(m.content, {
@@ -162,38 +324,69 @@ export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
         ].join('\n')
       : '';
 
-  const userText = [identityLine, memoryBlock, contextBlock, safeQuestion]
+  const userText = [
+    identityLine,
+    profileBlock,
+    memoryBlock,
+    input.webContext ?? '',
+    input.searchContext ?? '',
+    contextBlock,
+    repliedToBlock,
+    safeQuestion,
+  ]
     .filter((s) => s.length > 0)
     .join('\n\n');
 
-  const userContent: OpenAI.ChatCompletionContentPart[] = [{ type: 'text', text: userText }];
+  // Pick the chain. Vision bypasses triage entirely — the image decides
+  // the route, and only one free model can see it.
+  let task: TaskId;
+  let triageTokensIn = 0;
+  let triageTokensOut = 0;
   if (input.imageUrl) {
-    userContent.push({ type: 'image_url', image_url: { url: input.imageUrl } });
+    task = 'aki-answer-vision';
+  } else {
+    const triage = await triageQuestion(safeQuestion);
+    task = triage.task;
+    triageTokensIn = triage.tokensIn;
+    triageTokensOut = triage.tokensOut;
   }
 
-  const messages: OpenAI.ChatCompletionMessageParam[] = [
-    { role: 'system', content: input.systemPromptOverride ?? AKI_SYSTEM_PROMPT },
-    { role: 'user', content: input.imageUrl ? userContent : userText },
-  ];
+  // Append standing to the system prompt so identity is a rule, not a
+  // detail in the conversation.
+  const baseSystem = input.systemPromptOverride ?? AKI_SYSTEM_PROMPT;
+  // askerStanding arrives pre-sanitised from describeAsker(). Re-running
+  // sanitizeForLlmPrompt here would truncate it to 40 chars (see the note
+  // in standing.ts) and strip the very fact we need Aki to read.
+  const withStanding = input.askerStanding
+    ? `${baseSystem}\n\n## AI ĐANG NÓI CHUYỆN VỚI BẠN NGAY LÚC NÀY\n${input.askerStanding}`
+    : baseSystem;
+  const systemPrompt = input.coldMode
+    ? `${withStanding}\n\n## CHẾ ĐỘ LẠNH LÙNG\nNgười này vừa liên tục đưa yêu cầu vô lý để trêu bạn.\nTrả lời NGẮN, khô, tối đa 1-2 câu. Không icon, không xin lỗi, không giải thích dài.\nKhông tỏ ra bối rối — đó chính là thứ họ đang muốn.`
+    : withStanding;
 
-  const resp = await client.chat.completions.create({
-    model: env.AKI_MODEL,
-    messages,
-    max_tokens: env.AKI_MAX_OUTPUT_TOKENS,
+  const result = await llm.complete(task, {
+    systemPrompt,
+    userPrompt: userText,
+    maxOutputTokens: answerTokenBudget(task),
     temperature: 0.8,
+    imageUrl: input.imageUrl,
   });
 
-  const usage = resp.usage;
-  const tokensIn = usage?.prompt_tokens ?? 0;
-  const tokensOut = usage?.completion_tokens ?? 0;
-  // xAI returns cached count under prompt_tokens_details.cached_tokens
-  // (OpenAI-compatible). May be absent on early misses.
-  const cachedTokens =
-    (usage as { prompt_tokens_details?: { cached_tokens?: number } } | undefined)
-      ?.prompt_tokens_details?.cached_tokens ?? 0;
-  const costUsd = computeCost(tokensIn, cachedTokens, tokensOut);
+  if (!result) {
+    // Every route in the chain was disabled, throttled, or errored.
+    // Throwing keeps the existing caller contract (they already try/catch
+    // and show a generic error reply).
+    throw new Error(`aki: no provider available for task ${task}`);
+  }
 
-  const reply = resp.choices[0]?.message?.content?.trim() ?? '';
+  // Triage tokens are folded in so analytics reflect the true cost of
+  // answering, not just the final call.
+  const tokensIn = result.tokensIn + triageTokensIn;
+  const tokensOut = result.tokensOut + triageTokensOut;
+  const cachedTokens = 0;
+  const costUsd = FREE_TIER_COST_USD;
+
+  const reply = result.text.trim();
 
   await getStore().akiLogs.append({
     id: ulid(),
@@ -216,18 +409,24 @@ export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
     // Already sanitized via safeQuestion above; cap at 500 chars for
     // storage (Discord input max is 500 anyway).
     question_text: memoryOptedIn ? safeQuestion.slice(0, 500) : null,
+    // Lát 5 — same opt-in gate as question_text; see AkiCallLog.reply_text.
+    reply_text: memoryOptedIn ? reply.slice(0, 300) : null,
   });
 
   logger.info(
     {
       discord_id: input.discordId,
+      task,
+      provider: result.provider,
+      model: result.model,
+      route_index: result.routeIndex,
       tokens_in: tokensIn,
       tokens_out: tokensOut,
-      cached: cachedTokens,
-      cost_usd: costUsd.toFixed(6),
+      duration_ms: result.durationMs,
       has_image: !!input.imageUrl,
+      reply_chars: reply.length,
     },
-    'aki: call completed',
+    'aki: call completed (free-tier)',
   );
 
   return { reply, tokensIn, tokensOut, cachedTokens, costUsd };
@@ -245,7 +444,7 @@ export async function logRefusal(
   questionLength: number,
   reason: string,
   filterMeta?: {
-    stage: 'groq' | 'gemini' | 'pre-filter' | 'fail-open' | 'disabled';
+    stage: LlmFilterStage;
     tokensIn: number;
     tokensOut: number;
     costUsd: number;

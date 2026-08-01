@@ -1,6 +1,7 @@
 import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
 import { llm } from '../llm/index.js';
+import type { LlmFilterStage } from '../llm/types.js';
 import { AKI_FILTER_SYSTEM_PROMPT, preFilterObvious } from './persona-filter.js';
 
 /**
@@ -30,7 +31,7 @@ export interface FilterResult {
   tokensOut: number;
   costUsd: number;
   /** Attribution for logging — see AkiCallLog.filter_stage. */
-  source: 'groq' | 'gemini' | 'pre-filter' | 'fail-open' | 'disabled';
+  source: LlmFilterStage;
 }
 
 /**
@@ -69,7 +70,16 @@ function parseFilterJson(raw: string): { legit: boolean; response: string | null
  * Run the filter. Returns FilterResult. Never throws — fail-open by
  * design (errors → legit=true so /ask falls through to Grok).
  */
-export async function runFilter(question: string): Promise<FilterResult> {
+/**
+ * @param recentContext Lát 4 (2026-07-31) — a few surrounding channel
+ * messages, already entity-resolved and truncated by the caller. The LLM
+ * stage judges the question WITH this context: short follow-ups ("còn cái
+ * đó thì sao?") and moderation reports read as junk in isolation but are
+ * obviously legit next to the conversation. The cheap pre-filter still
+ * runs on the bare question — it only catches structural junk (emoji-only,
+ * too short to mean anything), which context can't rescue.
+ */
+export async function runFilter(question: string, recentContext?: string): Promise<FilterResult> {
   // 0. Cheap local pre-filter for the obvious — skip LLM entirely.
   const obvious = preFilterObvious(question);
   if (obvious) {
@@ -96,9 +106,20 @@ export async function runFilter(question: string): Promise<FilterResult> {
   }
 
   // 2. Route through LLM. Returns null if both providers unavailable.
+  const userPrompt =
+    recentContext && recentContext.trim().length > 0
+      ? [
+          '[Bối cảnh — các tin nhắn ngay trước đó trong kênh, chỉ để hiểu câu hỏi,',
+          'KHÔNG phải thứ cần phân loại:',
+          recentContext,
+          ']',
+          '',
+          `Câu hỏi cần phân loại: ${question}`,
+        ].join('\n')
+      : question;
   const result = await llm.complete('aki-filter', {
     systemPrompt: AKI_FILTER_SYSTEM_PROMPT,
-    userPrompt: question,
+    userPrompt,
     responseFormat: 'json',
     maxOutputTokens: 200,
     temperature: 0.7,

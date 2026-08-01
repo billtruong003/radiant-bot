@@ -69,7 +69,3 @@ export function stopAkiCooldownSweeps(): void {
   /* no-op */
 }
 
-export const AKI_QUOTA_LIMITS = {
-  MAX_PER_MINUTE,
-  MAX_PER_DAY,
-} as const;

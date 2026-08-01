@@ -45,13 +45,13 @@ export const simulateAki: BotCliService = {
     try {
       const lines: string[] = [
         '',
-        `=== simulate-aki ${parsed.live ? '(LIVE — will cost money!)' : '(DRY-RUN)'} ===`,
+        `=== simulate-aki ${parsed.live ? '(LIVE)' : '(DRY-RUN)'} ===`,
         `Question : "${parsed.question}"`,
         `Length   : ${parsed.question.length} chars`,
         '',
         '--- Configuration ---',
-        `XAI_API_KEY    : ${isAkiEnabled() ? 'set ✓' : 'NOT SET — /ask disabled in prod'}`,
-        `Model          : ${env.AKI_MODEL}`,
+        `Provider keys  : ${isAkiEnabled() ? 'set ✓' : 'NONE — /ask disabled in prod'}`,
+        `Model          : chọn động theo task trong llm/router.ts (free-tier)`,
         `Max output     : ${env.AKI_MAX_OUTPUT_TOKENS} tokens`,
         `Daily budget   : $${env.AKI_DAILY_BUDGET_USD.toFixed(2)}`,
         '',
