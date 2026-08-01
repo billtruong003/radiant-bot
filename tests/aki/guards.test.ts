@@ -146,6 +146,34 @@ describe('B3 — output guard', () => {
     expect(v.reason).toContain('self-profanity');
   });
 
+  // The 2026-08-01 gorilla answer: Aki wrote headers, bullets and a
+  // quote, and every blank line between them was collapsed into a space,
+  // so Discord rendered one 946-character blob. `\s` matches `\n`.
+  it('keeps markdown line breaks while stripping CJK', async () => {
+    const reply = [
+      'Ôi tiền bối ┐(￣￣)┌',
+      '',
+      '## 🦍 Thực tế tàn nhẫn:',
+      '- Khỉ đột nặng 130-200kg 的',
+      '- Sức cắn 1300 PSI',
+      '',
+      '> Kết luận: đừng đánh',
+    ].join('\n');
+
+    const v = await checkOutput(reply);
+
+    expect(v.ok).toBe(true);
+    expect(v.cleaned).not.toMatch(/[一-鿿]/);
+    expect(v.cleaned.split('\n').length).toBe(reply.split('\n').length);
+    expect(v.cleaned).toContain('\n\n## 🦍');
+    expect(v.cleaned).toContain('\n> Kết luận');
+  });
+
+  it('still collapses the double space a stripped glyph leaves behind', async () => {
+    const v = await checkOutput('Thành viên hoạt 跃 tích cực');
+    expect(v.cleaned).toBe('Thành viên hoạt tích cực');
+  });
+
   it('passes a normal reply untouched', async () => {
     const text = 'Solar2D build iOS không cần máy Mac nha tiền bối ✿';
     const v = await checkOutput(text);

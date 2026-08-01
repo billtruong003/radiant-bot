@@ -304,7 +304,18 @@ export async function checkOutput(reply: string): Promise<OutputVerdict> {
   if (cjkCount > 0 && cjkCount / Math.max(reply.length, 1) > 0.15) {
     return { ok: false, cleaned: reply, reason: `cjk-dominant:${cjkCount}` };
   }
-  const cleaned = cjkCount > 0 ? reply.replace(CJK_RE, '').replace(/\s{2,}/g, ' ') : reply;
+  // Tidy the gap a stripped glyph leaves behind ("hoạt 跃 tích" -> two
+  // spaces), but ONLY horizontally. `\s` includes `\n`, and collapsing
+  // that flattened every markdown break in the message into a single
+  // space — headers, bullets and quotes all ran together into one
+  // unreadable blob in Discord.
+  const cleaned =
+    cjkCount > 0
+      ? reply
+          .replace(CJK_RE, '')
+          .replace(/[^\S\r\n]{2,}/g, ' ')
+          .replace(/[^\S\r\n]+$/gm, '')
+      : reply;
 
   const cfg = await loadAutomodConfig();
   const hit = findProfanity(cleaned, cfg.profanityWords);
