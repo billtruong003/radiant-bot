@@ -110,16 +110,33 @@ async function maybeGreetFirstMessage(message: Message): Promise<void> {
   }
 }
 
+/**
+ * Whether a guild message belongs in the searchable archive.
+ *
+ * Exported so the rule is pinned by a test: it used to live inline BELOW
+ * `if (message.author.bot) return;`, which silently kept every one of
+ * Aki's own replies out of the archive.
+ */
+export function shouldArchive(message: Message): boolean {
+  if (!message.content.trim()) return false;
+  if (!message.author.bot) return true;
+  // Aki herself is worth keeping; other bots are noise nobody searches.
+  return message.author.id === message.client.user?.id;
+}
+
 async function handleGuildMessage(message: Message): Promise<void> {
   if (!message.inGuild()) return; // narrows channel to GuildBasedChannel
-  if (message.author.bot) return;
-  if (!message.member) return;
 
   // Phase 16 — archive BEFORE anything else can early-return, so the
   // record is complete even for messages automod deletes or that earn no
   // XP. Synchronous + swallows its own errors: archiving must never delay
   // or break message handling.
-  if (env.ARCHIVE_ENABLED && message.content.trim().length > 0) {
+  //
+  // Aki's own replies are archived too. Without this, /tra-cuu searched
+  // half a conversation — every question, none of the answers — so
+  // "Aki đã trả lời gì về Solar2D?" could never be answered. Other bots
+  // stay out: their output is noise nobody searches for.
+  if (env.ARCHIVE_ENABLED && shouldArchive(message)) {
     archiveMessage({
       id: message.id,
       channelId: message.channelId,
@@ -127,11 +144,16 @@ async function handleGuildMessage(message: Message): Promise<void> {
         ? (message.channel.name ?? '')
         : '',
       authorId: message.author.id,
-      authorName: message.member.displayName || message.author.username,
+      // `member` is null for the bot's own messages in some gateway
+      // payloads, so fall back to the username rather than skipping.
+      authorName: message.member?.displayName || message.author.username,
       content: message.content,
       createdAt: message.createdTimestamp,
     });
   }
+
+  if (message.author.bot) return;
+  if (!message.member) return;
 
   // Automod first — runs in ALL channels (including no-XP ones like
   // #bot-commands). Staff (Chưởng Môn / Trưởng Lão / Chấp Pháp) are
