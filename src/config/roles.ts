@@ -47,3 +47,16 @@ export const STAFF_ROLE_NAMES: ReadonlySet<string> = new Set([
   ROLE_MOD,
   ROLE_BOT_FLAIR,
 ]);
+
+/**
+ * Roles allowed to search other members' message history.
+ *
+ * DELIBERATELY NARROWER THAN STAFF (Bill's call, 2026-07-28): Trưởng Lão
+ * and Chấp Pháp are staff for automod purposes but must NOT be able to
+ * pull up what any given member said. Reading a person's history is a
+ * different order of power from muting them — keep it to the top two.
+ */
+export const CHAT_SEARCH_ROLE_NAMES: ReadonlySet<string> = new Set([
+  ROLE_SECT_MASTER,
+  ROLE_TIEN_NHAN,
+]);

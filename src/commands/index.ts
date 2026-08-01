@@ -6,6 +6,7 @@ import type {
 import { command as akiMemory } from './aki-memory.js';
 import { command as arena } from './arena.js';
 import { command as askAkira } from './ask-akira.js';
+import { command as traCuu } from './tra-cuu.js';
 import { command as askMeifeng } from './ask-meifeng.js';
 import { command as ask } from './ask.js';
 import { command as automodConfig } from './automod-config.js';
@@ -80,6 +81,7 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [congPhap.data.name, congPhap as SlashCommand],
   [quest.data.name, quest as SlashCommand],
   [askAkira.data.name, askAkira as SlashCommand],
+  [traCuu.data.name, traCuu as SlashCommand],
   [askMeifeng.data.name, askMeifeng as SlashCommand],
   [duel.data.name, duel as SlashCommand],
   [trade.data.name, trade as SlashCommand],
@@ -109,6 +111,3 @@ export function findCommand(name: string): SlashCommand | undefined {
   return COMMANDS.get(name);
 }
 
-export function listCommands(): readonly SlashCommand[] {
-  return [...COMMANDS.values()];
-}

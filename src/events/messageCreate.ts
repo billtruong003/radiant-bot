@@ -6,12 +6,14 @@ import { STAFF_ROLE_NAMES } from '../config/roles.js';
 import { ICONS } from '../config/ui.js';
 import { loadVerificationConfig } from '../config/verification.js';
 import { getStore } from '../db/index.js';
+import { archiveMessage } from '../modules/archive/message-archive.js';
 import { maybeDivineWrath } from '../modules/admin/aki-defense.js';
 import { applyDecision, automodEngine } from '../modules/automod/index.js';
 import { messageXpCooldown } from '../modules/leveling/cooldown.js';
 import { isXpEligibleMessage } from '../modules/leveling/eligibility.js';
 import { maybePromoteRank, postLevelUpEmbed } from '../modules/leveling/rank-promoter.js';
 import { awardXp, randomXpAmount } from '../modules/leveling/tracker.js';
+import { handleAkiMention } from '../modules/npc/mention-handler.js';
 import { handleDmReply } from '../modules/verification/flow.js';
 import { logger } from '../utils/logger.js';
 
@@ -113,6 +115,24 @@ async function handleGuildMessage(message: Message): Promise<void> {
   if (message.author.bot) return;
   if (!message.member) return;
 
+  // Phase 16 — archive BEFORE anything else can early-return, so the
+  // record is complete even for messages automod deletes or that earn no
+  // XP. Synchronous + swallows its own errors: archiving must never delay
+  // or break message handling.
+  if (env.ARCHIVE_ENABLED && message.content.trim().length > 0) {
+    archiveMessage({
+      id: message.id,
+      channelId: message.channelId,
+      channelName: message.channel.isTextBased() && 'name' in message.channel
+        ? (message.channel.name ?? '')
+        : '',
+      authorId: message.author.id,
+      authorName: message.member.displayName || message.author.username,
+      content: message.content,
+      createdAt: message.createdTimestamp,
+    });
+  }
+
   // Automod first — runs in ALL channels (including no-XP ones like
   // #bot-commands). Staff (Chưởng Môn / Trưởng Lão / Chấp Pháp) are
   // exempt from destructive rules (mass mention, link, spam, caps) but
@@ -135,6 +155,12 @@ async function handleGuildMessage(message: Message): Promise<void> {
   // call is awaited so a wrath-triggering message doesn't ALSO earn XP.
   const wrathFired = await maybeDivineWrath({ message, isStaff: memberIsStaff });
   if (wrathFired) return;
+
+  // Phase 17 — @-mention conversation. Deliberately AFTER automod and
+  // divine wrath: an insult that mentions Aki must be judged, not chatted
+  // with. Returns true when it replied, in which case we skip the XP path
+  // (a bot command shouldn't also farm XP).
+  if (await handleAkiMention(message)) return;
 
   // Phase 11 B3 (independent of XP path — fires even on no-XP channels
   // but the inner check restricts to #general).
