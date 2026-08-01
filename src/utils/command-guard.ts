@@ -1,5 +1,5 @@
 import { type ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
-import { ROLE_SECT_MASTER } from '../config/roles.js';
+import { ENFORCEMENT_ROLE_NAMES, ROLE_SECT_MASTER } from '../config/roles.js';
 import { logger } from './logger.js';
 
 /**
@@ -65,6 +65,29 @@ export async function requireSectMaster(
   }
   if (!roles.cache.some((r) => r.name === ROLE_SECT_MASTER)) {
     return deny(interaction, `Chỉ **${ROLE_SECT_MASTER}** mới dùng được lệnh này.`);
+  }
+  return true;
+}
+
+/**
+ * Chưởng Môn or Chấp Pháp — the roles that carry enforcement duty.
+ *
+ * Trưởng Lão is deliberately excluded: it is a seniority title, not a
+ * moderation post, and `/grant` can mint the cultivation economy from
+ * nothing.
+ */
+export async function requireEnforcement(
+  interaction: ChatInputCommandInteraction,
+): Promise<boolean> {
+  if (!interaction.inGuild() || !interaction.member) {
+    return deny(interaction, 'Lệnh này chỉ dùng được trong tông môn.');
+  }
+  const roles = interaction.member.roles;
+  if (!('cache' in roles)) {
+    return deny(interaction, 'Không xác minh được chức vị, thử lại sau.');
+  }
+  if (!roles.cache.some((r) => ENFORCEMENT_ROLE_NAMES.has(r.name))) {
+    return deny(interaction, 'Chỉ **Chưởng Môn** hoặc **Chấp Pháp** mới dùng được lệnh này.');
   }
   return true;
 }

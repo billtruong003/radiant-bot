@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PermissionsBitField } from 'discord.js';
-import { requireAdmin, requireSectMaster } from '../../src/utils/command-guard.js';
+import {
+  requireAdmin,
+  requireEnforcement,
+  requireSectMaster,
+} from '../../src/utils/command-guard.js';
 
 function interaction(opts: {
   inGuild?: boolean;
@@ -68,5 +72,31 @@ describe('requireSectMaster', () => {
 
   it('rejects when roles cannot be resolved by name', async () => {
     expect(await requireSectMaster(interaction({ roleNames: null }).obj)).toBe(false);
+  });
+});
+
+describe('requireEnforcement', () => {
+  it('allows the Chưởng Môn', async () => {
+    expect(await requireEnforcement(interaction({ roleNames: ['Chưởng Môn'] }).obj)).toBe(true);
+  });
+
+  it('allows Chấp Pháp', async () => {
+    expect(await requireEnforcement(interaction({ roleNames: ['Chấp Pháp'] }).obj)).toBe(true);
+  });
+
+  // Bill's call: Trưởng Lão is a seniority title held fairly widely, not
+  // a moderation post. /grant mints the cultivation economy from nothing.
+  it('rejects Trưởng Lão', async () => {
+    const i = interaction({ roleNames: ['Trưởng Lão', 'Hóa Thần'] });
+    expect(await requireEnforcement(i.obj)).toBe(false);
+    expect(i.reply).toHaveBeenCalled();
+  });
+
+  it('rejects an ordinary disciple', async () => {
+    expect(await requireEnforcement(interaction({ roleNames: ['Luyện Khí'] }).obj)).toBe(false);
+  });
+
+  it('rejects when roles cannot be resolved by name', async () => {
+    expect(await requireEnforcement(interaction({ roleNames: null }).obj)).toBe(false);
   });
 });

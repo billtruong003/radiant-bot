@@ -49,6 +49,21 @@ export const STAFF_ROLE_NAMES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Roles allowed to run enforcement commands that alter a member's
+ * standing — `/grant` above all, which mints XP, pills and contribution
+ * points out of nothing.
+ *
+ * Chấp Pháp is in; Trưởng Lão is NOT (Bill's call, 2026-08-01). Trưởng
+ * Lão is a senior advisor, not a law enforcer — the title is honorary and
+ * held more widely, so putting the economy behind it would be putting it
+ * behind seniority rather than behind responsibility.
+ */
+export const ENFORCEMENT_ROLE_NAMES: ReadonlySet<string> = new Set([
+  ROLE_SECT_MASTER,
+  ROLE_MOD,
+]);
+
+/**
  * Roles allowed to search other members' message history.
  *
  * DELIBERATELY NARROWER THAN STAFF (Bill's call, 2026-07-28): Trưởng Lão

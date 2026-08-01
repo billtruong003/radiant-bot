@@ -8,7 +8,7 @@ import { cumulativeXpForLevel } from '../modules/leveling/engine.js';
 import { maybePromoteRank, postLevelUpEmbed } from '../modules/leveling/rank-promoter.js';
 import { awardXp } from '../modules/leveling/tracker.js';
 import { logger } from '../utils/logger.js';
-import { requireSectMaster } from '../utils/command-guard.js';
+import { requireEnforcement } from '../utils/command-guard.js';
 
 /**
  * `/grant pills|contribution|xp @user <amount>` — admin-only currency / XP
@@ -58,12 +58,15 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-  // Chưởng Môn only, by role — matching /thien-dao. This command mints XP,
-  // pills and contribution points out of nothing, so the whole cultivation
-  // economy rests on it. `setDefaultMemberPermissions(Administrator)` was
-  // the only thing standing in front of it, and that default is editable
-  // in Server Settings by anyone who can manage the server.
-  if (!(await requireSectMaster(interaction))) return;
+  // Chưởng Môn or Chấp Pháp, by role. This command mints XP, pills and
+  // contribution points out of nothing, so the whole cultivation economy
+  // rests on it, and `setDefaultMemberPermissions(Administrator)` was the
+  // only thing in front of it — a default anyone who can manage the
+  // server may edit.
+  //
+  // Trưởng Lão is excluded on purpose (Bill, 2026-08-01): it is a
+  // seniority title held fairly widely, not a moderation post.
+  if (!(await requireEnforcement(interaction))) return;
   const currency = interaction.options.getString('currency', true) as Currency;
   const target = interaction.options.getUser('user', true);
   const amount = interaction.options.getInteger('amount', true);
