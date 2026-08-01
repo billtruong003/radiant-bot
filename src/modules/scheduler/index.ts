@@ -8,6 +8,9 @@ import { runVoiceTick } from '../leveling/voice-xp.js';
 import { assignDailyQuest } from '../quests/daily-quest.js';
 import { cleanupExpiredVerifications, cleanupStaleVerifyThreads } from '../verification/flow.js';
 import { maybeAutoDisableRaid } from '../verification/raid.js';
+import { pruneOldMessages } from '../archive/message-archive.js';
+import { runWeeklyAnalytics } from '../insights/group-analytics.js';
+import { runMemberProfiling } from '../insights/member-profiles.js';
 import { backupToGitHub } from './backup.js';
 import { maybeRunRandomTribulation } from './tribulation-trigger.js';
 import { postWeeklyLeaderboard } from './weekly-leaderboard.js';
@@ -145,6 +148,54 @@ export function startScheduler(client: Client): void {
     { timezone: VN_TZ },
   );
   tasks.push(dailyQuest);
+
+  // Phase 15 — member knowledge base, two jobs behind one flag:
+  //   - DAILY 09:00 VN: learn + infer (profiles track how people change)
+  //   - WEEKLY Sun 20:00 VN: activity analytics digest
+  // Both off unless MEMBER_PROFILING_ENABLED=true.
+  if (env.MEMBER_PROFILING_ENABLED) {
+    const memberProfiling = cron.schedule(
+      env.MEMBER_PROFILING_CRON,
+      () => {
+        runMemberProfiling(client).catch((err) => {
+          logger.error({ err }, 'scheduler: member profiling failed');
+        });
+      },
+      { timezone: VN_TZ },
+    );
+    tasks.push(memberProfiling);
+
+    // Weekly activity analytics — Sunday 20:00 VN by default, landing
+    // with the weekly leaderboard so leaders get one review moment.
+    // Gated behind the same flag: both jobs read the same member data.
+    const groupAnalytics = cron.schedule(
+      env.GROUP_ANALYTICS_CRON,
+      () => {
+        runWeeklyAnalytics(client).catch((err) => {
+          logger.error({ err }, 'scheduler: weekly group analytics failed');
+        });
+      },
+      { timezone: VN_TZ },
+    );
+    tasks.push(groupAnalytics);
+  }
+
+  // Phase 16 — nightly retention sweep on the message archive. 03:00 VN,
+  // off-peak: the prune ends with a VACUUM which briefly locks the file.
+  if (env.ARCHIVE_ENABLED) {
+    const archivePrune = cron.schedule(
+      '0 3 * * *',
+      () => {
+        try {
+          pruneOldMessages();
+        } catch (err) {
+          logger.error({ err }, 'scheduler: archive prune failed');
+        }
+      },
+      { timezone: VN_TZ },
+    );
+    tasks.push(archivePrune);
+  }
 
   logger.info(
     { jobs: tasks.length, tz: VN_TZ },

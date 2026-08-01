@@ -79,6 +79,18 @@ export async function backupToGitHub(): Promise<{ skipped: boolean; pushed?: boo
     await git.commit(`backup ${date}`);
     await git.push('origin', 'main');
 
+    // Reclaim local disk. Each night commits a near-copy of a multi-MB
+    // snapshot, which git cannot delta-compress well; measured 129MB of
+    // .git after 58 commits on a host with 3.9GB total RAM, growing
+    // ~2MB/night with nothing pruning it. Only the newest snapshot has
+    // recovery value, so objects from superseded commits are dead weight.
+    // A gc failure must NOT fail the backup — the push already succeeded.
+    try {
+      await git.raw(['gc', '--prune=now', '--quiet']);
+    } catch (gcErr) {
+      logger.warn({ err: gcErr }, 'backup: git gc failed (backup itself succeeded)');
+    }
+
     logger.info({ date, files: status.files.map((f) => f.path) }, 'backup: pushed to GitHub');
     return { skipped: false, pushed: true };
   } catch (err) {
