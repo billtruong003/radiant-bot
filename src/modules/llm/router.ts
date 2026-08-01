@@ -81,9 +81,12 @@ const TASK_ROUTES: Record<TaskId, readonly Route[]> = {
   // EASY — chit-chat, short factual answers, persona banter. MiMo first
   // (fast, and the only free vision model here, so behaviour stays
   // consistent between the text and image paths).
+  // Ling leads (Bill's call, 2026-08-01). Measured on the same question:
+  // ling 2.5s / mimo 8.8s, and ling's Vietnamese came back better
+  // formatted. On a chat reply the latency is what members feel.
   'aki-answer-easy': [
-    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
     { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
+    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
     { provider: 'opencode-zen', model: 'deepseek-v4-flash-free' },
     { provider: 'gemini', model: 'gemini-2.5-flash' },
   ],
