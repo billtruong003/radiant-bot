@@ -6,6 +6,7 @@ import {
 } from 'discord.js';
 import { type SyncReport, syncAllPinnedMessages } from '../modules/admin/pinned-sync.js';
 import { logger } from '../utils/logger.js';
+import { requireAdmin } from '../utils/command-guard.js';
 
 /**
  * `/sync-pinned` — admin slash to push canonical pinned messages to
@@ -30,6 +31,7 @@ export const data = new SlashCommandBuilder()
   .setDMPermission(false);
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireAdmin(interaction))) return;
   if (!interaction.inCachedGuild() || !interaction.guild) {
     await interaction.reply({ content: '⚠️ Lệnh chỉ dùng trong server.', ephemeral: true });
     return;

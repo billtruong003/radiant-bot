@@ -11,6 +11,7 @@ import { getStore } from '../db/index.js';
 import { getSchedulerTaskCount } from '../modules/scheduler/index.js';
 import { themedEmbed } from '../utils/embed.js';
 import { logger } from '../utils/logger.js';
+import { requireAdmin } from '../utils/command-guard.js';
 
 /**
  * /selftest — admin-only health diagnostic.
@@ -172,6 +173,7 @@ async function checkAutomod(): Promise<CheckResult> {
 }
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireAdmin(interaction))) return;
   logger.info({ invoked_by: interaction.user.id, tag: interaction.user.tag }, 'command: /selftest');
 
   await interaction.deferReply({ ephemeral: true });

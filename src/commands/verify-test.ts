@@ -13,6 +13,7 @@ import {
 import { buildChallenge } from '../modules/verification/flow.js';
 import { themedEmbed } from '../utils/embed.js';
 import { logger } from '../utils/logger.js';
+import { requireAdmin } from '../utils/command-guard.js';
 
 /**
  * /verify-test — admin-only diagnostic for the verification flow.
@@ -59,6 +60,7 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireAdmin(interaction))) return;
   if (!interaction.inCachedGuild()) {
     await interaction.reply({ content: '❌ Lệnh này chỉ dùng trong guild.', ephemeral: true });
     return;

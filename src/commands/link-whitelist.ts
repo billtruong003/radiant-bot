@@ -5,6 +5,7 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 import { loadAutomodConfig, persistAutomodConfig } from '../config/automod.js';
+import { requireAdmin } from '../utils/command-guard.js';
 
 /**
  * `/link-whitelist add|remove|list` — admin tooling for the link
@@ -66,6 +67,7 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((sc) => sc.setName('list').setDescription('Xem toàn bộ whitelist hiện tại'));
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireAdmin(interaction))) return;
   const sub = interaction.options.getSubcommand(true);
   const config = await loadAutomodConfig();
 

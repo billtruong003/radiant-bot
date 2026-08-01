@@ -7,6 +7,7 @@ import { DIVIDER_SHORT, ICONS } from '../config/ui.js';
 import { getRaidStatus, isRaidActive, setRaidMode } from '../modules/verification/raid.js';
 import { themedEmbed } from '../utils/embed.js';
 import { logger } from '../utils/logger.js';
+import { requireAdmin } from '../utils/command-guard.js';
 
 export const data = new SlashCommandBuilder()
   .setName('raid-mode')
@@ -39,6 +40,7 @@ function statusEmbed() {
 }
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireAdmin(interaction))) return;
   const sub = interaction.options.getSubcommand(true);
   logger.info(
     { sub, invoked_by: interaction.user.id, tag: interaction.user.tag },

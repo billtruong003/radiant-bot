@@ -5,6 +5,7 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 import { getStore } from '../db/index.js';
+import { requireAdmin } from '../utils/command-guard.js';
 
 /**
  * `/stats` — admin-only ephemeral dashboard for Phase 11.2 visibility.
@@ -36,6 +37,7 @@ function fmtCost(usd: number): string {
 }
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireAdmin(interaction))) return;
   const store = getStore();
   const now = Date.now();
   const dayAgo = now - DAY_MS;

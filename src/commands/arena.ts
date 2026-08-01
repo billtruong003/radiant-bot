@@ -19,6 +19,7 @@ import {
 } from '../modules/arena/index.js';
 import { describeSkill } from '../modules/arena/skill-descriptions.js';
 import { logger } from '../utils/logger.js';
+import { requireAdmin } from '../utils/command-guard.js';
 
 /**
  * Phase 13 Lát A — `/arena` admin slash.
@@ -424,6 +425,7 @@ async function handleDebug(interaction: ChatInputCommandInteraction): Promise<vo
 }
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireAdmin(interaction))) return;
   const sub = interaction.options.getSubcommand(true);
   try {
     if (sub === 'forge') {

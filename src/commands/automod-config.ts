@@ -6,6 +6,7 @@ import {
 } from 'discord.js';
 import { loadAutomodConfig } from '../config/automod.js';
 import { automodEngine } from '../modules/automod/index.js';
+import { requireAdmin } from '../utils/command-guard.js';
 
 /**
  * /automod-config — admin-only readout of the active automod rules +
@@ -28,6 +29,7 @@ const ACTION_EMOJI = {
 } as const;
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!(await requireAdmin(interaction))) return;
   const config = await loadAutomodConfig();
   const rules = automodEngine.list();
 
