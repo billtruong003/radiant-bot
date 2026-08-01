@@ -157,6 +157,20 @@ const TASK_ROUTES: Record<TaskId, readonly Route[]> = {
     { provider: 'gemini', model: 'gemini-2.5-flash' },
     { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
   ],
+  // GUARDIAN — deciding whether a member gets punished. The two rungs use
+  // DIFFERENT models on purpose: asking the same model to check its own
+  // verdict just gets the same answer back with more confidence. DS V4
+  // accuses, Ling defends.
+  'guardian-judge': [
+    { provider: 'opencode-zen', model: 'deepseek-v4-flash-free' },
+    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
+    { provider: 'gemini', model: 'gemini-2.5-flash' },
+  ],
+  'guardian-review': [
+    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
+    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
+    { provider: 'gemini', model: 'gemini-2.5-flash' },
+  ],
   // NARRATION — cultivation-themed prose. Llama 3.3 70B first because it
   // is non-reasoning (no `<think>` overhead, every token goes to prose)
   // and gives strong VN xianxia output. gpt-oss-120b is a reasoning

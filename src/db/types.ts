@@ -729,3 +729,29 @@ export interface ArenaSession extends Record<string, unknown> {
   trajectory_blob: string | null;
   replay_url: string | null;
 }
+
+/**
+ * Guardian strike ledger — one row per member, offences appended inside.
+ *
+ * Keyed by discord_id and updated in place so it is bounded by member
+ * count, not by time. Old offences are pruned on write rather than kept
+ * forever; the archive already holds the raw messages if we ever need to
+ * re-examine one.
+ */
+export interface GuardianOffense {
+  at: number;
+  category: string;
+  /** The member's own words that justified the strike. */
+  evidence: string;
+  confidence: number;
+  /** Human-readable summary of what was done about it. */
+  action: string;
+}
+
+export interface GuardianStrike extends Record<string, unknown> {
+  discord_id: string;
+  display_name: string;
+  offenses: GuardianOffense[];
+  /** Set when the ladder asks Bill to confirm a ban; cleared when he acts. */
+  ban_proposed_at: number | null;
+}

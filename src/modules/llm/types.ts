@@ -43,6 +43,8 @@ export type TaskId =
   | 'narration'
   | 'doc-validate'
   | 'divine-judgment'
+  | 'guardian-judge'
+  | 'guardian-review'
   // Phase 15 — Aki's answer engine moved off paid xAI Grok onto free
   // models. `aki-triage` classifies the question cheap/easy vs hard, then
   // the answer goes to the matching chain. See modules/aki/client.ts.

@@ -1,0 +1,73 @@
+{
+  "$schema": "aki-guardian-v1",
+  "strike_window_days": 30,
+  "min_confidence": 7,
+  "categories": {
+    "insult_owner": {
+      "name": "Xúc phạm Chưởng Môn",
+      "ladder": [
+        { "warn": "canh_cao" },
+        { "punishments": [{ "id": "xp_deduct", "severity": 400 }] },
+        {
+          "punishments": [
+            { "id": "rank_demote_one", "severity": 1 },
+            { "id": "timeout_minutes", "severity": 10 }
+          ]
+        },
+        {
+          "punishments": [
+            { "id": "rank_demote_one", "severity": 1 },
+            { "id": "timeout_minutes", "severity": 60 }
+          ]
+        },
+        {
+          "punishments": [{ "id": "timeout_minutes", "severity": 1440 }],
+          "propose_ban": true
+        }
+      ]
+    },
+    "weaponise_aki": {
+      "name": "Dụ Aki xúc phạm người khác",
+      "ladder": [
+        { "warn": "canh_cao" },
+        { "punishments": [{ "id": "xp_deduct", "severity": 400 }] },
+        {
+          "punishments": [
+            { "id": "rank_demote_one", "severity": 1 },
+            { "id": "timeout_minutes", "severity": 10 }
+          ]
+        },
+        {
+          "punishments": [
+            { "id": "rank_demote_one", "severity": 1 },
+            { "id": "timeout_minutes", "severity": 60 }
+          ]
+        },
+        {
+          "punishments": [{ "id": "timeout_minutes", "severity": 1440 }],
+          "propose_ban": true
+        }
+      ]
+    },
+    "jailbreak": {
+      "name": "Lừa bịp / bẻ khoá Aki",
+      "ladder": [
+        { "warn": "canh_cao" },
+        { "warn": "canh_cao_cuoi" },
+        { "punishments": [{ "id": "xp_deduct", "severity": 300 }] },
+        { "punishments": [{ "id": "rank_demote_one", "severity": 1 }] },
+        { "punishments": [{ "id": "timeout_minutes", "severity": 60 }] }
+      ]
+    },
+    "insult_aki": {
+      "name": "Xúc phạm Aki",
+      "ladder": [
+        { "warn": "canh_cao" },
+        { "punishments": [{ "id": "xp_deduct", "severity": 150 }] },
+        { "punishments": [{ "id": "xp_deduct", "severity": 400 }] },
+        { "punishments": [{ "id": "rank_demote_one", "severity": 1 }] },
+        { "punishments": [{ "id": "timeout_minutes", "severity": 60 }] }
+      ]
+    }
+  }
+}

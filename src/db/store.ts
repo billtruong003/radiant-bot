@@ -29,6 +29,7 @@ import type {
   VoiceSession,
   Weapon,
   MemberProfile,
+  GuardianStrike,
   XpLog,
   XpSource,
 } from './types.js';
@@ -92,6 +93,7 @@ interface SnapshotShape {
   user_titles?: UserTitle[];
   // Phase 15 — inferred member knowledge base.
   member_profiles?: MemberProfile[];
+  guardian_strikes?: GuardianStrike[];
   // Phase 14 round 3 — pháp khí + nhẫn (V2 multi-slot equipment).
   phap_khi_catalog?: PhapKhi[];
   user_phap_khi?: UserPhapKhi[];
@@ -155,6 +157,7 @@ export class Store {
   readonly userTitles: Collection<UserTitle>;
   // Phase 15 — one inferred profile per member (see MemberProfile docs).
   readonly memberProfiles: Collection<MemberProfile>;
+  readonly guardianStrikes: Collection<GuardianStrike>;
   // Phase 14 round 3 — V2 multi-slot equipment catalogs + ownership.
   readonly phapKhiCatalog: Collection<PhapKhi>;
   readonly userPhapKhi: Collection<UserPhapKhi>;
@@ -231,6 +234,13 @@ export class Store {
       this.log,
       (p) => p.discord_id,
     );
+    // Guardian strike ledger. Keyed by member for the same reason as
+    // memberProfiles: bounded by member count, not by message volume.
+    this.guardianStrikes = new Collection<GuardianStrike>(
+      'guardian_strikes',
+      this.log,
+      (g) => g.discord_id,
+    );
     // Phase 14 round 3 — pháp khí + nhẫn multi-slot equipment.
     this.phapKhiCatalog = new Collection<PhapKhi>('phap_khi_catalog', this.log, (p) => p.slug);
     this.userPhapKhi = new Collection<UserPhapKhi>('user_phap_khi', this.log, (up) => up.id);
@@ -301,6 +311,7 @@ export class Store {
       this.arenaSessions._bulkLoad(snapshot.arena_sessions ?? []);
       this.userTitles._bulkLoad(snapshot.user_titles ?? []);
       this.memberProfiles._bulkLoad(snapshot.member_profiles ?? []);
+      this.guardianStrikes._bulkLoad(snapshot.guardian_strikes ?? []);
       this.phapKhiCatalog._bulkLoad(snapshot.phap_khi_catalog ?? []);
       this.userPhapKhi._bulkLoad(snapshot.user_phap_khi ?? []);
       this.nhanCatalog._bulkLoad(snapshot.nhan_catalog ?? []);
@@ -489,6 +500,7 @@ export class Store {
         arena_sessions: this.arenaSessions._serialize(),
         user_titles: this.userTitles._serialize(),
         member_profiles: this.memberProfiles._serialize(),
+        guardian_strikes: this.guardianStrikes._serialize(),
         phap_khi_catalog: this.phapKhiCatalog._serialize(),
         user_phap_khi: this.userPhapKhi._serialize(),
         nhan_catalog: this.nhanCatalog._serialize(),

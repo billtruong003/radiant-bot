@@ -168,7 +168,12 @@ function previousRank(rank: CultivationRankId): CultivationRankId | null {
   return CULTIVATION_RANKS[idx - 1]?.id ?? null;
 }
 
-async function applyPunishment(
+/**
+ * Exported for the guardian ladder (`guardian-judge.ts`), which picks the
+ * punishment from config rather than from the model — same offence, same
+ * cost, every time.
+ */
+export async function applyPunishment(
   member: GuildMember,
   user: User,
   punishment: DivinePunishment,

@@ -8,6 +8,7 @@ import { loadVerificationConfig } from '../config/verification.js';
 import { getStore } from '../db/index.js';
 import { archiveMessage } from '../modules/archive/message-archive.js';
 import { maybeDivineWrath } from '../modules/admin/aki-defense.js';
+import { handleGuardian } from '../modules/admin/guardian.js';
 import { applyDecision, automodEngine } from '../modules/automod/index.js';
 import { messageXpCooldown } from '../modules/leveling/cooldown.js';
 import { isXpEligibleMessage } from '../modules/leveling/eligibility.js';
@@ -171,10 +172,21 @@ async function handleGuildMessage(message: Message): Promise<void> {
     }
   }
 
-  // Phase 12.5 — Aki auto-defense. If the message insults Aki (or alt
-  // NPCs) AND no automod rule already fired AND user isn't staff,
-  // invoke Thiên Đạo. 1h per-user cooldown stops spam-triggering. The
-  // call is awaited so a wrath-triggering message doesn't ALSO earn XP.
+  // Guardian first. It covers everything `maybeDivineWrath` does plus
+  // insults aimed at the Chưởng Môn and attempts to weaponise Aki against
+  // a third party, and it judges with surrounding context instead of a
+  // keyword list.
+  //
+  // Returning true means it TOOK the case — including when it decided the
+  // member was innocent. We must not fall through to the keyword detector
+  // in that case, or a deliberate acquittal would be overruled by the
+  // very thing the guardian replaces.
+  if (await handleGuardian(message)) return;
+
+  // Phase 12.5 — Aki auto-defense. Still the path for messages the
+  // guardian's screen never picked up. 1h per-user cooldown stops
+  // spam-triggering. Awaited so a wrath-triggering message doesn't ALSO
+  // earn XP.
   const wrathFired = await maybeDivineWrath({ message, isStaff: memberIsStaff });
   if (wrathFired) return;
 
