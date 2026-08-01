@@ -66,7 +66,10 @@ export async function runVoiceTick(guild: Guild): Promise<{
           displayName: member.displayName,
           amount,
           source,
-          metadata: { channel_id: vc.id, channel_name: vc.name },
+          // channel_name deliberately omitted: it repeated the same few
+          // strings across ~136k rows (and its emoji forced 2-byte string
+          // backing in V8), for a value that is derivable from channel_id.
+          metadata: { channel_id: vc.id },
         });
         awarded++;
 

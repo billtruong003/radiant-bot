@@ -47,11 +47,36 @@ export class AppendOnlyCollection<T extends Record<string, unknown>> implements 
   /**
    * Drops items older than `keepLast` from the in-memory tail.
    * Note: WAL still contains all ops until next snapshot truncates.
+   *
+   * ⚠️ DO NOT use this on `xp_logs`. Tail-truncation silently revokes
+   * honor titles: `modules/titles/index.ts` derives LIFETIME duel_win /
+   * mieu_sat / tribulation_pass counts by scanning for row existence, and
+   * those rows are the OLDEST ones. Use `pruneWhere` with a source filter
+   * instead. Kept for collections where recency is the only thing that
+   * matters.
    */
   compact(keepLast: number): void {
     if (this.items.length > keepLast) {
       this.items = this.items.slice(-keepLast);
     }
+  }
+
+  /**
+   * Selective retention: drops every item matching `shouldDrop`, keeping
+   * the rest regardless of position. Returns how many were dropped.
+   *
+   * This is the safe counterpart to `compact()` — the caller decides which
+   * rows are volatile (e.g. voice XP ticks) and which must be kept forever
+   * (e.g. duel wins that back a permanent title).
+   *
+   * In-memory only. The WAL still holds the original appends until the
+   * next snapshot truncates it, so call this from inside the snapshot
+   * critical section to keep memory and disk consistent.
+   */
+  pruneWhere(shouldDrop: (item: T) => boolean): number {
+    const before = this.items.length;
+    this.items = this.items.filter((item) => !shouldDrop(item));
+    return before - this.items.length;
   }
 
   _applySet(_key: string, _value: unknown): void {

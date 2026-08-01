@@ -28,12 +28,41 @@ import type {
   Verification,
   VoiceSession,
   Weapon,
+  MemberProfile,
   XpLog,
+  XpSource,
 } from './types.js';
 
 const SNAPSHOT_VERSION = 1;
 const WAL_FILE = 'wal.jsonl';
 const SNAPSHOT_FILE = 'snapshot.json';
+
+/**
+ * xp_logs retention — see `pruneVolatileXpLogsNoLock()`.
+ *
+ * 30 days is deliberately generous: the only consumer that reads xp_log
+ * ROWS on a time window is the weekly leaderboard (7 days). The margin is
+ * there so adding a monthly view later doesn't silently lose data.
+ */
+const XP_LOG_RETENTION_DAYS = 30;
+const XP_LOG_RETENTION_MS = XP_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+/**
+ * High-volume grind sources whose individual rows carry no lasting meaning
+ * once they fall out of the leaderboard window — the XP itself already
+ * lives on `users.xp`, these rows are only the audit trail.
+ *
+ * Everything NOT listed here is kept forever. In particular 'duel_win',
+ * 'mieu_sat' and 'tribulation_pass' are existence-counted for lifetime
+ * honor titles (modules/titles/index.ts) and must never be pruned.
+ */
+const VOLATILE_XP_SOURCES: ReadonlySet<XpSource> = new Set<XpSource>([
+  'message',
+  'voice',
+  'voice_working',
+  'reaction',
+  'pin',
+]);
 
 interface SnapshotShape {
   version: number;
@@ -61,6 +90,8 @@ interface SnapshotShape {
   arena_sessions?: ArenaSession[];
   // Phase 14 — danh hiệu honor titles.
   user_titles?: UserTitle[];
+  // Phase 15 — inferred member knowledge base.
+  member_profiles?: MemberProfile[];
   // Phase 14 round 3 — pháp khí + nhẫn (V2 multi-slot equipment).
   phap_khi_catalog?: PhapKhi[];
   user_phap_khi?: UserPhapKhi[];
@@ -122,6 +153,8 @@ export class Store {
   readonly arenaSessions: Collection<ArenaSession>;
   // Phase 14 — danh hiệu (honor titles) earned by users.
   readonly userTitles: Collection<UserTitle>;
+  // Phase 15 — one inferred profile per member (see MemberProfile docs).
+  readonly memberProfiles: Collection<MemberProfile>;
   // Phase 14 round 3 — V2 multi-slot equipment catalogs + ownership.
   readonly phapKhiCatalog: Collection<PhapKhi>;
   readonly userPhapKhi: Collection<UserPhapKhi>;
@@ -191,6 +224,13 @@ export class Store {
     );
     // Phase 14 — earned honor title rows (one per user+title).
     this.userTitles = new Collection<UserTitle>('user_titles', this.log, (t) => t.id);
+    // Phase 15 — keyed by discord_id so each run updates in place rather
+    // than appending a new row (bounded by member count, not by time).
+    this.memberProfiles = new Collection<MemberProfile>(
+      'member_profiles',
+      this.log,
+      (p) => p.discord_id,
+    );
     // Phase 14 round 3 — pháp khí + nhẫn multi-slot equipment.
     this.phapKhiCatalog = new Collection<PhapKhi>('phap_khi_catalog', this.log, (p) => p.slug);
     this.userPhapKhi = new Collection<UserPhapKhi>('user_phap_khi', this.log, (up) => up.id);
@@ -217,6 +257,7 @@ export class Store {
       this.userWeapons,
       this.arenaSessions,
       this.userTitles,
+      this.memberProfiles,
       this.phapKhiCatalog,
       this.userPhapKhi,
       this.nhanCatalog,
@@ -259,6 +300,7 @@ export class Store {
       this.userWeapons._bulkLoad(snapshot.user_weapons ?? []);
       this.arenaSessions._bulkLoad(snapshot.arena_sessions ?? []);
       this.userTitles._bulkLoad(snapshot.user_titles ?? []);
+      this.memberProfiles._bulkLoad(snapshot.member_profiles ?? []);
       this.phapKhiCatalog._bulkLoad(snapshot.phap_khi_catalog ?? []);
       this.userPhapKhi._bulkLoad(snapshot.user_phap_khi ?? []);
       this.nhanCatalog._bulkLoad(snapshot.nhan_catalog ?? []);
@@ -277,15 +319,32 @@ export class Store {
     }
 
     // 2. Replay WAL on top.
+    //
+    // Ops at or before the snapshot's timestamp are ALREADY baked into the
+    // snapshot we just loaded — replaying them would double-apply.
+    // snapshot() renames the new file and only then truncates the WAL; a
+    // crash in that window leaves both, and without this guard the next
+    // boot would duplicate every APPEND row and double-count every INCR
+    // (i.e. hand out XP twice). SET/DEL are naturally idempotent, but
+    // APPEND and INCR are not.
+    const snapshotAt = snapshot?.created_at ?? 0;
     let replayCount = 0;
     let replaySkipped = 0;
+    let replayPreSnapshot = 0;
     for await (const op of this.log.replay()) {
+      if (snapshotAt > 0 && typeof op.ts === 'number' && op.ts <= snapshotAt) {
+        replayPreSnapshot++;
+        continue;
+      }
       const applied = this.applyOp(op);
       if (applied) replayCount++;
       else replaySkipped++;
     }
-    if (replayCount > 0 || replaySkipped > 0) {
-      logger.info({ applied: replayCount, skipped: replaySkipped }, 'store: wal replay complete');
+    if (replayCount > 0 || replaySkipped > 0 || replayPreSnapshot > 0) {
+      logger.info(
+        { applied: replayCount, skipped: replaySkipped, pre_snapshot: replayPreSnapshot },
+        'store: wal replay complete',
+      );
     }
 
     // 3. Start periodic snapshot.
@@ -355,6 +414,44 @@ export class Store {
   }
 
   /**
+   * Drops grind-XP rows older than XP_LOG_RETENTION_MS.
+   *
+   * Why this exists: `xp_logs` was append-only forever. Measured 2026-07-28
+   * on prod — 140,559 rows for 63 users (96.6% of them voice ticks), 29.2MB
+   * of a 29.3MB snapshot, ~47MB of retained heap, growing ~1,859 rows/day
+   * with no upper bound. `AppendOnlyCollection.compact()` was written for
+   * this back in Phase 1 but never wired up to a caller.
+   *
+   * Why selective and not `compact(keepLast)`: tail-truncation would delete
+   * the OLDEST rows, and `modules/titles/index.ts` counts lifetime
+   * 'duel_win' / 'mieu_sat' / 'tribulation_pass' rows by existence — those
+   * are exactly the old, rare rows. Cutting the tail silently revokes
+   * titles members already earned. So only VOLATILE_XP_SOURCES get pruned;
+   * every rare/event/marker source is kept forever.
+   *
+   * Safe against the only recency consumer: `topByXpInRange` is called with
+   * days=7 (weekly leaderboard, queries/leaderboard.ts:58), well inside the
+   * 30-day floor.
+   *
+   * Caller must already hold the WAL writer mutex — hence NoLock.
+   */
+  private pruneVolatileXpLogsNoLock(): void {
+    const cutoff = Date.now() - XP_LOG_RETENTION_MS;
+    const dropped = this.xpLogs.pruneWhere(
+      (log) =>
+        VOLATILE_XP_SOURCES.has(log.source as XpSource) &&
+        typeof log.created_at === 'number' &&
+        log.created_at < cutoff,
+    );
+    if (dropped > 0) {
+      logger.info(
+        { dropped, remaining: this.xpLogs.count(), retention_days: XP_LOG_RETENTION_DAYS },
+        'store: pruned volatile xp_logs',
+      );
+    }
+  }
+
+  /**
    * Atomic snapshot: serialize → write tmp → rename → truncate WAL.
    * The entire sequence runs under the WAL writer mutex so concurrent
    * writes can't slip an op in between the snapshot and the truncate.
@@ -363,6 +460,13 @@ export class Store {
     if (!this.initialized) throw new Error('Store not initialized');
 
     await this.log.runExclusive(async () => {
+      // Retention pass BEFORE serializing — runs inside the WAL writer
+      // mutex, and the WAL is truncated at the end of this same block, so
+      // memory and disk stay consistent (a pruned row can only come back
+      // if we crash between rename and truncate, and it gets pruned again
+      // on the next snapshot).
+      this.pruneVolatileXpLogsNoLock();
+
       const data: SnapshotShape = {
         version: SNAPSHOT_VERSION,
         created_at: Date.now(),
@@ -384,6 +488,7 @@ export class Store {
         user_weapons: this.userWeapons._serialize(),
         arena_sessions: this.arenaSessions._serialize(),
         user_titles: this.userTitles._serialize(),
+        member_profiles: this.memberProfiles._serialize(),
         phap_khi_catalog: this.phapKhiCatalog._serialize(),
         user_phap_khi: this.userPhapKhi._serialize(),
         nhan_catalog: this.nhanCatalog._serialize(),
@@ -391,8 +496,38 @@ export class Store {
       };
 
       const tmpPath = `${this.snapshotPath}.tmp`;
-      const payload = JSON.stringify(data);
-      await fs.writeFile(tmpPath, payload);
+
+      // Stream the write, one top-level key at a time, instead of
+      // building the whole document as a single string.
+      //
+      // `JSON.stringify(data)` materialised the ENTIRE snapshot as one V8
+      // string, and `fs.writeFile` then encoded that string into a second
+      // full-size Buffer. Measured on the live 30MB snapshot: steady state
+      // ~47MB heap → 164MB after stringify → 221MB heap / 320MB RSS during
+      // the write. That hourly spike — not the steady-state usage — is what
+      // pushed the process toward `max_memory_restart: 500M`. (The
+      // stringify step alone cost +58MB rather than +30MB because emoji in
+      // channel names force V8 to back the string with 2-byte chars.)
+      //
+      // Streaming keeps peak extra memory at roughly the largest single
+      // collection instead of the whole store.
+      const handle = await fs.open(tmpPath, 'w');
+      let bytes = 0;
+      try {
+        const write = async (chunk: string): Promise<void> => {
+          bytes += Buffer.byteLength(chunk);
+          await handle.write(chunk);
+        };
+        await write(`{"version":${SNAPSHOT_VERSION},"created_at":${data.created_at}`);
+        for (const [key, value] of Object.entries(data)) {
+          if (key === 'version' || key === 'created_at') continue;
+          await write(`,${JSON.stringify(key)}:${JSON.stringify(value)}`);
+        }
+        await write('}');
+      } finally {
+        await handle.close();
+      }
+
       // POSIX rename is atomic; Windows rename is atomic on same volume in
       // Node >= 14 (uses MoveFileEx with replace).
       await fs.rename(tmpPath, this.snapshotPath);
@@ -402,7 +537,7 @@ export class Store {
         {
           users: data.users.length,
           xp_logs: data.xp_logs.length,
-          bytes: payload.length,
+          bytes,
         },
         'store: snapshot written',
       );

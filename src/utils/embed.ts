@@ -8,7 +8,6 @@ import {
   COLOR_ORANGE,
   COLOR_PURPLE,
   COLOR_RED,
-  DIVIDER,
   FOOTER_BRAND,
 } from '../config/ui.js';
 
@@ -71,14 +70,6 @@ export function themedEmbed(theme: EmbedTheme, opts: ThemedEmbedInput = {}): Emb
   }
   if (opts.timestamp !== false) e.setTimestamp();
   return e;
-}
-
-/**
- * Compose a description with consistent divider sections. Each section
- * is joined by a horizontal rule for visual hierarchy.
- */
-export function sectioned(...sections: readonly string[]): string {
-  return sections.filter(Boolean).join(`\n${DIVIDER}\n`);
 }
 
 /**

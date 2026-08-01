@@ -25,15 +25,12 @@ export const COLOR_GREEN = 0x2ecc71;
 export const COLOR_AKI = 0xff8fb1; // pink — Aki's brand color
 /** Dark/serious / kick / ban / admin alert. */
 export const COLOR_DARK = 0x2c3e50;
-/** Pure white — Tiên Nhân / supreme. */
-export const COLOR_WHITE = 0xecf0f1;
 
 // ---------- Unicode dividers / decorations ----------
 
 /** Long horizontal rule for embed descriptions. */
 export const DIVIDER = '━━━━━━━━━━━━━━━━━━━━━━━━━';
 export const DIVIDER_SHORT = '━━━━━━━━━━━━━━━━';
-export const DIVIDER_DOTS = '· · · · · · · · · · · ·';
 export const DIVIDER_DOUBLE = '═══════════════════════';
 
 // ---------- Universal glyph palette ----------
@@ -139,18 +136,4 @@ export const RANK_ICONS = {
 // ---------- Footer pattern ----------
 
 export const FOOTER_BRAND = 'Radiant Tech Sect — Tu kỹ thuật, luyện trí tuệ';
-export const FOOTER_AKI = 'Aki · hầu gái của tông môn ✿';
 
-// ---------- Banner / hero image URLs (placeholder for assets/ uploads) ----------
-
-/**
- * Banner image URLs. Currently null — will populate after Phase 9 polish
- * uploads PNG assets via emoji/banner CLI. Use `attachment://<file>.png`
- * pattern with EmbedBuilder.setImage() once available.
- */
-export const BANNERS = {
-  welcome: null as string | null,
-  levelup: null as string | null,
-  tribulation: null as string | null,
-  launch: null as string | null,
-} as const;

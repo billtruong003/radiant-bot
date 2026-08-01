@@ -85,8 +85,3 @@ export function getBanMenhDisplay(discordId: string): {
     lore: 'Vũ khí bản mệnh — khí sinh ra cùng tu sĩ, biến hoá theo tâm.',
   };
 }
-
-/** True if a slug is a legacy forged bản mệnh slug (per-user custom). */
-export function isLegacyBanMenhSlug(slug: string): boolean {
-  return slug.startsWith(BAN_MENH_SLUG_PREFIX);
-}

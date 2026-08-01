@@ -1,4 +1,4 @@
-import { ChannelType, PermissionFlagsBits } from 'discord.js';
+import { ChannelType } from 'discord.js';
 
 /**
  * Declarative server structure for Phase 2 idempotent sync.
@@ -279,4 +279,3 @@ export const CHANNEL_TYPE_TO_DISCORD = {
  * Permission flag references for Phase 2 to translate `PermPreset` →
  * Discord permission overwrites. Phase 2 will compose these with role lookups.
  */
-export const PERM_FLAGS = PermissionFlagsBits;

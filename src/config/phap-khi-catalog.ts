@@ -68,6 +68,3 @@ export async function loadPhapKhiCatalog(): Promise<PhapKhi[]> {
   return cached;
 }
 
-export function __resetPhapKhiCatalogCacheForTesting(): void {
-  cached = null;
-}

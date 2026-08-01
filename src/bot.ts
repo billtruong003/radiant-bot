@@ -1,4 +1,4 @@
-import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
+import { Client, Events, GatewayIntentBits, Options, Partials } from 'discord.js';
 import { env } from './config/env.js';
 import { register as registerGuildMemberAdd } from './events/guildMemberAdd.js';
 import { register as registerGuildMemberUpdate } from './events/guildMemberUpdate.js';
@@ -25,6 +25,32 @@ export async function startBot(): Promise<Client> {
       GatewayIntentBits.DirectMessages,
     ],
     partials: [Partials.Channel, Partials.Message, Partials.Reaction],
+
+    // Cache bounds + sweepers. discord.js defaults cap MessageManager at
+    // 200/channel but NEVER sweep it, and leave GuildMemberManager /
+    // UserManager unbounded — with MessageContent + Partials.Message that
+    // means full message bodies pile up per channel for the process
+    // lifetime. `automod/actions.ts` fetches up to 100 messages per
+    // retroactive profanity sweep straight into that cache.
+    makeCache: Options.cacheWithLimits({
+      ...Options.DefaultMakeCacheSettings,
+      MessageManager: 50,
+      // Nothing in this bot reads presence or invites.
+      PresenceManager: 0,
+      GuildInviteManager: 0,
+    }),
+    sweepers: {
+      ...Options.DefaultSweeperSettings,
+      // Automod only ever looks at very recent messages; anything older is
+      // dead weight.
+      messages: { interval: 600, lifetime: 1800 },
+      // Drop cached bot users (never needed again). Our own user is
+      // excluded — evicting it breaks client.user.
+      users: {
+        interval: 3600,
+        filter: () => (user) => user.bot && user.id !== user.client.user?.id,
+      },
+    },
   });
 
   // Wire feature handlers BEFORE login so no event can fire un-handled

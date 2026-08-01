@@ -27,16 +27,21 @@ function buildContext(user: User): TitleEarnContext {
   // Duel wins + miểu sát — counted from xp_logs with the dedicated Phase 14
   // sources ('duel_win', 'mieu_sat'). The XP amount on those rows is 0
   // (the row is a counter marker); their EXISTENCE drives title eligibility.
-  const duelWins = store.xpLogs.query(
-    (l) => l.discord_id === userId && l.source === 'duel_win',
-  ).length;
-  const mieuSatCount = store.xpLogs.query(
-    (l) => l.discord_id === userId && l.source === 'mieu_sat',
-  ).length;
-  // Tribulation passes — counted from xp_logs where source='tribulation_pass'.
-  const tribulationPasses = store.xpLogs
-    .query((l) => l.discord_id === userId && l.source === 'tribulation_pass')
-    .length;
+  // ONE pass, not three. This used to run three separate full-array
+  // scans; on the live snapshot that was ~420k predicate calls per
+  // invocation to find ~17 rows, and it runs on /duel, /weapon,
+  // /cong-phap and /danh-hieu. The predicate always returns false so
+  // `query` allocates nothing — we only accumulate the counters.
+  let duelWins = 0;
+  let mieuSatCount = 0;
+  let tribulationPasses = 0;
+  store.xpLogs.query((l) => {
+    if (l.discord_id !== userId) return false;
+    if (l.source === 'duel_win') duelWins++;
+    else if (l.source === 'mieu_sat') mieuSatCount++;
+    else if (l.source === 'tribulation_pass') tribulationPasses++;
+    return false;
+  });
   const legendaryCongPhapCount = store.userCongPhap
     .query((uc) => uc.discord_id === userId)
     .map((uc) => store.congPhapCatalog.get(uc.cong_phap_slug))

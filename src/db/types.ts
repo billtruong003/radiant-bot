@@ -1,3 +1,5 @@
+import type { LlmFilterStage } from '../modules/llm/types.js';
+
 export type CultivationRankId =
   | 'pham_nhan'
   | 'luyen_khi'
@@ -152,6 +154,51 @@ export interface UserTitle extends Record<string, unknown> {
   earned_at: number;
 }
 
+/**
+ * Phase 15 — inferred knowledge about a member, distilled from their
+ * recent public messages by a free model.
+ *
+ * Deliberately stores only the DISTILLED profile, never the raw messages:
+ * raw chat is fetched from Discord at analysis time and discarded. That
+ * keeps this collection tiny (one bounded row per member) and avoids
+ * recreating the unbounded-growth problem that xp_logs had.
+ *
+ * Treat every field as a GUESS made by a small model from a limited
+ * window — it is decision support for the sect leaders, not fact.
+ */
+export interface MemberProfile extends Record<string, unknown> {
+  /** Keyed by discord_id — one living profile per member, updated in place. */
+  discord_id: string;
+  username: string;
+  display_name: string | null;
+  /** 2-3 sentence character sketch, Vietnamese. */
+  summary: string;
+  /** Topics they gravitate to. */
+  interests: string[];
+  /** How they talk (e.g. "ngắn gọn, hay đùa", "lịch sự, hỏi nhiều"). */
+  tone: string;
+  /** Things they appear to know well. */
+  expertise: string[];
+  /** How many messages backed this inference — low count = low confidence. */
+  messages_analyzed: number;
+  updated_at: number;
+
+  // --- Group standing, captured at inference time -----------------------
+  // These are FACTS read from Discord + the store, not model guesses. They
+  // are snapshotted next to the sketch so a profile answers "who is this?"
+  // on its own without re-joining against users/roles, and so the model is
+  // told up front whether it is describing a sect leader or a brand-new
+  // member — which changes what the summary should emphasise.
+  /** Discord role names held at inference time (staff + cultivation + flair). */
+  roles?: string[];
+  /** True if they hold a staff role (Chưởng Môn / Trưởng Lão / Chấp Pháp). */
+  is_staff?: boolean;
+  /** Display name of their cultivation rank, e.g. "Hóa Thần". */
+  cultivation_rank_name?: string;
+  /** Level at inference time — pairs with rank to show how far along they are. */
+  level?: number;
+}
+
 export interface XpLog extends Record<string, unknown> {
   id: string;
   discord_id: string;
@@ -247,7 +294,7 @@ export interface AkiCallLog extends Record<string, unknown> {
    *   - 'disabled'    → GEMINI_API_KEY not set
    *   - null          → pre-filter era log
    */
-  filter_stage?: 'groq' | 'gemini' | 'pre-filter' | 'fail-open' | 'disabled' | null;
+  filter_stage?: LlmFilterStage | null;
   filter_tokens_in?: number;
   filter_tokens_out?: number;
   filter_cost_usd?: number;
@@ -260,6 +307,13 @@ export interface AkiCallLog extends Record<string, unknown> {
    * Grok system prompt for continuity. Bounded to 500 chars.
    */
   question_text?: string | null;
+  /**
+   * Lát 5 (2026-07-31) — Aki's answer, stored under the SAME opt-in and
+   * privacy rules as question_text. Bounded to 300 chars. Without it the
+   * memory block taught Aki what was asked but not what she said, so
+   * "continuity" was one-sided.
+   */
+  reply_text?: string | null;
 }
 
 // ============================================================================

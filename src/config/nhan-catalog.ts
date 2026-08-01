@@ -60,6 +60,3 @@ export async function loadNhanCatalog(): Promise<Nhan[]> {
   return cached;
 }
 
-export function __resetNhanCatalogCacheForTesting(): void {
-  cached = null;
-}

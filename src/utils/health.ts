@@ -1,12 +1,14 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { type IncomingMessage, type Server, type ServerResponse, createServer } from 'node:http';
-import { ChannelType, type Client, type TextChannel, type ThreadChannel } from 'discord.js';
+import { ChannelType, type Client, type Message, type TextChannel, type ThreadChannel } from 'discord.js';
 import { canonicalChannelName } from '../config/channels.js';
 import { env } from '../config/env.js';
 import { getStore } from '../db/index.js';
 import type { ArenaOutcome, ArenaSession } from '../db/types.js';
 import { verifyBody } from '../modules/arena/tokens.js';
 import { submitContribution } from '../modules/docs/validator.js';
+import { runWeeklyAnalytics } from '../modules/insights/group-analytics.js';
+import { runMemberProfiling } from '../modules/insights/member-profiles.js';
 import { logger } from './logger.js';
 
 /**
@@ -81,12 +83,24 @@ export function startHealthServer(port: number, client: Client): void {
       void handleArenaResultApi(req, res);
       return;
     }
+    if (req.url === '/api/agent/profile-run' && req.method === 'POST') {
+      void handleAgentProfileRun(req, res);
+      return;
+    }
     if (req.url === '/api/agent/post' && req.method === 'POST') {
       void handleAgentPost(req, res);
       return;
     }
     if (req.url === '/api/agent/channel' && req.method === 'POST') {
       void handleAgentChannel(req, res);
+      return;
+    }
+    if (req.url === '/api/agent/message/get' && req.method === 'POST') {
+      void handleAgentMessageGet(req, res);
+      return;
+    }
+    if (req.url === '/api/agent/message/pin' && req.method === 'POST') {
+      void handleAgentMessagePin(req, res);
       return;
     }
     res.writeHead(404, { 'content-type': 'text/plain' });
@@ -384,11 +398,68 @@ async function resolveChannel(idOrName: string): Promise<TextChannel | ThreadCha
   return null;
 }
 
+/**
+ * POST /api/agent/profile-run — trigger a member-profiling pass on demand.
+ *
+ * Exists because profiling MUST run inside the bot process. Running it
+ * from a separate script writes to the same WAL while the live bot holds
+ * its own in-memory copy; the bot's next snapshot then overwrites the file
+ * and truncates the WAL, silently destroying those rows. (Learned the hard
+ * way on 2026-07-28 — 8 freshly-written profiles were lost exactly this
+ * way.) Never add a second writer to this store.
+ *
+ * Returns immediately; the run continues in the background and reports
+ * into #bot-log, because a full pass takes ~10s and can exceed a caller's
+ * timeout.
+ */
+async function handleAgentProfileRun(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  // MUST authenticate like every other /api/agent/* route. The health
+  // server binds on all interfaces (HEALTH_PORT), so an unauthenticated
+  // route here is remotely reachable — this endpoint triggers LLM work
+  // and posts to Discord, so it is not a harmless read.
+  const body = await readAgentBody(req, res);
+  if (!body) return;
+
+  if (!botClient) {
+    res.writeHead(503, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: 'bot chưa sẵn sàng' }));
+    return;
+  }
+  if (!env.MEMBER_PROFILING_ENABLED) {
+    res.writeHead(409, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: 'MEMBER_PROFILING_ENABLED=false' }));
+    return;
+  }
+  // Optional { job: "analytics" } runs the weekly digest instead of the
+  // daily profiling pass — same auth, same "fire and report to #bot-log"
+  // contract, so it doesn't need a second route.
+  let job = 'profiles';
+  try {
+    const parsed = JSON.parse(body.toString('utf-8') || '{}') as { job?: unknown };
+    if (parsed.job === 'analytics') job = 'analytics';
+  } catch {
+    // Empty/invalid body → default job. Body carries no other meaning.
+  }
+
+  const client = botClient;
+  const run = job === 'analytics' ? runWeeklyAnalytics(client) : runMemberProfiling(client);
+  void run.catch((err) => {
+    logger.error({ err, job }, '/api/agent/profile-run: run failed');
+  });
+  logger.info({ job }, '/api/agent/profile-run: Lucy kích hoạt job insights');
+  res.writeHead(202, { 'content-type': 'application/json' });
+  res.end(JSON.stringify({ ok: true, started: true, job }));
+}
+
 async function handleAgentPost(req: IncomingMessage, res: ServerResponse): Promise<void> {
   try {
     const body = await readAgentBody(req, res);
     if (!body) return;
-    const json = JSON.parse(body.toString('utf-8')) as { channel?: unknown; text?: unknown };
+    const json = JSON.parse(body.toString('utf-8')) as {
+      channel?: unknown;
+      text?: unknown;
+      mention_everyone?: unknown;
+    };
     if (typeof json.channel !== 'string' || typeof json.text !== 'string' || !json.text.trim()) {
       res.writeHead(400, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ error: 'cần channel + text' }));
@@ -400,8 +471,11 @@ async function handleAgentPost(req: IncomingMessage, res: ServerResponse): Promi
       res.end(JSON.stringify({ error: 'không tìm thấy kênh' }));
       return;
     }
-    // Discord giới hạn 2000 ký tự; cắt an toàn. allowedMentions parse:[] -> không ping nhầm.
-    const sent = await ch.send({ content: json.text.slice(0, 1900), allowedMentions: { parse: [] } });
+    // Mặc định allowedMentions parse:[] -> không ping nhầm. Chỉ bật @everyone/@here
+    // khi Lucy gửi mention_everyone:true tường minh (announcement thật sự cần tag all).
+    const allowedMentions = json.mention_everyone === true ? { parse: ['everyone' as const] } : { parse: [] };
+    // Discord giới hạn 2000 ký tự; cắt an toàn.
+    const sent = await ch.send({ content: json.text.slice(0, 1900), allowedMentions });
     logger.info({ channel: ch.id }, '/api/agent/post: Lucy đẩy báo cáo qua Aki');
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ ok: true, channel_id: ch.id, message_id: sent.id }));
@@ -457,6 +531,88 @@ async function handleAgentChannel(req: IncomingMessage, res: ServerResponse): Pr
     res.end(JSON.stringify({ ok: true, channel_id: created.id }));
   } catch (err) {
     logger.error({ err }, '/api/agent/channel: handler error');
+    res.writeHead(500, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: 'internal' }));
+  }
+}
+
+/** Lucy đọc 1 tin nhắn cụ thể (theo channel + message_id) — cho awareness về nội dung Discord. */
+async function handleAgentMessageGet(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  try {
+    const body = await readAgentBody(req, res);
+    if (!body) return;
+    const json = JSON.parse(body.toString('utf-8')) as { channel?: unknown; message_id?: unknown };
+    if (typeof json.channel !== 'string' || typeof json.message_id !== 'string' || !json.message_id.trim()) {
+      res.writeHead(400, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'cần channel + message_id' }));
+      return;
+    }
+    const ch = await resolveChannel(json.channel);
+    if (!ch) {
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'không tìm thấy kênh' }));
+      return;
+    }
+    let msg: Message;
+    try {
+      msg = await ch.messages.fetch(json.message_id as string);
+    } catch {
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'không tìm thấy tin nhắn (sai id hoặc đã xoá)' }));
+      return;
+    }
+    logger.info({ channel: ch.id, message: msg.id }, '/api/agent/message/get: Lucy đọc tin nhắn qua Aki');
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        ok: true,
+        channel_id: ch.id,
+        message_id: msg.id,
+        author: { id: msg.author.id, tag: msg.author.tag, bot: msg.author.bot },
+        content: msg.content,
+        created_at: msg.createdAt.toISOString(),
+        pinned: msg.pinned,
+        attachments: msg.attachments.map((a) => ({ name: a.name, url: a.url })),
+      }),
+    );
+  } catch (err) {
+    logger.error({ err }, '/api/agent/message/get: handler error');
+    res.writeHead(500, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: 'internal' }));
+  }
+}
+
+/** Lucy ghim 1 tin nhắn cụ thể (theo channel + message_id). */
+async function handleAgentMessagePin(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  try {
+    const body = await readAgentBody(req, res);
+    if (!body) return;
+    const json = JSON.parse(body.toString('utf-8')) as { channel?: unknown; message_id?: unknown };
+    if (typeof json.channel !== 'string' || typeof json.message_id !== 'string' || !json.message_id.trim()) {
+      res.writeHead(400, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'cần channel + message_id' }));
+      return;
+    }
+    const ch = await resolveChannel(json.channel);
+    if (!ch) {
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'không tìm thấy kênh' }));
+      return;
+    }
+    let msg: Message;
+    try {
+      msg = await ch.messages.fetch(json.message_id as string);
+    } catch {
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'không tìm thấy tin nhắn (sai id hoặc đã xoá)' }));
+      return;
+    }
+    await msg.pin();
+    logger.info({ channel: ch.id, message: msg.id }, '/api/agent/message/pin: Lucy ghim tin nhắn qua Aki');
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, channel_id: ch.id, message_id: msg.id }));
+  } catch (err) {
+    logger.error({ err }, '/api/agent/message/pin: handler error');
     res.writeHead(500, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ error: 'internal' }));
   }

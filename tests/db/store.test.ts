@@ -34,7 +34,12 @@ function makeXpLog(overrides: Partial<XpLog> = {}): XpLog {
     amount: 20,
     source: 'message',
     metadata: null,
-    created_at: 1_700_000_000_000,
+    // Must be "recent": snapshot() prunes volatile xp_log sources older
+    // than 30 days. The tests here exercise WAL/snapshot mechanics, not
+    // retention, so they need rows that survive the prune. Retention is
+    // covered by the dedicated block below, which sets created_at
+    // explicitly.
+    created_at: Date.now(),
     ...overrides,
   };
 }
@@ -300,5 +305,89 @@ describe('Store', () => {
     await s.users.set(makeUser({ discord_id: 'u1', xp: 5 }));
     await s.shutdown();
     await expect(s.shutdown()).resolves.toBeUndefined();
+  });
+
+  describe('xp_logs retention', () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const old = (days: number) => Date.now() - days * DAY;
+
+    it('drops volatile grind rows older than 30 days on snapshot', async () => {
+      const s = makeStore();
+      await s.init();
+      s.xpLogs._bulkLoad([
+        makeXpLog({ id: 'v1', source: 'voice', created_at: old(31) }),
+        makeXpLog({ id: 'v2', source: 'voice_working', created_at: old(90) }),
+        makeXpLog({ id: 'm1', source: 'message', created_at: old(45) }),
+        makeXpLog({ id: 'r1', source: 'reaction', created_at: old(31) }),
+      ]);
+
+      await s.snapshot();
+
+      expect(s.xpLogs.count()).toBe(0);
+    });
+
+    it('keeps volatile rows inside the retention window', async () => {
+      const s = makeStore();
+      await s.init();
+      s.xpLogs._bulkLoad([
+        makeXpLog({ id: 'v-new', source: 'voice', created_at: old(29) }),
+        makeXpLog({ id: 'm-new', source: 'message', created_at: old(1) }),
+      ]);
+
+      await s.snapshot();
+
+      expect(s.xpLogs.count()).toBe(2);
+    });
+
+    // The whole reason pruning is source-selective instead of compact():
+    // these rows are counted by EXISTENCE for lifetime honor titles
+    // (modules/titles/index.ts), and they are exactly the oldest rows.
+    it('never drops lifetime title-marker rows, however old', async () => {
+      const s = makeStore();
+      await s.init();
+      s.xpLogs._bulkLoad([
+        makeXpLog({ id: 'd1', source: 'duel_win', created_at: old(400) }),
+        makeXpLog({ id: 'ms1', source: 'mieu_sat', created_at: old(400) }),
+        makeXpLog({ id: 'tp1', source: 'tribulation_pass', created_at: old(400) }),
+        makeXpLog({ id: 'noise', source: 'voice', created_at: old(400) }),
+      ]);
+
+      await s.snapshot();
+
+      const kept = s.xpLogs.query(() => true).map((l) => l.source).sort();
+      expect(kept).toEqual(['duel_win', 'mieu_sat', 'tribulation_pass']);
+    });
+
+    it('keeps rare non-grind sources (daily, streak, event, admin_grant)', async () => {
+      const s = makeStore();
+      await s.init();
+      s.xpLogs._bulkLoad([
+        makeXpLog({ id: 'a', source: 'daily', created_at: old(400) }),
+        makeXpLog({ id: 'b', source: 'streak_7', created_at: old(400) }),
+        makeXpLog({ id: 'c', source: 'event', created_at: old(400) }),
+        makeXpLog({ id: 'd', source: 'admin_grant', created_at: old(400) }),
+        makeXpLog({ id: 'e', source: 'tribulation_fail', created_at: old(400) }),
+      ]);
+
+      await s.snapshot();
+
+      expect(s.xpLogs.count()).toBe(5);
+    });
+
+    it('pruned rows stay gone after reload (snapshot is the new truth)', async () => {
+      const s1 = makeStore();
+      await s1.init();
+      s1.xpLogs._bulkLoad([
+        makeXpLog({ id: 'stale', source: 'voice', created_at: old(60) }),
+        makeXpLog({ id: 'fresh', source: 'voice', created_at: old(2) }),
+      ]);
+      await s1.snapshot();
+      await s1.shutdown();
+
+      const s2 = makeStore();
+      await s2.init();
+      expect(s2.xpLogs.count()).toBe(1);
+      expect(s2.xpLogs.query(() => true)[0]?.id).toBe('fresh');
+    });
   });
 });

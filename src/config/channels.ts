@@ -1,18 +1,13 @@
-import type { Guild, GuildBasedChannel } from 'discord.js';
-import { logger } from '../utils/logger.js';
+import type { GuildBasedChannel } from 'discord.js';
 
 /**
- * Channel name → Discord channel ID cache. Lazy-populated on first lookup
- * by walking the guild's channel cache. Refreshable via `refreshChannelCache`
- * when sync-server creates new channels.
+ * Channel-name helpers.
  *
  * Phase 11 A5: channels now carry decorative icons (e.g. `💬-general-💬`).
  * The cache maps BOTH the raw display name AND a canonical slug-form
  * ("general") to the same channel id, so legacy lookups by canonical
  * name keep working after the rename.
  */
-
-let cache: Map<string, string> | null = null;
 
 /**
  * Strip emoji + collapse separators to extract the canonical slug.
@@ -40,28 +35,6 @@ export function canonicalChannelName(rawName: string): string {
  */
 export function matchesChannelName(channel: GuildBasedChannel, canonical: string): boolean {
   return canonicalChannelName(channel.name) === canonical;
-}
-
-export function getChannelId(guild: Guild, name: string): string | null {
-  if (!cache) cache = buildCache(guild);
-  return cache.get(name) ?? cache.get(canonicalChannelName(name)) ?? null;
-}
-
-export function refreshChannelCache(guild: Guild): void {
-  cache = buildCache(guild);
-  logger.debug({ size: cache.size }, 'channels: cache refreshed');
-}
-
-function buildCache(guild: Guild): Map<string, string> {
-  const m = new Map<string, string>();
-  for (const ch of guild.channels.cache.values()) {
-    m.set(ch.name, ch.id);
-    const canonical = canonicalChannelName(ch.name);
-    if (canonical.length > 0 && canonical !== ch.name) {
-      m.set(canonical, ch.id);
-    }
-  }
-  return m;
 }
 
 /**
