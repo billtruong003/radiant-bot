@@ -20,6 +20,7 @@ import { command as danhHieu } from './danh-hieu.js';
 import { command as duel } from './duel.js';
 import { command as grant } from './grant.js';
 import { command as help } from './help.js';
+import { command as hunter } from './hunter.js';
 import { command as inventory } from './inventory.js';
 import { command as leaderboard } from './leaderboard.js';
 import { command as linkWhitelist } from './link-whitelist.js';
@@ -77,6 +78,7 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [stat.data.name, stat as SlashCommand],
   [statAlloc.data.name, statAlloc as SlashCommand],
   [grant.data.name, grant as SlashCommand],
+  [hunter.data.name, hunter as SlashCommand],
   // Phase 12 Lát 2-6
   [inventory.data.name, inventory as SlashCommand],
   [shop.data.name, shop as SlashCommand],

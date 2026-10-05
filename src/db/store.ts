@@ -30,6 +30,7 @@ import type {
   Weapon,
   MemberProfile,
   GuardianStrike,
+  Hunter,
   XpLog,
   XpSource,
 } from './types.js';
@@ -94,6 +95,7 @@ interface SnapshotShape {
   // Phase 15 — inferred member knowledge base.
   member_profiles?: MemberProfile[];
   guardian_strikes?: GuardianStrike[];
+  hunters?: Hunter[];
   // Phase 14 round 3 — pháp khí + nhẫn (V2 multi-slot equipment).
   phap_khi_catalog?: PhapKhi[];
   user_phap_khi?: UserPhapKhi[];
@@ -158,6 +160,7 @@ export class Store {
   // Phase 15 — one inferred profile per member (see MemberProfile docs).
   readonly memberProfiles: Collection<MemberProfile>;
   readonly guardianStrikes: Collection<GuardianStrike>;
+  readonly hunters: Collection<Hunter>;
   // Phase 14 round 3 — V2 multi-slot equipment catalogs + ownership.
   readonly phapKhiCatalog: Collection<PhapKhi>;
   readonly userPhapKhi: Collection<UserPhapKhi>;
@@ -241,6 +244,8 @@ export class Store {
       this.log,
       (g) => g.discord_id,
     );
+    // Hunter power, keyed by member: one GitHub link each.
+    this.hunters = new Collection<Hunter>('hunters', this.log, (h) => h.discord_id);
     // Phase 14 round 3 — pháp khí + nhẫn multi-slot equipment.
     this.phapKhiCatalog = new Collection<PhapKhi>('phap_khi_catalog', this.log, (p) => p.slug);
     this.userPhapKhi = new Collection<UserPhapKhi>('user_phap_khi', this.log, (up) => up.id);
@@ -268,6 +273,8 @@ export class Store {
       this.arenaSessions,
       this.userTitles,
       this.memberProfiles,
+      this.guardianStrikes,
+      this.hunters,
       this.phapKhiCatalog,
       this.userPhapKhi,
       this.nhanCatalog,
@@ -312,6 +319,7 @@ export class Store {
       this.userTitles._bulkLoad(snapshot.user_titles ?? []);
       this.memberProfiles._bulkLoad(snapshot.member_profiles ?? []);
       this.guardianStrikes._bulkLoad(snapshot.guardian_strikes ?? []);
+      this.hunters._bulkLoad(snapshot.hunters ?? []);
       this.phapKhiCatalog._bulkLoad(snapshot.phap_khi_catalog ?? []);
       this.userPhapKhi._bulkLoad(snapshot.user_phap_khi ?? []);
       this.nhanCatalog._bulkLoad(snapshot.nhan_catalog ?? []);
@@ -501,6 +509,7 @@ export class Store {
         user_titles: this.userTitles._serialize(),
         member_profiles: this.memberProfiles._serialize(),
         guardian_strikes: this.guardianStrikes._serialize(),
+        hunters: this.hunters._serialize(),
         phap_khi_catalog: this.phapKhiCatalog._serialize(),
         user_phap_khi: this.userPhapKhi._serialize(),
         nhan_catalog: this.nhanCatalog._serialize(),

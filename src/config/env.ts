@@ -33,6 +33,16 @@ const envSchema = z.object({
   /** Health-check HTTP port. 0 disables. Default 3030 for prod, 0 for dev. */
   HEALTH_PORT: z.coerce.number().int().nonnegative().default(0),
 
+  // --- Hunter power (GitHub link through OAuth, stats from Git Profile Awaken) ---
+  /** Public HTTPS address of this bot's HTTP server, e.g. https://hunter.billthedev.com. Empty disables /hunter register. */
+  PUBLIC_BASE_URL: z.string().default(''),
+  /** GitHub OAuth App (Settings → Developer settings → OAuth Apps). Callback: PUBLIC_BASE_URL + /oauth/github/callback */
+  GITHUB_OAUTH_CLIENT_ID: z.string().default(''),
+  GITHUB_OAUTH_CLIENT_SECRET: z.string().default(''),
+  /** Signs the OAuth state so a link cannot be forged for someone else. Any long random string. */
+  HUNTER_STATE_SECRET: z.string().default(''),
+  AWAKEN_API_URL: z.string().default('https://git-profile-awaken.vercel.app'),
+
   // --- Aki AI helper (Phase 10; moved to free-tier models in Phase 15) ---
   /**
    * @deprecated Phase 15 — xAI Grok was cut. Nothing reads this any more;

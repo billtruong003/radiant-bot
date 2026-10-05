@@ -816,6 +816,16 @@ keys on VPS).
 
 ---
 
+### Hunter power (2026-10-06, branch feat/hunter-power)
+
+- [x] `hunters` collection (one GitHub per member), separate from cảnh giới/XP/items so no one's progress changes
+- [x] GitHub OAuth: signed one-time state (10 min), callback at `/oauth/github/callback`, token used once and dropped
+- [x] Stats from Git Profile Awaken `/api/hunter` (percentiles), cached 24h, `/hunter refresh` hourly
+- [x] Hunter power from percentiles (log ladder 0-100) → HP/ATK/DEF/SPD/CRIT/EVA, seeded duel sim
+- [x] `/hunter register | card | refresh | duel | top | unlink`, PNG card via canvas
+- [x] Fix: `guardianStrikes` was missing from the WAL dispatch map (strikes lost on crash)
+- [ ] Deploy: DNS + Caddy + GitHub OAuth App + env (DEPLOY.md §3b), `npm run deploy-commands`
+
 ## Blockers / Notes
 
 ### Phase 0 blockers — all cleared 2026-05-13

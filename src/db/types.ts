@@ -755,3 +755,41 @@ export interface GuardianStrike extends Record<string, unknown> {
   /** Set when the ladder asks Bill to confirm a ban; cleared when he acts. */
   ban_proposed_at: number | null;
 }
+
+/**
+ * Hunter power: a second, separate kind of strength that comes from the
+ * member's GitHub account (via Git Profile Awaken), shown off as a card and
+ * used in hunter duels. It never touches cảnh giới, XP or items, so nobody's
+ * progress changes when they link or unlink.
+ */
+export interface HunterStat {
+  code: 'STR' | 'AGI' | 'INT' | 'VIT' | 'LUK' | 'CHA';
+  source: string;
+  value: number;
+  rank: string;
+  /** Share of regular GitHub players below this value (0-1). */
+  percentile: number;
+}
+
+export interface HunterProfile {
+  login: string;
+  name: string | null;
+  level: number;
+  overall: { rank: string; percentile: number };
+  class: { name: string; element: string };
+  title: string | null;
+  stats: HunterStat[];
+  synced_at: string;
+}
+
+export interface Hunter extends Record<string, unknown> {
+  discord_id: string;
+  /** Verified through GitHub OAuth; one GitHub account links to one member. */
+  github_login: string;
+  github_id: number;
+  linked_at: number;
+  profile: HunterProfile | null;
+  fetched_at: number;
+  duel_wins: number;
+  duel_losses: number;
+}

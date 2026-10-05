@@ -163,6 +163,47 @@ Expected health response:
 
 ---
 
+## 3b. Hunter power: GitHub OAuth over HTTPS
+
+`/hunter register` sends members to GitHub to prove the account is theirs. GitHub sends them back to the bot's
+HTTP server, so that server needs a public HTTPS address. Only `/oauth/*` is exposed; the agent and arena
+endpoints stay private.
+
+1. **DNS.** Add an `A` record `hunter.billthedev.com` → the VM's public IP. Open ports 80 and 443 in the
+   security list and in `iptables` (Let's Encrypt needs 80 to issue the certificate).
+2. **Caddy** (automatic HTTPS):
+
+   ```bash
+   sudo apt install -y caddy
+   sudo tee /etc/caddy/Caddyfile >/dev/null <<'CADDY'
+   hunter.billthedev.com {
+     handle /oauth/* {
+       reverse_proxy localhost:3030
+     }
+     respond 404
+   }
+   CADDY
+   sudo systemctl reload caddy
+   ```
+
+3. **GitHub OAuth App.** github.com → Settings → Developer settings → OAuth Apps → New OAuth App.
+   Homepage URL `https://hunter.billthedev.com`, callback URL
+   `https://hunter.billthedev.com/oauth/github/callback`. Generate a client secret.
+4. **.env** (then `pm2 restart radiant-bot` and `npm run deploy-commands` for the new `/hunter` command):
+
+   ```
+   HEALTH_PORT=3030
+   PUBLIC_BASE_URL=https://hunter.billthedev.com
+   GITHUB_OAUTH_CLIENT_ID=...
+   GITHUB_OAUTH_CLIENT_SECRET=...
+   HUNTER_STATE_SECRET=<openssl rand -hex 32>
+   ```
+
+5. Check: `/hunter register` in Discord, log in, the page says the hunter awakened, `/hunter card` shows the card.
+
+The card uses the Chakra Petch fonts in `assets/fonts` (OFL). On Linux `canvas` loads them through
+fontconfig; if the card shows a plain sans-serif font, install `fontconfig` and restart.
+
 ## 4. UptimeRobot
 
 - Sign up at https://uptimerobot.com (free tier: 50 monitors).

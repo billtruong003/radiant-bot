@@ -9,6 +9,8 @@ import { verifyBody } from '../modules/arena/tokens.js';
 import { submitContribution } from '../modules/docs/validator.js';
 import { runWeeklyAnalytics } from '../modules/insights/group-analytics.js';
 import { runMemberProfiling } from '../modules/insights/member-profiles.js';
+import { githubAccountFor, readState } from '../modules/hunter/oauth.js';
+import { linkHunter } from '../modules/hunter/link.js';
 import { logger } from './logger.js';
 
 /**
@@ -73,6 +75,10 @@ export function startHealthServer(port: number, client: Client): void {
       const { status, body } = buildHealthPayload(client);
       res.writeHead(status, { 'content-type': 'application/json' });
       res.end(body);
+      return;
+    }
+    if (req.url?.startsWith('/oauth/github/callback') && req.method === 'GET') {
+      void handleGithubCallback(req, res);
       return;
     }
     if (req.url === '/api/contribute' && req.method === 'POST') {
@@ -624,4 +630,40 @@ export function stopHealthServer(): void {
   server = null;
   botClient = null;
   logger.info('health: stopped');
+}
+
+// ---------- /hunter register: GitHub OAuth callback ----------
+
+const page = (title: string, body: string): string =>
+  `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#060a14;color:#e6edf7;font:16px/1.5 system-ui,sans-serif">
+<main style="max-width:460px;padding:32px;border:1.5px solid #3566b8;background:#0b1426"><p style="margin:0 0 8px;color:#3d8bff;letter-spacing:3px;font-weight:700">[ SYSTEM ]</p><h1 style="margin:0 0 12px;font-size:24px">${title}</h1><p style="margin:0;color:#8a9bc0">${body}</p></main></body>`;
+
+const escapeHtml = (s: string): string => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+async function handleGithubCallback(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const reply = (status: number, title: string, body: string) => {
+    res.writeHead(status, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+    res.end(page(title, body));
+  };
+  const url = new URL(req.url ?? '/', 'http://localhost');
+  const code = url.searchParams.get('code');
+  const discordId = readState(url.searchParams.get('state') ?? '', env.HUNTER_STATE_SECRET);
+  if (!code || !discordId || !env.GITHUB_OAUTH_CLIENT_ID) {
+    reply(400, 'Link đã hết hạn', 'Link không hợp lệ hoặc đã dùng rồi. Gõ lại <b>/hunter register</b> trong Discord.');
+    return;
+  }
+  try {
+    const account = await githubAccountFor(code, env.GITHUB_OAUTH_CLIENT_ID, env.GITHUB_OAUTH_CLIENT_SECRET, `${env.PUBLIC_BASE_URL}/oauth/github/callback`);
+    const result = await linkHunter(discordId, account);
+    if (!result.ok) {
+      reply(409, 'GitHub đã có chủ', `GitHub <b>${escapeHtml(account.login)}</b> đã liên kết với thành viên khác. Người đó cần <b>/hunter unlink</b> trước.`);
+      return;
+    }
+    logger.info({ discord_id: discordId, github: account.login }, 'hunter: linked');
+    reply(200, 'Thợ Săn đã thức tỉnh', `GitHub <b>${escapeHtml(account.login)}</b> đã liên kết. Quay lại Discord và gõ <b>/hunter card</b>.`);
+  } catch (err) {
+    logger.warn({ err: (err as Error).message }, 'hunter: oauth callback failed');
+    reply(502, 'GitHub không phản hồi', 'Thử lại <b>/hunter register</b> sau một phút.');
+  }
 }
