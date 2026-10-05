@@ -45,12 +45,20 @@ export type TaskId =
   | 'divine-judgment'
   | 'guardian-judge'
   | 'guardian-review'
-  // Phase 15 — Aki's answer engine moved off paid xAI Grok onto free
-  // models. `aki-triage` classifies the question cheap/easy vs hard, then
-  // the answer goes to the matching chain. See modules/aki/client.ts.
+  // Aki's answer engine, zero-cost pool only. `aki-triage` is the LLM
+  // classifier of last resort — most requests are typed by the
+  // deterministic preflight in modules/aki/request-analysis.ts and never
+  // spend a call here at all.
   | 'aki-triage'
-  | 'aki-answer-easy'
-  | 'aki-answer-hard'
+  // One chain per workload (superseded the old easy/hard split, which
+  // routed on message length and sent "sửa hộ cái regex này" to the
+  // chitchat model). Mapped from RequestAnalysis, not from string size.
+  | 'aki-answer-trivial'
+  | 'aki-answer-general'
+  | 'aki-answer-technical'
+  | 'aki-answer-coding'
+  | 'aki-answer-reasoning'
+  | 'aki-answer-long-context'
   // Vision: only routed to models that actually accept image parts.
   | 'aki-answer-vision'
   // Phase 15 — infers a member's character sketch from recent messages.

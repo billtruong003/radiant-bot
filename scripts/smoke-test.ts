@@ -712,74 +712,80 @@ async function smokeAskContextFormat(): Promise<void> {
 // --- Phase 11 1A: LLM router task routes -------------------------------
 
 async function smokeLlmRouter(): Promise<void> {
-  group('Phase 11 · LLM router (N-entry chain + multi-model gemini rotation)');
-  const { __for_testing } = await import('../src/modules/llm/router.js');
-  const routes = __for_testing.TASK_ROUTES;
+  group('LLM router · zero-cost pool, registry-enforced');
+  const { TASK_ROUTES } = await import('../src/modules/llm/router.js');
+  const { isProductionEligible, getModelConfig, auditModelRegistry, assertModelAllowedForProduction } =
+    await import('../src/modules/llm/registry.js');
 
-  // Primary (index 0) per task — 2026 best picks
-  expectEq(routes['aki-filter'][0]?.provider, 'groq', 'aki-filter[0] = groq');
-  expectEq(
-    routes['aki-filter'][0]?.model,
+  // THE invariant: nothing in any chain may cost money.
+  let allFree = true;
+  const offenders: string[] = [];
+  for (const [task, chain] of Object.entries(TASK_ROUTES)) {
+    for (const modelId of chain) {
+      if (!isProductionEligible(modelId)) {
+        allFree = false;
+        offenders.push(`${task}:${modelId}`);
+      }
+    }
+  }
+  check('every routed model is production-eligible (free)', allFree, offenders.join(', '));
+
+  // Retired aliases must not reappear — each 404/401'd live on 2026-08-13.
+  const all = Object.values(TASK_ROUTES).flat();
+  for (const dead of [
+    'ling-3.0-flash-free',
+    'north-mini-code-free',
+    'meta-llama/llama-4-scout-17b-16e-instruct',
     'qwen/qwen3-32b',
-    'aki-filter[0] = Qwen 3 32B (best VN classification)',
+    'gemini-2.0-flash',
+  ]) {
+    check(`no chain routes to retired ${dead}`, !all.includes(dead));
+  }
+
+  // Vision may only go to a model that can actually see the image.
+  const visionOk = TASK_ROUTES['aki-answer-vision'].every(
+    (m) => getModelConfig(m)?.supportsVision === true,
   );
-  expectEq(routes['aki-nudge'][0]?.model, 'llama-3.1-8b-instant', 'aki-nudge[0] = 8B (short text)');
-  expectEq(routes.narration[0]?.provider, 'groq', 'narration[0] = groq');
+  check('vision chain routes only to vision-capable models', visionOk);
+
+  // Narration keeps a non-reasoning lead (tight prose budget).
   expectEq(
-    routes.narration[0]?.model,
+    TASK_ROUTES.narration[0],
     'llama-3.3-70b-versatile',
-    'narration[0] = Llama 3.3 70B (non-reasoning, no <think> overhead)',
+    'narration[0] = Llama 3.3 70B (no hidden CoT overhead)',
   );
 
-  // Modern model coverage
-  const allFilterModels = routes['aki-filter'].map((r) => r.model);
+  // Guardian rungs must disagree independently.
   check(
-    'aki-filter has llama-4-scout (newest Llama arch)',
-    allFilterModels.includes('meta-llama/llama-4-scout-17b-16e-instruct'),
-  );
-  const allNarrModels = routes.narration.map((r) => r.model);
-  check(
-    'narration has gpt-oss-120b (biggest open model)',
-    allNarrModels.includes('openai/gpt-oss-120b'),
-  );
-  // Gemini 2.0 Flash dropped (per Bill: "quá cũ")
-  check(
-    'no route uses gemini-2.0-flash (deprecated 2026-05)',
-    !allFilterModels.includes('gemini-2.0-flash') && !allNarrModels.includes('gemini-2.0-flash'),
+    'guardian judge/review lead with different models',
+    TASK_ROUTES['guardian-judge'][0] !== TASK_ROUTES['guardian-review'][0],
   );
 
-  // Chain has multi-model gemini fallback
-  check('aki-filter chain length ≥ 3 (multi-model rotation)', routes['aki-filter'].length >= 3);
-  const filterGeminiModels = routes['aki-filter']
-    .filter((r) => r.provider === 'gemini')
-    .map((r) => r.model);
-  check(
-    'aki-filter has ≥ 2 distinct gemini models in fallback chain',
-    new Set(filterGeminiModels).size >= 2,
-    filterGeminiModels.join(', '),
+  // Filter runs on every question → keep 2 Gemini buckets at the tail.
+  const filterGemini = TASK_ROUTES['aki-filter'].filter(
+    (m) => getModelConfig(m)?.provider === 'gemini',
   );
+  check('aki-filter has >= 2 gemini tail routes', new Set(filterGemini).size >= 2);
 
-  // Narration prioritises Flash > Flash-Lite (prose quality)
-  const narrationChain = routes.narration;
-  const flashIdx = narrationChain.findIndex((r) => r.model === 'gemini-2.5-flash');
-  const liteIdx = narrationChain.findIndex((r) => r.model === 'gemini-2.5-flash-lite');
+  // Guard blocks paid / unknown / unregistered.
+  const blocks = (id: string): boolean => {
+    try {
+      assertModelAllowedForProduction(id);
+      return false;
+    } catch {
+      return true;
+    }
+  };
+  check('guard blocks paid deepseek-v4-flash', blocks('deepseek-v4-flash'));
+  check('guard blocks unknown-cost big-pickle', blocks('big-pickle'));
+  check('guard blocks unregistered claude-opus-5', blocks('claude-opus-5'));
+  check('guard allows free mimo-v2.5-free', !blocks('mimo-v2.5-free'));
+
+  const audit = auditModelRegistry();
   check(
-    'narration: gemini-2.5-flash before gemini-2.5-flash-lite (prose priority)',
-    flashIdx >= 0 && liteIdx >= 0 && flashIdx < liteIdx,
+    `registry audit: ${audit.freeEnabled.length} free / ${audit.paidBlocked.length} paid blocked / ${audit.unknownBlocked.length} unknown blocked`,
+    audit.freeEnabled.length > 0 && audit.paidBlocked.length > 0,
   );
-
-  // Throttle bookkeeping uses `${provider}:${model}` keys
-  const { throttledUntil, isThrottled, routeKey } = __for_testing;
-  throttledUntil.clear();
-  const now = 1_000_000;
-  const testRoute = { provider: 'groq' as const, model: 'llama-3.1-8b-instant' };
-  throttledUntil.set(routeKey(testRoute), now + 5000);
-  check('isThrottled true within window', isThrottled(testRoute, now + 2000));
-  check('isThrottled false after window', !isThrottled(testRoute, now + 10_000));
-  // Sibling models on same provider are NOT throttled (independent keys)
-  const siblingRoute = { provider: 'groq' as const, model: 'llama-3.3-70b-versatile' };
-  check('sibling model on same provider NOT throttled', !isThrottled(siblingRoute, now + 2000));
-  throttledUntil.clear();
 
   // Provider registry
   const { geminiProvider } = await import('../src/modules/llm/providers/gemini.js');

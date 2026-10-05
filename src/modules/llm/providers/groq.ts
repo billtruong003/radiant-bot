@@ -45,10 +45,8 @@ function getClient(): OpenAI {
     _client = new OpenAI({
       apiKey: env.GROQ_API_KEY,
       baseURL: 'https://api.groq.com/openai/v1',
-      // SDK mặc định chờ 10 phút + retry 2 lần — quá lâu cho reply Discord.
-      // Groq bình thường trả trong ~1-3s; 15s là quá đủ, hết thì để router
-      // failover sang provider khác thay vì bắt user chờ.
-      timeout: 15_000,
+      // Configurable — see LLM_REQUEST_TIMEOUT_MS (0 = no timeout).
+      ...(env.LLM_REQUEST_TIMEOUT_MS > 0 ? { timeout: env.LLM_REQUEST_TIMEOUT_MS } : {}),
       maxRetries: 0,
     });
   }

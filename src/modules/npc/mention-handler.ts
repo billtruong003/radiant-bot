@@ -1,4 +1,4 @@
-import type { Guild, Message } from 'discord.js';
+import type { Message } from 'discord.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
 import {
@@ -16,6 +16,12 @@ import {
   searchWeb,
 } from '../web/web-search.js';
 import { askAki, isAkiEnabled, logRefusal } from '../aki/client.js';
+import { buildConversationContext, resolveDiscordEntities } from '../aki/conversation.js';
+import {
+  analyzeRequest,
+  shouldSkipArchiveLookup,
+  shouldSkipWebLookup,
+} from '../aki/request-analysis.js';
 import {
   SAFE_FALLBACK_REPLY,
   checkOutput,
@@ -46,11 +52,8 @@ import { tryAcquireAskQuota } from '../aki/rate-limit.js';
  */
 
 const DISCORD_MSG_LIMIT = 2000;
-// 5 was too thin to follow a conversation: when Bill tagged Aki about
-// Khoa refusing to answer, she had no idea what had been asked and
-// scolded him instead. 15 covers a normal back-and-forth.
-const RECENT_CONTEXT_MAX = 15;
-const RECENT_CONTEXT_CONTENT_LIMIT = 300;
+// Context sizing now lives in modules/aki/conversation.ts, shared by every
+// invocation path (see MAX_SELECTED_TURNS there).
 /** Below this there's no question to answer — just a bare ping. */
 const MIN_QUESTION_LEN = 2;
 
@@ -63,55 +66,12 @@ function extractQuestion(message: Message, botId: string): string {
 }
 
 /**
- * Lát 3 — turn raw Discord entity markup into names the model can read.
- * Without this, `@Aki anh <@4625…> láo kìa` reaches the model as a number
- * blob: it can't tell WHO is being talked about, and channel references
- * like <#123> (which members use constantly for "check #rules") are
- * equally opaque. Unresolvable IDs (member left, channel deleted) fall
- * back to a generic placeholder rather than leaking the raw snowflake.
+ * Re-exported from the shared conversation module, which is where every
+ * invocation path now gets it. Kept as a named export here because the
+ * mention flow calls it directly on the raw question text (before any
+ * turn collection happens) and existing tests import it from this path.
  */
-export function resolveDiscordEntities(text: string, guild: Guild): string {
-  return text
-    .replace(/<@!?(\d+)>/g, (_, id: string) => {
-      const m = guild.members.cache.get(id);
-      return m ? `@${m.displayName}` : '@thành-viên';
-    })
-    .replace(/<@&(\d+)>/g, (_, id: string) => {
-      const r = guild.roles.cache.get(id);
-      return r ? `@${r.name}` : '@vai-trò';
-    })
-    .replace(/<#(\d+)>/g, (_, id: string) => {
-      const c = guild.channels.cache.get(id);
-      return c && 'name' in c && c.name ? `#${c.name}` : '#kênh';
-    })
-    .replace(/<a?:(\w+):\d+>/g, ':$1:');
-}
-
-/**
- * Lát 2 — the message being replied to is the single highest-signal piece
- * of context there is: the user literally pointed at it. Before this, only
- * the 15 most recent messages were collected, so replying to anything
- * older produced an answer about the wrong thing entirely.
- */
-async function fetchRepliedTo(
-  message: Message,
-  botId: string,
-  guild: Guild,
-): Promise<{ authorDisplayName: string; content: string } | null> {
-  const refId = message.reference?.messageId;
-  if (!refId) return null;
-  try {
-    const ref = await message.channel.messages.fetch(refId);
-    if (!ref.content.trim()) return null;
-    return {
-      authorDisplayName:
-        ref.author.id === botId ? 'Aki (bạn)' : (ref.member?.displayName ?? ref.author.username),
-      content: resolveDiscordEntities(ref.content, guild).slice(0, 600),
-    };
-  } catch {
-    return null;
-  }
-}
+export { resolveDiscordEntities };
 
 function chunkForDiscord(text: string): string[] {
   if (text.length <= DISCORD_MSG_LIMIT) return [text];
@@ -139,38 +99,6 @@ export function isAddressedToBot(message: Message, botId: string): boolean {
   const repliedTo = message.reference?.messageId;
   if (repliedTo && message.mentions.repliedUser?.id === botId) return true;
   return false;
-}
-
-async function collectRecentContext(
-  message: Message,
-  botId: string,
-  guild: Guild,
-): Promise<Array<{ authorDisplayName: string; content: string }>> {
-  try {
-    const fetched = await message.channel.messages.fetch({ limit: 30 });
-    const collected: Array<{ authorDisplayName: string; content: string; created: number }> = [];
-    for (const m of fetched.values()) {
-      // Lát 1 — keep Aki's OWN messages (skip only OTHER bots). Filtering
-      // all bots meant Aki never saw her previous answer, so a follow-up
-      // like "còn cái đó thì sao?" had nothing to resolve "cái đó" against
-      // — multi-turn was structurally impossible.
-      if (m.author.bot && m.author.id !== botId) continue;
-      if (m.id === message.id) continue;
-      if (!m.content.trim()) continue;
-      collected.push({
-        authorDisplayName:
-          m.author.id === botId ? 'Aki (bạn)' : (m.member?.displayName ?? m.author.username),
-        content: resolveDiscordEntities(m.content, guild).slice(0, RECENT_CONTEXT_CONTENT_LIMIT),
-        created: m.createdTimestamp,
-      });
-      if (collected.length >= RECENT_CONTEXT_MAX) break;
-    }
-    return collected
-      .sort((a, b) => a.created - b.created)
-      .map(({ authorDisplayName, content }) => ({ authorDisplayName, content }));
-  } catch {
-    return [];
-  }
 }
 
 /**
@@ -251,8 +179,17 @@ export async function handleAkiMention(message: Message): Promise<boolean> {
   try {
     // Collected up-front (was: right before askAki) so the filter can see
     // it too. Same single fetch either way — only the order moved.
-    const recentMessages = await collectRecentContext(message, botId, message.guild);
-    const repliedTo = await fetchRepliedTo(message, botId, message.guild);
+    const ctx = await buildConversationContext({
+      channel: message.channel,
+      guild: message.guild,
+      botId,
+      askerId: userId,
+      question,
+      excludeId: message.id,
+      triggerMessage: message,
+    });
+    const recentMessages = ctx.recentMessages;
+    const repliedTo = ctx.repliedTo;
 
     // Lát 4 — the filter judges the question WITH the conversation around
     // it. A bare "còn cái đó thì sao?" looks like junk in isolation but is
@@ -280,9 +217,26 @@ export async function handleAkiMention(message: Message): Promise<boolean> {
       return true;
     }
 
+    // ONE analysis per question: it picks the answer chain and decides
+    // whether the web/archive intent classifiers are worth calling.
+    const image = message.attachments.find((a) =>
+      (a.contentType ?? '').toLowerCase().startsWith('image/'),
+    );
+    const analysis = await analyzeRequest({
+      question,
+      hasImage: !!image,
+      hasReply: !!repliedTo,
+      recentCount: recentMessages.length,
+    });
+
     // Archive lookup — same double gate as /ask: feature flag + role.
     let searchContext = '';
-    if (env.ARCHIVE_ENABLED && canSearchChat(message.member) && message.guild) {
+    if (
+      env.ARCHIVE_ENABLED &&
+      canSearchChat(message.member) &&
+      message.guild &&
+      !shouldSkipArchiveLookup(analysis)
+    ) {
       try {
         const intent = await detectSearchIntent(question);
         if (intent.needsSearch) {
@@ -302,7 +256,7 @@ export async function handleAkiMention(message: Message): Promise<boolean> {
     // search, which is privileged): looking something up on the internet
     // reveals nothing private about anyone here.
     let webContext = '';
-    if (isWebSearchEnabled()) {
+    if (isWebSearchEnabled() && !shouldSkipWebLookup(analysis)) {
       try {
         const webIntent = await detectWebIntent(question);
         if (webIntent.needsWeb && webIntent.query) {
@@ -322,10 +276,6 @@ export async function handleAkiMention(message: Message): Promise<boolean> {
     // is no "thinking…" affordance like a slash command's deferred reply.
     await message.channel.sendTyping().catch(() => undefined);
 
-    const image = message.attachments.find((a) =>
-      (a.contentType ?? '').toLowerCase().startsWith('image/'),
-    );
-
     const result = await askAki({
       discordId: userId,
       question,
@@ -342,6 +292,7 @@ export async function handleAkiMention(message: Message): Promise<boolean> {
       ),
       searchContext,
       coldMode: isInColdMode(userId),
+      analysis,
     });
 
     // B3 — last gate on Aki's own words. CJK bleed gets stripped (members

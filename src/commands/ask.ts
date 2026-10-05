@@ -1,6 +1,8 @@
 import { type Attachment, type ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import { getBudgetStatus, isBudgetExhausted } from '../modules/aki/budget.js';
 import { askAki, isAkiEnabled, logRefusal } from '../modules/aki/client.js';
+import { buildConversationContext } from '../modules/aki/conversation.js';
+import { analyzeRequest } from '../modules/aki/request-analysis.js';
 import { runFilter } from '../modules/aki/filter.js';
 import { tryAcquireAskQuota } from '../modules/aki/rate-limit.js';
 import type { LlmFilterStage } from '../modules/llm/types.js';
@@ -62,44 +64,6 @@ function validateImage(
     };
   }
   return { ok: true, url: att.url };
-}
-
-/**
- * Pull the last 5 non-bot, non-/ask-interaction messages from the channel
- * to give Grok ambient context. Best-effort — any failure (channel can't
- * be fetched, permission denied) just yields an empty array.
- *
- * - Skips bot messages (Aki's own / other bots) to avoid feedback loops
- * - Skips empty content (image-only / sticker-only messages)
- * - Returns oldest → newest so Grok reads naturally top-down
- */
-const RECENT_CONTEXT_MAX = 5;
-const RECENT_CONTEXT_CONTENT_LIMIT = 300;
-
-async function collectRecentContext(
-  interaction: ChatInputCommandInteraction,
-): Promise<Array<{ authorDisplayName: string; content: string }>> {
-  const channel = interaction.channel;
-  if (!channel || !('messages' in channel)) return [];
-
-  // Fetch a few extra to filter out bots — 10 is plenty to find 5 humans.
-  const fetched = await channel.messages.fetch({ limit: 10 });
-  const collected: Array<{ authorDisplayName: string; content: string; created: number }> = [];
-  for (const msg of fetched.values()) {
-    if (msg.author.bot) continue;
-    if (msg.content.trim().length === 0) continue;
-    if (msg.id === interaction.id) continue;
-    collected.push({
-      authorDisplayName: msg.member?.displayName ?? msg.author.username,
-      content: msg.content.slice(0, RECENT_CONTEXT_CONTENT_LIMIT),
-      created: msg.createdTimestamp,
-    });
-    if (collected.length >= RECENT_CONTEXT_MAX) break;
-  }
-  // fetched is newest → oldest; reverse for chronological reading.
-  return collected
-    .sort((a, b) => a.created - b.created)
-    .map(({ authorDisplayName, content }) => ({ authorDisplayName, content }));
 }
 
 function chunkForDiscord(text: string): string[] {
@@ -204,18 +168,34 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     }
   }
 
-  // 7. Fetch identity + recent channel messages so Grok knows who's
-  //    asking and the conversation drift. Best-effort: any failure here
-  //    just drops the context (Grok still answers the bare question).
+  // 7. Identity + conversation context. Uses the SAME builder as the
+  //    @-mention path, so `/ask` finally sees Aki's own previous replies
+  //    and can resolve a follow-up ("còn cái đó thì sao?") instead of
+  //    reading it as a fresh question.
   const askerUsername = interaction.user.username;
   const askerDisplayName =
     interaction.inCachedGuild() && interaction.member
       ? interaction.member.displayName
       : askerUsername;
 
-  const recentMessages = await collectRecentContext(interaction).catch(() => []);
+  const botId = interaction.client.user?.id ?? '';
+  const ctx = await buildConversationContext({
+    channel: interaction.channel,
+    guild: interaction.guild,
+    botId,
+    askerId: userId,
+    question,
+    excludeId: interaction.id,
+  }).catch(() => ({ recentMessages: [], stats: { fetched: 0, selected: 0 } }));
 
-  // 8. Grok call (legit-only path)
+  const analysis = await analyzeRequest({
+    question,
+    hasImage: !!imgCheck.url,
+    hasReply: false,
+    recentCount: ctx.recentMessages.length,
+  });
+
+  // 8. Answer (legit-only path)
   try {
     const result = await askAki({
       discordId: userId,
@@ -223,8 +203,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       imageUrl: imgCheck.url,
       askerUsername,
       askerDisplayName,
-      recentMessages,
+      recentMessages: ctx.recentMessages,
       filterMeta,
+      analysis,
     });
 
     const chunks = chunkForDiscord(result.reply);

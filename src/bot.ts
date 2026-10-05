@@ -9,11 +9,17 @@ import { register as registerMessageReactionRemove } from './events/messageReact
 import { startAkiCooldownSweeps, stopAkiCooldownSweeps } from './modules/aki/rate-limit.js';
 import { clearBotLogClient, setBotLogClient } from './modules/bot-log.js';
 import { startCooldownSweeps, stopCooldownSweeps } from './modules/leveling/cooldown.js';
+import { assertZeroCostRouting } from './modules/llm/startup-audit.js';
 import { startScheduler, stopScheduler } from './modules/scheduler/index.js';
 import { startHealthServer, stopHealthServer } from './utils/health.js';
 import { logger } from './utils/logger.js';
 
 export async function startBot(): Promise<Client> {
+  // Billing audit BEFORE anything can make a model call. A production task
+  // pointing at a paid or unknown-cost model is a configuration bug that
+  // must stop the boot, not something to discover on the invoice.
+  assertZeroCostRouting();
+
   const client = new Client({
     intents: [
       GatewayIntentBits.Guilds,

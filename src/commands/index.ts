@@ -3,6 +3,8 @@ import type {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
 } from 'discord.js';
+import { command as aiDebug } from './ai-debug.js';
+import { command as aiModels } from './ai-models.js';
 import { command as akiMemory } from './aki-memory.js';
 import { command as arena } from './arena.js';
 import { command as askAkira } from './ask-akira.js';
@@ -105,6 +107,9 @@ const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
   [me.data.name, me as SlashCommand],
   // Phase 14.9 — admin diagnostic
   [selftest.data.name, selftest as SlashCommand],
+  // Zero-cost AI runtime diagnostics (Chưởng Môn only)
+  [aiDebug.data.name, aiDebug as SlashCommand],
+  [aiModels.data.name, aiModels as SlashCommand],
 ]);
 
 export function findCommand(name: string): SlashCommand | undefined {

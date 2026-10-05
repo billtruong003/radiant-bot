@@ -28,11 +28,11 @@ function getClient(): OpenAI {
     _client = new OpenAI({
       apiKey: env.OPENCODE_ZEN_API_KEY,
       baseURL: 'https://opencode.ai/zen/v1',
-      // Free-tier models thỉnh thoảng treo không phản hồi. SDK mặc định
-      // chờ 10 PHÚT + retry 2 lần → Aki "time out" với user thay vì
-      // failover sang model kế tiếp trong chain. 20s là đủ cho cả model
-      // có hidden reasoning; hết 20s thì ném lỗi để router rơi chain.
-      timeout: 20_000,
+      // Timeout is configuration, not a constant. The old 20s ceiling was
+      // shorter than these reasoning models legitimately take to think —
+      // it cut real answers off mid-flight and the router logged them as
+      // provider failures. See LLM_REQUEST_TIMEOUT_MS (0 = no timeout).
+      ...(env.LLM_REQUEST_TIMEOUT_MS > 0 ? { timeout: env.LLM_REQUEST_TIMEOUT_MS } : {}),
       maxRetries: 0,
     });
   }

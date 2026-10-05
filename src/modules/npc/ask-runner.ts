@@ -18,6 +18,12 @@ import {
   searchWeb,
 } from '../web/web-search.js';
 import { askAki, isAkiEnabled, logRefusal } from '../aki/client.js';
+import { buildConversationContext } from '../aki/conversation.js';
+import {
+  analyzeRequest,
+  shouldSkipArchiveLookup,
+  shouldSkipWebLookup,
+} from '../aki/request-analysis.js';
 import {
   SAFE_FALLBACK_REPLY,
   checkOutput,
@@ -39,8 +45,6 @@ import { tryAcquireAskQuota } from '../aki/rate-limit.js';
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
 const DISCORD_MSG_LIMIT = 2000;
-const RECENT_CONTEXT_MAX = 15;
-const RECENT_CONTEXT_CONTENT_LIMIT = 300;
 
 export interface RunAskInput {
   interaction: ChatInputCommandInteraction;
@@ -64,29 +68,6 @@ function validateImage(
     };
   }
   return { ok: true, url: att.url };
-}
-
-async function collectRecentContext(
-  interaction: ChatInputCommandInteraction,
-): Promise<Array<{ authorDisplayName: string; content: string }>> {
-  const channel = interaction.channel;
-  if (!channel || !('messages' in channel)) return [];
-  const fetched = await channel.messages.fetch({ limit: 30 });
-  const collected: Array<{ authorDisplayName: string; content: string; created: number }> = [];
-  for (const msg of fetched.values()) {
-    if (msg.author.bot) continue;
-    if (msg.content.trim().length === 0) continue;
-    if (msg.id === interaction.id) continue;
-    collected.push({
-      authorDisplayName: msg.member?.displayName ?? msg.author.username,
-      content: msg.content.slice(0, RECENT_CONTEXT_CONTENT_LIMIT),
-      created: msg.createdTimestamp,
-    });
-    if (collected.length >= RECENT_CONTEXT_MAX) break;
-  }
-  return collected
-    .sort((a, b) => a.created - b.created)
-    .map(({ authorDisplayName, content }) => ({ authorDisplayName, content }));
 }
 
 function chunkForDiscord(text: string): string[] {
@@ -199,7 +180,27 @@ export async function runAskFlow(input: RunAskInput): Promise<void> {
     interaction.inCachedGuild() && interaction.member
       ? interaction.member.displayName
       : askerUsername;
-  const recentMessages = await collectRecentContext(interaction).catch(() => []);
+  const botId = interaction.client.user?.id ?? '';
+  const ctx = await buildConversationContext({
+    channel: interaction.channel,
+    guild: interaction.guild,
+    botId,
+    askerId: userId,
+    question,
+    excludeId: interaction.id,
+  }).catch(() => ({ recentMessages: [], stats: { fetched: 0, selected: 0 } }));
+  const recentMessages = ctx.recentMessages;
+
+  // ONE analysis per question. It picks the answer chain AND decides
+  // whether the web/archive intent classifiers are worth calling at all —
+  // three separate classifier round-trips per question was the single
+  // biggest avoidable drain on the free quota.
+  const analysis = await analyzeRequest({
+    question,
+    hasImage: !!imgCheck.url,
+    hasReply: false,
+    recentCount: recentMessages.length,
+  });
 
   // Phase 16 — archive lookup. Gated twice: the feature flag, and the
   // asker's role. Only Chưởng Môn / Tiên Nhân may pull another member's
@@ -209,7 +210,8 @@ export async function runAskFlow(input: RunAskInput): Promise<void> {
     env.ARCHIVE_ENABLED &&
     interaction.inCachedGuild() &&
     canSearchChat(interaction.member) &&
-    interaction.guild
+    interaction.guild &&
+    !shouldSkipArchiveLookup(analysis)
   ) {
     try {
       const intent = await detectSearchIntent(question);
@@ -231,7 +233,7 @@ export async function runAskFlow(input: RunAskInput): Promise<void> {
   // search, which is privileged): looking something up on the internet
   // reveals nothing private about anyone here.
   let webContext = '';
-  if (isWebSearchEnabled()) {
+  if (isWebSearchEnabled() && !shouldSkipWebLookup(analysis)) {
     try {
       const webIntent = await detectWebIntent(question);
       if (webIntent.needsWeb && webIntent.query) {
@@ -264,6 +266,7 @@ export async function runAskFlow(input: RunAskInput): Promise<void> {
       searchContext,
       coldMode: isInColdMode(userId),
       systemPromptOverride,
+      analysis,
     });
 
     // B3 — screen Aki's own output before it reaches the channel.

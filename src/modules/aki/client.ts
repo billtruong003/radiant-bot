@@ -6,6 +6,7 @@ import { sanitizeForLlmBody, sanitizeForLlmPrompt } from '../../utils/sanitize.j
 import { llm } from '../llm/index.js';
 import type { LlmFilterStage, TaskId } from '../llm/types.js';
 import { AKI_SYSTEM_PROMPT } from './persona.js';
+import { type RequestAnalysis, analyzeRequest, taskForAnalysis } from './request-analysis.js';
 import { todayInVietnam } from '../web/web-search.js';
 
 /**
@@ -15,17 +16,14 @@ import { todayInVietnam } from '../web/web-search.js';
  * on free-tier models through the shared LLM router, so `costUsd` is
  * always 0 and there is no paid provider left in this path.
  *
- * Routing:
- *   image present  → 'aki-answer-vision' (mimo-v2.5-free — the only free
- *                    vision model in the chain; never route vision to a
- *                    text-only model, it would answer without looking)
- *   otherwise      → one cheap 'aki-triage' call classifies the question,
- *                    then 'aki-answer-easy' (MiMo) or 'aki-answer-hard'
- *                    (DeepSeek V4 Flash) handles it.
+ * Routing is driven by `RequestAnalysis` (see request-analysis.ts): a
+ * deterministic preflight types most requests for free, and only genuinely
+ * ambiguous ones pay for a classifier call. Intent picks the specialist
+ * chain (coding / reasoning / technical / trivial / long-context /
+ * vision / general); complexity only escalates within it.
  *
- * Triage failure is non-fatal: we default to the HARD chain, because
- * under-serving a hard question is worse than spending a bit more on an
- * easy one when both are free anyway.
+ * This replaced an easy-vs-hard split that decided on message LENGTH,
+ * which routed "sửa hộ cái regex này" to the chitchat model.
  *
  * Callers still gate rate-limit before calling. Budget gating is now
  * vestigial (cost is always 0) but left in place so the analytics and the
@@ -38,90 +36,23 @@ const FREE_TIER_COST_USD = 0;
 
 /**
  * Answer budget. Free models cost nothing, so this is sized for
- * usefulness (long explanations, code blocks) rather than price. Reasoning
- * models on the hard chain burn part of this on hidden chain-of-thought
- * before emitting any answer, so it must stay generous — an under-funded
- * reasoning model returns an empty string.
- */
-function answerTokenBudget(task?: TaskId): number {
-  // DS V4 Flash leads the hard chain since 2026-08-01 and spends a large
-  // slice of its budget on hidden reasoning before emitting a single
-  // visible token — at 2000 it returned an empty string outright. The hard
-  // chain therefore gets a bigger floor than the chat path.
-  const floor = task === 'aki-answer-hard' ? 3000 : 1500;
-  return Math.max(env.AKI_MAX_OUTPUT_TOKENS, floor);
-}
-
-const TRIAGE_SYSTEM_PROMPT = [
-  'Bạn là bộ phân loại câu hỏi. Đọc câu hỏi và trả lời DUY NHẤT một từ:',
-  '- "HARD" nếu câu hỏi cần viết/sửa/giải thích code, debug lỗi, so sánh kỹ thuật,',
-  '  tính toán nhiều bước, hoặc cần lập luận dài.',
-  '- "EASY" nếu là chuyện phiếm, hỏi đáp ngắn, hỏi về server/game, hoặc câu hỏi',
-  '  kiến thức đơn giản trả lời được trong vài câu.',
-  'Chỉ in ra HARD hoặc EASY. Không giải thích.',
-].join('\n');
-
-/**
- * Lát 5 — cheap heuristic so the unambiguous cases skip the triage call
- * entirely (saves ~1-2s latency + one free-tier request per question).
- * Code fences, error/debug vocabulary and language names are HARD without
- * asking; a short question with none of those markers is EASY chitchat.
- * Anything gray returns null and pays for the LLM triage as before.
- */
-const HARD_MARKERS =
-  /```|\berror\b|\bexception\b|\bstack\s?trace\b|\btraceback\b|\bdebug\b|\bcompile\b|\bregex\b|\bsql\b|\btypescript\b|\bjavascript\b|\bpython\b|\brust\b|\bdocker\b|lỗi|sửa code|viết hàm|thuật toán|giải thích code|so sánh/i;
-
-export function triageHeuristic(question: string): 'easy' | 'hard' | null {
-  if (HARD_MARKERS.test(question)) return 'hard';
-  // Short, no hard markers, no big numbers to compute with → chitchat.
-  if (question.length < 60 && !/\d{3,}/.test(question)) return 'easy';
-  return null;
-}
-
-/**
- * One cheap call to decide which answer chain to use. Returns the TaskId
- * directly so the caller can't mix up the mapping.
+ * usefulness (long explanations, code blocks) rather than price.
  *
- * Defaults to the hard chain on any failure (no provider, unparseable
- * output, timeout) — see the module doc for why.
+ * The per-MODEL floor lives in the registry (`outputTokenFloor`) because
+ * it is a property of the model, not the task — a reasoning model needs
+ * headroom for hidden chain-of-thought on any chain it appears in. This
+ * function only sets the per-TASK ambition.
  */
-async function triageQuestion(question: string): Promise<{
-  task: Extract<TaskId, 'aki-answer-easy' | 'aki-answer-hard'>;
-  tokensIn: number;
-  tokensOut: number;
-}> {
-  const quick = triageHeuristic(question);
-  if (quick) {
-    return {
-      task: quick === 'easy' ? 'aki-answer-easy' : 'aki-answer-hard',
-      tokensIn: 0,
-      tokensOut: 0,
-    };
-  }
-  try {
-    const result = await llm.complete('aki-triage', {
-      systemPrompt: TRIAGE_SYSTEM_PROMPT,
-      userPrompt: question,
-      // Ling emits hidden reasoning before the verdict; 200 tokens was not
-      // enough (returned empty on the harder sample, live 2026-07-28).
-      // The verdict itself is one word, so the extra budget is only ever
-      // spent when the model actually needs to think.
-      maxOutputTokens: 600,
-      temperature: 0,
-    });
-    if (!result) return { task: 'aki-answer-hard', tokensIn: 0, tokensOut: 0 };
-
-    // Reasoning models may wrap the verdict in prose; look for the token
-    // rather than requiring an exact match.
-    const isEasy = /\beasy\b/i.test(result.text) && !/\bhard\b/i.test(result.text);
-    return {
-      task: isEasy ? 'aki-answer-easy' : 'aki-answer-hard',
-      tokensIn: result.tokensIn,
-      tokensOut: result.tokensOut,
-    };
-  } catch {
-    return { task: 'aki-answer-hard', tokensIn: 0, tokensOut: 0 };
-  }
+function answerTokenBudget(task: TaskId): number {
+  const floor =
+    task === 'aki-answer-reasoning' ||
+    task === 'aki-answer-coding' ||
+    task === 'aki-answer-long-context'
+      ? 3000
+      : task === 'aki-answer-trivial'
+        ? 800
+        : 1500;
+  return Math.max(env.AKI_MAX_OUTPUT_TOKENS, floor);
 }
 
 export interface AskAkiInput {
@@ -181,6 +112,13 @@ export interface AskAkiInput {
    * filter pipeline + AkiCallLog table for unified analytics.
    */
   systemPromptOverride?: string;
+  /**
+   * Structured request analysis from the caller's preflight. Passed down
+   * so the same verdict that decided the web/archive lookups also picks
+   * the answer chain — one analysis per question, not three.
+   * Omitted → computed here.
+   */
+  analysis?: RequestAnalysis;
 }
 
 export interface AkiResponse {
@@ -338,19 +276,19 @@ export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
     .filter((s) => s.length > 0)
     .join('\n\n');
 
-  // Pick the chain. Vision bypasses triage entirely — the image decides
-  // the route, and only one free model can see it.
-  let task: TaskId;
-  let triageTokensIn = 0;
-  let triageTokensOut = 0;
-  if (input.imageUrl) {
-    task = 'aki-answer-vision';
-  } else {
-    const triage = await triageQuestion(safeQuestion);
-    task = triage.task;
-    triageTokensIn = triage.tokensIn;
-    triageTokensOut = triage.tokensOut;
-  }
+  // Pick the chain from structured analysis. The caller usually already
+  // ran the preflight (it needed `needsWeb`/`needsArchive` to decide on
+  // lookups) and passes the verdict down, so this costs nothing. When it
+  // didn't, analyse here rather than guessing.
+  const analysis =
+    input.analysis ??
+    (await analyzeRequest({
+      question: safeQuestion,
+      hasImage: !!input.imageUrl,
+      hasReply: !!input.repliedTo,
+      recentCount: input.recentMessages?.length ?? 0,
+    }));
+  const task: TaskId = taskForAnalysis(analysis);
 
   // Append standing to the system prompt so identity is a rule, not a
   // detail in the conversation.
@@ -386,10 +324,8 @@ export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
     throw new Error(`aki: no provider available for task ${task}`);
   }
 
-  // Triage tokens are folded in so analytics reflect the true cost of
-  // answering, not just the final call.
-  const tokensIn = result.tokensIn + triageTokensIn;
-  const tokensOut = result.tokensOut + triageTokensOut;
+  const tokensIn = result.tokensIn;
+  const tokensOut = result.tokensOut;
   const cachedTokens = 0;
   const costUsd = FREE_TIER_COST_USD;
 
@@ -424,6 +360,9 @@ export async function askAki(input: AskAkiInput): Promise<AkiResponse> {
     {
       discord_id: input.discordId,
       task,
+      intent: analysis.intent,
+      complexity: analysis.complexity,
+      analysis_source: analysis.source,
       provider: result.provider,
       model: result.model,
       route_index: result.routeIndex,

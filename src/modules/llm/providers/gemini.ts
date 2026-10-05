@@ -81,10 +81,12 @@ export const geminiProvider: LlmProvider = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-        // Không có timeout thì một request treo sẽ chặn cả chain failover
-        // (fetch mặc định chờ vô hạn). 20s cho model cuối chain — hết thì
-        // ném LlmProviderError để router báo lỗi thay vì để user chờ mãi.
-        signal: AbortSignal.timeout(20_000),
+        // Configurable — see LLM_REQUEST_TIMEOUT_MS. `0` removes the
+        // ceiling entirely (fetch then waits indefinitely, which is the
+        // documented tradeoff of that setting).
+        ...(env.LLM_REQUEST_TIMEOUT_MS > 0
+          ? { signal: AbortSignal.timeout(env.LLM_REQUEST_TIMEOUT_MS) }
+          : {}),
       });
     } catch (err) {
       throw new LlmProviderError('gemini: network error', err);

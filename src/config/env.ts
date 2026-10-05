@@ -65,6 +65,44 @@ const envSchema = z.object({
   /** OpenCode Zen API key (LLM router extra free-model provider, OpenAI-compat). Empty = skip in router fallback chain. */
   OPENCODE_ZEN_API_KEY: z.string().default(''),
 
+  /**
+   * Billing kill-switches. Radiant's AI runtime must cost $0, and the
+   * Gemini/Groq routes qualify ONLY because their keys sit on free tiers
+   * with no billing account attached — over-quota returns 429, never a
+   * charge.
+   *
+   * Attach a billing account to either project and you MUST flip the
+   * matching flag: the model registry reclassifies that provider's models
+   * as `unknown`, which blocks them from production routing. Fail closed,
+   * no code edit needed.
+   */
+  GEMINI_BILLING_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
+  GROQ_BILLING_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
+
+  /**
+   * Per-request LLM timeout, milliseconds. `0` disables timeouts entirely.
+   *
+   * The old hardcoded 15-20s was cutting off legitimate work: the free
+   * pool's strongest models are reasoning models that emit hidden
+   * chain-of-thought before their first visible token, so a real answer
+   * can take far longer than a paid model's would. Those cut-offs looked
+   * like provider failures, tripped the circuit breaker, and pushed Aki
+   * down to weaker models — the timeout was manufacturing the quality
+   * problem it was supposed to protect against.
+   *
+   * Default is deliberately generous rather than 0: with no ceiling at
+   * all, a single hung socket blocks that request forever, the Discord
+   * interaction expires with no reply, and the router never advances to
+   * the next free model. Set 0 explicitly if you want that tradeoff.
+   */
+  LLM_REQUEST_TIMEOUT_MS: z.coerce.number().int().nonnegative().default(180_000),
+
   // --- Phase 15: member knowledge base ---
   /**
    * Infer per-member character sketches from recent public chat and post

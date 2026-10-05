@@ -1,7 +1,14 @@
 import { logger } from '../../utils/logger.js';
+import { isCircuitOpen, recordFailure, recordSuccess } from './health.js';
 import { geminiProvider } from './providers/gemini.js';
 import { groqProvider } from './providers/groq.js';
 import { opencodeZenProvider } from './providers/opencode-zen.js';
+import {
+  PaidModelBlockedError,
+  assertModelAllowedForProduction,
+  getModelConfig,
+  outputTokenFloor,
+} from './registry.js';
 import {
   type CompletionResult,
   type LlmProvider,
@@ -12,185 +19,123 @@ import {
 } from './types.js';
 
 /**
- * Per-task routing table + provider failover.
+ * Per-task routing table + failover, over a ZERO-COST model pool only.
  *
- * Each TaskId maps to an ordered `Route[]` chain. The router tries
- * entries left-to-right, skipping any (provider, model) pair currently
- * throttled (429 cooldown active) or whose provider is disabled
- * (missing API key). The first successful response wins.
+ * A chain is a *preference order*, not a permission grant. Every hop is
+ * validated against the model registry (`assertModelAllowedForProduction`)
+ * before it can run, so editing an array here can make a route dead but
+ * never expensive. That is the whole point: the guard lives below the
+ * config, not beside it.
  *
- * Throttle bookkeeping is per-(provider, model) pair — not per-provider —
- * so when Gemini 2.5 Flash hits 429 we can still try Gemini 3.1 Flash
- * Lite on the same API key. Each Gemini model has its own free-tier
- * RPM/RPD quota: rotating across them multiplies effective headroom.
+ * Chains are model ids only — the provider is looked up from the registry.
+ * Carrying both invited them to disagree, and a `{provider:'groq', model:
+ * <a gemini model>}` typo fails at runtime in a way tests don't catch.
  *
- * Failover policy (per Bill's call):
- *   - LlmRateLimitError → throttle THAT (provider, model) for retryAfterMs,
- *     then try next route.
- *   - LlmProviderError  → try next route without throttling (transient).
- *   - All routes exhausted → return null. Caller applies task-specific
- *     degradation (filter = fail-open, narration = static fallback, etc).
+ * Skip rules, in order: unregistered/non-free (throws), provider disabled
+ * (no API key), circuit breaker open (recent repeated failures).
+ *
+ * Failure policy:
+ *   - 429            → record + throttle that model, try next
+ *   - provider error → record, try next
+ *   - empty output   → record as failure, try next (see tryRoute)
+ *   - all exhausted  → return null; caller degrades gracefully. NEVER a
+ *                      paid escalation.
  */
 
-interface Route {
-  provider: ProviderName;
-  model: string;
-}
+/** Ordered preference list of model ids. */
+type Chain = readonly string[];
 
-const TASK_ROUTES: Record<TaskId, readonly Route[]> = {
-  // FILTER — decides whether a member's question is worth answering at all.
-  // 2026-08-01: moved onto the same DS/Ling/MiMo tier as the answer path.
-  // A weak model here is expensive: on 2026-07-29 it rejected the Chưởng
-  // Môn's own moderation report as junk.
-  //
-  // Two Gemini models at the tail, unlike the other Aki chains: the filter
-  // runs on EVERY question, so it exhausts free quota first. Each Gemini
-  // model has its own RPM/RPD bucket, so the second entry doubles the
-  // emergency headroom for days when OpenCode Zen is down.
-  'aki-filter': [
-    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
-    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
-    { provider: 'gemini', model: 'gemini-2.5-flash' },
-    { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
-  ],
-  // NUDGE — short "kiềm chế lời" reminders. Same tier: the nudge is aimed
-  // at a real member being told off, so tone precision matters.
-  'aki-nudge': [
-    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
-    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
-    { provider: 'gemini', model: 'gemini-2.5-flash' },
-  ],
-  // ── Phase 15: Aki's answer engine, fully free-tier ──
-  //
-  // TRIAGE — one cheap call that decides easy vs hard. Ling leads: it
-  // emits hidden reasoning but the output here is one word, which the
-  // 600-token budget absorbs.
-  //
-  // Bill's call (2026-08-01): Aki's answer path runs on DS V4 / Ling / MiMo
-  // ONLY. The weaker free models (laguna, north-mini, nemotron) and the
-  // Groq llamas were dropped — members were visibly noticing the drop in
-  // quality ("Dm ngu vl", "Não cá vàng 3s", "Hiểu ngữ cảnh ko đc ổn lắm").
-  // gemini-2.5-flash stays as the LAST hop only: it is a strong model, not
-  // a weak lane, and without any tail a single OpenCode outage would leave
-  // Aki completely mute.
+const TASK_ROUTES: Record<TaskId, Chain> = {
+  // ── Moderation / classification ─────────────────────────────────────
+  // FILTER runs on EVERY question, so it burns free quota first; two
+  // Gemini lites at the tail give it independent RPM buckets.
+  'aki-filter': ['mimo-v2.5-free', 'ling-3.0-tiny-free', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'],
+  'aki-nudge': ['mimo-v2.5-free', 'ling-3.0-tiny-free', 'gemini-2.5-flash'],
+  // Request classifier. Only reached when the deterministic preflight
+  // could not decide — see modules/aki/request-analysis.ts.
   'aki-triage': [
-    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
-    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
-    { provider: 'gemini', model: 'gemini-2.5-flash' },
+    'nemotron-3.5-lightning-free',
+    'ling-3.0-tiny-free',
+    'deepseek-v4-flash-free',
+    'gemini-2.5-flash-lite',
   ],
-  // EASY — chit-chat, short factual answers, persona banter. MiMo first
-  // (fast, and the only free vision model here, so behaviour stays
-  // consistent between the text and image paths).
-  // Ling leads (Bill's call, 2026-08-01). Measured on the same question:
-  // ling 2.5s / mimo 8.8s, and ling's Vietnamese came back better
-  // formatted. On a chat reply the latency is what members feel.
-  'aki-answer-easy': [
-    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
-    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
-    { provider: 'opencode-zen', model: 'deepseek-v4-flash-free' },
-    { provider: 'gemini', model: 'gemini-2.5-flash' },
+
+  // ── Aki answer chains, one per workload ─────────────────────────────
+  // Bootstrap ordering (spec §42) refined by the 2026-08-13 eval run.
+  // Do not reorder from intuition — re-run `npm run eval:free-models`.
+  'aki-answer-trivial': [
+    'ling-3.0-tiny-free',
+    'deepseek-v4-flash-free',
+    'nemotron-3.5-lightning-free',
+    'gemini-2.5-flash-lite',
   ],
-  // HARD — code, debugging, multi-step explanation.
-  //
-  // DS V4 now LEADS the hard chain (was behind llama-70b). It previously
-  // returned empty because 2000 tokens all went to hidden reasoning — so
-  // `answerTokenBudget()` was raised to 3000 for this chain specifically.
-  // `tryRoute` still treats an empty completion as a failure, so a stall
-  // costs one hop rather than a blank reply.
-  'aki-answer-hard': [
-    { provider: 'opencode-zen', model: 'deepseek-v4-flash-free' },
-    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
-    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
-    { provider: 'gemini', model: 'gemini-2.5-flash' },
+  'aki-answer-general': [
+    'deepseek-v4-flash-free',
+    'mimo-v2.5-free',
+    'ling-3.0-tiny-free',
+    'gemini-2.5-flash',
   ],
-  // VISION — must stay on models that accept image parts. MiMo v2.5 is
-  // the free vision model; Gemini closes the chain. Never add a text-only
-  // model here: it would silently answer without seeing the image.
-  'aki-answer-vision': [
-    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
-    { provider: 'gemini', model: 'gemini-2.5-flash' },
+  'aki-answer-technical': ['deepseek-v4-flash-free', 'mimo-v2.5-free', 'gemini-2.5-flash'],
+  'aki-answer-coding': [
+    'mimo-v2.5-free',
+    'deepseek-v4-flash-free',
+    'nemotron-3-ultra-free',
+    'gemini-2.5-flash',
   ],
-  // MEMBER-PROFILE + GROUP-ANALYTICS — Phase 15 knowledge base.
-  //
-  // Background jobs, same DS/Ling/MiMo tier (2026-08-01). MiMo is
-  // non-reasoning and returns JSON reliably; Ling backs it up. Gemini is
-  // the tail so an OpenCode outage still produces a report.
-  //
-  // Reasoning-heavy free models are deliberately NOT here: they were
-  // observed spending the entire token budget on hidden chain-of-thought
-  // and returning empty, which for a JSON task means a parse failure.
-  'member-profile': [
-    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
-    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
-    { provider: 'gemini', model: 'gemini-2.5-flash' },
+  'aki-answer-reasoning': [
+    'nemotron-3-ultra-free',
+    'deepseek-v4-flash-free',
+    'mimo-v2.5-free',
+    'gemini-2.5-flash',
   ],
-  'group-analytics': [
-    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
-    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
-    { provider: 'gemini', model: 'gemini-2.5-flash' },
-  ],
-  // DOC-VALIDATE — Phase 12 Lát 9 doc gatekeeper. Needs reliable JSON
-  // output + strong VN reading comprehension. Llama 3.3 70B has the best
-  // tradeoff (no reasoning overhead, supports JSON mode, strong VN).
-  // 2026-07-28: added 2 OpenCode Zen free models before Gemini — 600-token
-  // budget here tolerates their hidden-reasoning overhead fine (verified
-  // live). `north-mini-code-free` picked for its code/technical framing,
-  // matching this task's "doc gatekeeper" role.
+  // 1M ctx first, then 256k. Gemini 2.5 Flash closes it (1M ctx too).
+  'aki-answer-long-context': ['deepseek-v4-flash-free', 'mimo-v2.5-free', 'gemini-2.5-flash'],
+  // VISION is deliberately a chain of ONE. MiMo is the only free model
+  // that accepts image parts, and this repo's Gemini adapter sends text
+  // parts only — adding it here would produce an answer written without
+  // ever looking at the image, which is worse than admitting we can't.
+  // When MiMo is down, askAki throws and the caller apologises. That is
+  // the graceful degradation the zero-cost invariant requires.
+  'aki-answer-vision': ['mimo-v2.5-free'],
+
+  // ── Background jobs ─────────────────────────────────────────────────
+  // MiMo is non-reasoning and returns JSON reliably; reasoning-heavy
+  // models spent the whole budget on hidden CoT and returned empty, which
+  // for a JSON task means a parse failure.
+  'member-profile': ['mimo-v2.5-free', 'ling-3.0-tiny-free', 'gemini-2.5-flash'],
+  'group-analytics': ['mimo-v2.5-free', 'ling-3.0-tiny-free', 'gemini-2.5-flash'],
+
+  // Strict JSON + strong Vietnamese reading. Llama 3.3 70B has no
+  // reasoning overhead and supports JSON mode.
   'doc-validate': [
-    { provider: 'groq', model: 'llama-3.3-70b-versatile' },
-    { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
-    { provider: 'opencode-zen', model: 'north-mini-code-free' },
-    { provider: 'opencode-zen', model: 'deepseek-v4-flash-free' },
-    { provider: 'gemini', model: 'gemini-2.5-flash' },
-    { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+    'deepseek-v4-flash-free',
+    'gemini-2.5-flash',
+    'gemini-3.1-flash-lite',
   ],
-  // DIVINE-JUDGMENT — Phase 12.4 Áp Chế Thiên Đạo. Same shape as
-  // doc-validate (strict JSON, VN reasoning). Reuse the chain.
-  // 2026-07-28: added `nemotron-3-ultra-free` (heavy-reasoning free
-  // model — thematically apt for a "judgment" task, 600-token budget
-  // tolerates it) + `ling-3.0-flash-free` before Gemini.
   'divine-judgment': [
-    { provider: 'groq', model: 'llama-3.3-70b-versatile' },
-    { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
-    { provider: 'opencode-zen', model: 'nemotron-3-ultra-free' },
-    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
-    { provider: 'gemini', model: 'gemini-2.5-flash' },
-    { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+    'nemotron-3-ultra-free',
+    'ling-3.0-tiny-free',
+    'gemini-2.5-flash',
   ],
-  // GUARDIAN — deciding whether a member gets punished. The two rungs use
-  // DIFFERENT models on purpose: asking the same model to check its own
-  // verdict just gets the same answer back with more confidence. DS V4
-  // accuses, Ling defends.
-  'guardian-judge': [
-    { provider: 'opencode-zen', model: 'deepseek-v4-flash-free' },
-    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
-    { provider: 'gemini', model: 'gemini-2.5-flash' },
-  ],
-  'guardian-review': [
-    { provider: 'opencode-zen', model: 'ling-3.0-flash-free' },
-    { provider: 'opencode-zen', model: 'mimo-v2.5-free' },
-    { provider: 'gemini', model: 'gemini-2.5-flash' },
-  ],
-  // NARRATION — cultivation-themed prose. Llama 3.3 70B first because it
-  // is non-reasoning (no `<think>` overhead, every token goes to prose)
-  // and gives strong VN xianxia output. gpt-oss-120b is a reasoning
-  // model — kept in chain as fallback but it burns output budget on
-  // chain-of-thought even with `reasoning_format: 'hidden'`, which on
-  // 2026-05-14 caused empty/truncated narration in prod (only 400-token
-  // budget here). 2026-07-28: dropped `qwen/qwen3-32b` (Groq retired the
-  // model, was 404-ing every call). Deliberately did NOT replace it with
-  // one of the new OpenCode Zen reasoning models (north-mini/ling/
-  // nemotron all emit hidden reasoning first) — same failure mode as the
-  // 2026-05-14 incident. Added `laguna-s-2.1-free` instead: verified live
-  // to answer directly with no reasoning overhead, safe for this budget.
+  // The two guardian rungs use DIFFERENT lead models on purpose: asking
+  // one model to check its own verdict just returns the same answer with
+  // more confidence. DS V4 accuses, Ling defends.
+  'guardian-judge': ['deepseek-v4-flash-free', 'mimo-v2.5-free', 'gemini-2.5-flash'],
+  'guardian-review': ['ling-3.0-tiny-free', 'mimo-v2.5-free', 'gemini-2.5-flash'],
+
+  // Cultivation prose on a tight budget → non-reasoning models only.
+  // Anything that emits hidden CoT truncates the narration to nothing
+  // (observed in prod 2026-05-14).
   narration: [
-    { provider: 'groq', model: 'llama-3.3-70b-versatile' },
-    { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
-    { provider: 'groq', model: 'openai/gpt-oss-120b' },
-    { provider: 'opencode-zen', model: 'laguna-s-2.1-free' },
-    { provider: 'gemini', model: 'gemini-2.5-flash' },
-    { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
-    { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
+    'llama-3.3-70b-versatile',
+    'laguna-s-2.1-free',
+    'gemini-2.5-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-2.5-flash-lite',
   ],
 };
 
@@ -199,25 +144,6 @@ const PROVIDERS: Record<ProviderName, LlmProvider> = {
   gemini: geminiProvider,
   'opencode-zen': opencodeZenProvider,
 };
-
-/**
- * Throttle map keyed by `${provider}:${model}` so each model has its
- * own cooldown window. Value = epoch ms when usable again.
- */
-const throttledUntil: Map<string, number> = new Map();
-
-function routeKey(route: Route): string {
-  return `${route.provider}:${route.model}`;
-}
-
-function isThrottled(route: Route, now: number): boolean {
-  const until = throttledUntil.get(routeKey(route));
-  return until !== undefined && now < until;
-}
-
-function throttleFor(route: Route, ms: number, now: number): void {
-  throttledUntil.set(routeKey(route), now + ms);
-}
 
 export interface RouterInput {
   systemPrompt: string;
@@ -235,67 +161,63 @@ export interface RouterResult extends CompletionResult {
 }
 
 async function tryRoute(
-  route: Route,
+  modelId: string,
   input: RouterInput,
   now: number,
 ): Promise<CompletionResult | null> {
-  const provider = PROVIDERS[route.provider];
-  if (!provider.isEnabled()) return null;
-  if (isThrottled(route, now)) return null;
+  // ── THE billing boundary. Throws for paid / unknown / unregistered. ──
+  // Not caught here: a paid model reaching this point is a programming
+  // error that must be loud, not a route to silently skip.
+  assertModelAllowedForProduction(modelId);
 
+  const cfg = getModelConfig(modelId);
+  if (!cfg) return null; // Unreachable — assert above throws first.
+
+  const provider = PROVIDERS[cfg.provider];
+  if (!provider.isEnabled()) return null;
+  if (isCircuitOpen(modelId, now)) return null;
+
+  const started = Date.now();
   try {
     const result = await provider.complete({
       systemPrompt: input.systemPrompt,
       userPrompt: input.userPrompt,
-      model: route.model,
-      maxOutputTokens: input.maxOutputTokens,
+      model: modelId,
+      // Reasoning models need a floor or they spend the entire allowance
+      // on hidden chain-of-thought and emit nothing.
+      maxOutputTokens: outputTokenFloor(modelId, input.maxOutputTokens),
       temperature: input.temperature,
       responseFormat: input.responseFormat,
       imageUrl: input.imageUrl,
     });
 
     // An empty completion is a FAILURE, not a success — fall through to
-    // the next route instead of handing callers a blank answer.
-    //
-    // This is the dominant failure mode of reasoning models (DeepSeek V4
-    // Flash, Nemotron, north-mini, Ling): they spend the whole
-    // maxOutputTokens budget on hidden chain-of-thought and return
-    // content:'' with finish_reason:'stop'. Observed live 2026-07-28 —
-    // deepseek-v4-flash-free returned 0 chars for a code question even at
-    // a 2000-token budget. Without this guard the router reported success
-    // and Aki replied with nothing at all.
+    // the next route instead of handing the caller a blank answer. This is
+    // the dominant failure mode of reasoning models on this pool.
     if (result.text.trim().length === 0) {
+      recordFailure(modelId, 'empty_output');
       logger.warn(
-        {
-          provider: route.provider,
-          model: route.model,
-          tokensOut: result.tokensOut,
-          maxOutputTokens: input.maxOutputTokens,
-        },
-        'llm: route returned empty content (likely reasoning ate the budget), trying next',
+        { model: modelId, tokensOut: result.tokensOut, maxOutputTokens: input.maxOutputTokens },
+        'llm: route returned empty content (reasoning likely ate the budget), trying next',
       );
       return null;
     }
 
+    recordSuccess(modelId, Date.now() - started);
     return result;
   } catch (err) {
     if (err instanceof LlmRateLimitError) {
-      throttleFor(route, err.retryAfterMs ?? 30_000, now);
+      recordFailure(modelId, 'rate_limit', err.retryAfterMs);
       logger.warn(
-        {
-          provider: route.provider,
-          model: route.model,
-          retryAfterMs: err.retryAfterMs,
-        },
-        'llm: route throttled (will skip until cooldown expires)',
+        { model: modelId, retryAfterMs: err.retryAfterMs },
+        'llm: route rate-limited (cooling down)',
       );
       return null;
     }
     if (err instanceof LlmProviderError) {
-      logger.warn(
-        { provider: route.provider, model: route.model, err: err.message },
-        'llm: route errored, trying next',
-      );
+      const kind = /timeout|abort/i.test(err.message) ? 'timeout' : 'server_error';
+      recordFailure(modelId, kind);
+      logger.warn({ model: modelId, err: err.message }, 'llm: route errored, trying next');
       return null;
     }
     throw err;
@@ -303,22 +225,37 @@ async function tryRoute(
 }
 
 /**
- * Run a completion through the configured chain for `task`. Returns null
- * if every route is unavailable (disabled, throttled, or errored) so
- * the caller can apply task-specific degradation.
+ * Run a completion through the configured chain for `task`.
+ *
+ * Returns null when every route is unavailable, so the caller can degrade
+ * gracefully. It will NEVER reach for a paid model to rescue the call —
+ * a quiet Aki is the intended outcome of an exhausted free pool.
  */
 export async function complete(task: TaskId, input: RouterInput): Promise<RouterResult | null> {
   const routes = TASK_ROUTES[task];
   const now = Date.now();
 
   for (let i = 0; i < routes.length; i++) {
-    const route = routes[i];
-    if (!route) continue;
-    const result = await tryRoute(route, input, now);
+    const modelId = routes[i];
+    if (!modelId) continue;
+
+    let result: CompletionResult | null;
+    try {
+      result = await tryRoute(modelId, input, now);
+    } catch (err) {
+      if (err instanceof PaidModelBlockedError) {
+        // Misconfiguration, not a transient fault. Skip the route and
+        // shout — but keep serving the request from the free pool.
+        logger.error({ task, model: modelId, err: err.message }, 'llm: BLOCKED non-free route');
+        continue;
+      }
+      throw err;
+    }
+
     if (result) {
       if (i > 0) {
         logger.info(
-          { task, routeIndex: i, provider: route.provider, model: route.model },
+          { task, routeIndex: i, provider: result.provider, model: modelId },
           'llm: routed to fallback',
         );
       }
@@ -328,7 +265,7 @@ export async function complete(task: TaskId, input: RouterInput): Promise<Router
 
   logger.error(
     { task, totalRoutes: routes.length },
-    'llm: no route succeeded (all disabled/throttled/errored)',
+    'llm: no free route succeeded (all disabled/cooling/errored) — degrading, NOT escalating to paid',
   );
   return null;
 }
@@ -336,7 +273,6 @@ export async function complete(task: TaskId, input: RouterInput): Promise<Router
 /** Exposed for tests + diagnostic CLI. */
 export const __for_testing = {
   TASK_ROUTES,
-  throttledUntil,
-  isThrottled,
-  routeKey,
 };
+
+export { TASK_ROUTES };

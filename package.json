@@ -24,7 +24,9 @@
     "deploy-commands": "tsx scripts/deploy-commands.ts",
     "deploy-commands:global": "tsx scripts/deploy-commands.ts -- --global",
     "audit-server": "tsx scripts/audit-server.ts",
-    "smoke-test": "tsx scripts/smoke-test.ts"
+    "smoke-test": "tsx scripts/smoke-test.ts",
+    "probe:free-models": "tsx scripts/probe-free-models.ts",
+    "eval:free-models": "tsx scripts/eval-free-models.ts"
   },
   "dependencies": {
     "async-mutex": "^0.5.0",
