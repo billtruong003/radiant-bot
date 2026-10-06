@@ -11,6 +11,8 @@ import {
 } from 'discord.js';
 import { TITLES, getTitle } from '../config/titles.js';
 import { getStore } from '../db/index.js';
+import { withCard, withCardEdit } from '../modules/cards/attach.js';
+import { renderTitlesCard } from '../modules/cards/hoso-cards.js';
 import { awardEligibleTitles, listOwnedTitleIds } from '../modules/titles/index.js';
 import { logger } from '../utils/logger.js';
 
@@ -98,6 +100,20 @@ export const data = new SlashCommandBuilder()
   .setDescription('Danh hiệu (honor title) — xem + trang bị')
   .setDMPermission(false);
 
+/** Pixel card of every title: worn, earned or locked. */
+function titleCard(userId: string, displayName: string) {
+  const owned = listOwnedTitleIds(userId);
+  const equipped = getStore().users.get(userId)?.equipped_title_id ?? null;
+  return renderTitlesCard(
+    displayName,
+    TITLES.map((t) => ({
+      name: t.name,
+      description: t.description.replace(/\s*—.*$/, ''),
+      state: t.id === equipped ? 'on' : owned.has(t.id) ? 'got' : 'lock',
+    })),
+  );
+}
+
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const userId = interaction.user.id;
   const store = getStore();
@@ -123,7 +139,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   if (selectRow) components.push(selectRow);
 
   const msg = (await interaction.reply({
-    embeds: [buildEmbed(userId, displayName)],
+    ...withCard(buildEmbed(userId, displayName), await titleCard(userId, displayName)),
     components,
     ephemeral: true,
     fetchReply: true,
@@ -157,7 +173,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       const rebuiltRow = buildSelectRow(userId, newOwned, newEquipped);
       const rebuiltComponents = rebuiltRow ? [rebuiltRow] : [];
       await sel.update({
-        embeds: [buildEmbed(userId, displayName)],
+        ...withCardEdit(buildEmbed(userId, displayName), await titleCard(userId, displayName)),
         components: rebuiltComponents,
       });
     } catch (err) {
@@ -174,9 +190,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     try {
       await msg.edit({
         embeds: [
-          buildEmbed(userId, displayName).setFooter({
-            text: '⏱️ Hết phiên — chạy /title danh-hieu lại để tiếp.',
-          }),
+          buildEmbed(userId, displayName)
+            .setFooter({ text: '⏱️ Hết phiên — chạy /title danh-hieu lại để tiếp.' })
+            .setImage('attachment://danh-hieu.gif'),
         ],
         components: [],
       });

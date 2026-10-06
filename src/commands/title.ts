@@ -5,6 +5,8 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 import { SUB_TITLES } from '../config/cultivation.js';
+import { withCard } from '../modules/cards/attach.js';
+import { renderSubTitleCard } from '../modules/cards/hoso-cards.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -129,8 +131,25 @@ async function handleList(
     .setDescription(
       [...lines, '', 'Dùng `/title phong-hieu add <name>` để nhận, `/title phong-hieu remove <name>` để bỏ.'].join('\n'),
     );
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  const card = await renderSubTitleCard(
+    SUB_TITLES.map((st) => ({
+      name: st.name,
+      theme: SUB_TITLE_LOOK[st.id]?.theme ?? st.theme,
+      icon: SUB_TITLE_LOOK[st.id]?.icon ?? 'iron_fan__shining_silver',
+      color: SUB_TITLE_LOOK[st.id]?.color ?? '#8fd18a',
+      on: owned.has(st.name),
+    })),
+  );
+  await interaction.reply({ ...withCard(embed, card), ephemeral: true });
 }
+
+/** Icon, colour and plain-language theme for each phong hiệu card. */
+const SUB_TITLE_LOOK: Record<string, { icon: string; color: string; theme: string }> = {
+  kiem_tu: { icon: 'jian_sword__icy_frost_steel', color: '#5fa8e8', theme: 'Chơi game, thích combat' },
+  dan_su: { icon: 'gold_medicine__green_jade', color: '#e8806e', theme: 'Vẽ, dựng, sáng tạo' },
+  tran_phap_su: { icon: 'rune_ring__divine_gold_inlaid_wood', color: '#b48ef0', theme: 'Dev, tech, làm tool' },
+  tan_tu: { icon: 'iron_fan__shining_silver', color: '#8fd18a', theme: 'Mỗi thứ một chút' },
+};
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!interaction.inGuild() || !interaction.member) {

@@ -3,6 +3,9 @@ import { CULTIVATION_RANKS, rankById, rankIndex } from '../config/cultivation.js
 import { getTitle } from '../config/titles.js';
 import { RANK_ICONS } from '../config/ui.js';
 import { getStore } from '../db/index.js';
+import { withCard } from '../modules/cards/attach.js';
+import { renderStatCard } from '../modules/cards/hoso-cards.js';
+import { profileData } from '../modules/cards/profile-data.js';
 import { getBanMenhDisplay } from '../modules/combat/ban-menh-templates.js';
 import {
   CONG_PHAP_SLOT_UNLOCK,
@@ -247,7 +250,16 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     });
   }
 
-  await interaction.reply({ embeds: [embed] });
+  const pd = profileData(target.id, target.displayName ?? target.username);
+  const best = upgradeable[0];
+  const card = pd
+    ? await renderStatCard(
+        pd,
+        nextUnlocks[0]?.replace(/^\S+\s/, '').replace(/\*\*/g, '') ?? null,
+        best ? `${best.name} +${best.currentLv + 1} · thêm ${best.potentialDelta} LC` : null,
+      )
+    : null;
+  await interaction.reply(withCard(embed, card));
 }
 
 export const command = { data, execute };

@@ -3,6 +3,9 @@ import { rankById } from '../config/cultivation.js';
 import { DIVIDER_SHORT, ICONS, RANK_ICONS } from '../config/ui.js';
 import { getStore } from '../db/index.js';
 import type { CultivationRankId } from '../db/types.js';
+import { withCard } from '../modules/cards/attach.js';
+import { renderRankCard } from '../modules/cards/hoso-cards.js';
+import { profileData } from '../modules/cards/profile-data.js';
 import { levelProgress } from '../modules/leveling/engine.js';
 import { inlineField, themedEmbed } from '../utils/embed.js';
 
@@ -104,7 +107,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       inlineField('⚔️ Lực chiến', 'Xem `/profile stat`'),
     );
 
-  await interaction.reply({ embeds: [embed] });
+  const card = profileData(target.id, user.display_name ?? target.displayName ?? target.username);
+  await interaction.reply(withCard(embed, card ? await renderRankCard(card) : null));
 }
 
 export const command = { data, execute };

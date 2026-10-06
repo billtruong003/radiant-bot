@@ -11,6 +11,8 @@ import {
 } from 'discord.js';
 import { getStore } from '../db/index.js';
 import type { User } from '../db/types.js';
+import { withCard, withCardEdit } from '../modules/cards/attach.js';
+import { renderAllocCard } from '../modules/cards/hoso-cards.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -187,8 +189,12 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const member = await interaction.guild?.members.fetch(userId).catch(() => null);
   const displayName = member?.displayName ?? interaction.user.username;
 
+  const card = async (fresh: StatKey | null) =>
+    renderAllocCard({ name: displayName, alloc: state.alloc, unspent: state.unspent }, fresh);
+  let first = await card(null);
+  let lastCard = first.name;
   const msg = (await interaction.reply({
-    embeds: [buildEmbed(displayName, user.level, state)],
+    ...withCard(buildEmbed(displayName, user.level, state), first),
     components: buildButtons(state, userId),
     ephemeral: true,
     fetchReply: true,
@@ -203,6 +209,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   collector.on('collect', async (btn) => {
     const parts = btn.customId.split(':');
     const action = parts[1];
+    let fresh: StatKey | null = null;
     try {
       if (action === 'add' && parts[2]) {
         const key = parts[2] as StatKey;
@@ -219,6 +226,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           alloc: { ...state.alloc, [key]: state.alloc[key] + 1 },
           grantedForLevel: state.grantedForLevel,
         };
+        fresh = key;
         await persistAlloc(userId, state);
       } else if (action === 'reset') {
         const totalSpent = state.alloc.dmg + state.alloc.hp + state.alloc.def + state.alloc.spd;
@@ -229,8 +237,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         };
         await persistAlloc(userId, state);
       }
+      first = await card(fresh);
+      lastCard = first.name;
       await btn.update({
-        embeds: [buildEmbed(displayName, user.level, state)],
+        ...withCardEdit(buildEmbed(displayName, user.level, state), first),
         components: buildButtons(state, userId),
       });
     } catch (err) {
@@ -254,7 +264,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         return newRow;
       });
       await msg.edit({
-        embeds: [buildEmbed(displayName, user.level, state).setFooter({ text: '⏱️ Hết phiên — chạy /profile alloc lại để tiếp.' })],
+        embeds: [
+          buildEmbed(displayName, user.level, state)
+            .setFooter({ text: '⏱️ Hết phiên — chạy /profile alloc lại để tiếp.' })
+            .setImage(`attachment://${lastCard}`),
+        ],
         components: disabledRows,
       });
     } catch {
