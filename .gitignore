@@ -42,3 +42,6 @@ yarn-error.log*
 
 # vitest scratch dirs (store/WAL fixtures)
 tests/.tmp/
+
+# local renders
+tmp/

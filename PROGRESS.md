@@ -826,6 +826,12 @@ keys on VPS).
 - [x] Fix: `guardianStrikes` was missing from the WAL dispatch map (strikes lost on crash)
 - [ ] Deploy: DNS + Caddy + GitHub OAuth App + env (DEPLOY.md §3b), `npm run deploy-commands`
 
+### Tu Tiên Pixel (2026-10-06, planned)
+
+Pixel art cards/GIFs for every cultivation command, avatar customizer, tiered tribulations
+(incl. algorithm judge on the web), study + monster quests, idle raid. Task list and order:
+`docs/TU_TIEN_PIXEL_PLAN.md`. Mockups: https://claude.ai/artifact/TqVLxNw7dfCHcwKj96Zsg8
+
 ## Blockers / Notes
 
 ### Phase 0 blockers — all cleared 2026-05-13
