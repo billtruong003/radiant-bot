@@ -36,10 +36,18 @@ describe('raid engine', () => {
   });
 
   it('daily cap keeps loot inside the limit', () => {
-    const { paid, capped } = capLoot(lootFor(3, 10, 1000), { xp: 500, pills: 3, coins: 150 });
-    expect(paid.xp).toBe(RAID_DAILY_CAP.xp - 500);
-    expect(paid.pills).toBe(RAID_DAILY_CAP.pills - 3);
-    expect(paid.coins).toBe(RAID_DAILY_CAP.coins - 150);
+    const taken = {
+      xp: RAID_DAILY_CAP.xp - 50,
+      pills: RAID_DAILY_CAP.pills - 1,
+      coins: RAID_DAILY_CAP.coins - 10,
+    };
+    const { paid, capped } = capLoot(lootFor(3, 10, 1000), taken);
+    expect(paid).toEqual({ xp: 50, pills: 1, coins: 10 });
+    expect(capLoot(lootFor(3, 10, 1000), RAID_DAILY_CAP).paid).toEqual({
+      xp: 0,
+      pills: 0,
+      coins: 0,
+    });
     expect(capped).toBe(true);
   });
 
