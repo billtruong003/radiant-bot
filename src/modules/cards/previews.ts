@@ -34,6 +34,7 @@ import {
   LOOK_VAN,
   sampleProfile,
 } from './samples.js';
+import { renderTribulationIntro, renderTribulationOutcome } from './tribulation-cards.js';
 
 const DUEL_A: Fighter = {
   name: 'Bill The Dev',
@@ -428,5 +429,31 @@ export const PREVIEWS: Record<string, () => Promise<Rendered>> = {
         rankColor: rankColor as string,
         score: score as string,
       })),
+    }),
+  'kiep-math': () =>
+    renderTribulationIntro({
+      name: 'Bill The Dev',
+      look: LOOK_BILL,
+      rankName: 'Kim Đan',
+      question: '37 × 4 − 19 = ?',
+      seconds: 30,
+      passXp: 500,
+      failXp: 100,
+    }),
+  'kiep-pass': () =>
+    renderTribulationOutcome({
+      name: 'Bill The Dev',
+      look: LOOK_BILL,
+      outcome: 'pass',
+      xpDelta: 500,
+      pills: 5,
+    }),
+  'kiep-fail': () =>
+    renderTribulationOutcome({
+      name: 'Bill The Dev',
+      look: LOOK_BILL,
+      outcome: 'fail',
+      xpDelta: -100,
+      pills: 0,
     }),
 };

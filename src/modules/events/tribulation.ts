@@ -9,6 +9,7 @@ import {
 } from 'discord.js';
 import { ulid } from 'ulid';
 import { ANNOUNCEMENT_CHANNELS, matchesChannelName } from '../../config/channels.js';
+import { rankById } from '../../config/cultivation.js';
 import {
   TRIBULATION_COOLDOWN_MS,
   TRIBULATION_FAIL_PENALTY,
@@ -22,7 +23,11 @@ import { getStore } from '../../db/index.js';
 import type { SectEvent } from '../../db/types.js';
 import { themedEmbed } from '../../utils/embed.js';
 import { logger } from '../../utils/logger.js';
+import { getLook } from '../avatar/service.js';
+import { withCard } from '../cards/attach.js';
+import { renderTribulationIntro, renderTribulationOutcome } from '../cards/tribulation-cards.js';
 import { applyXpPenalty, awardXp } from '../leveling/tracker.js';
+import type { Rendered } from '../pixel/output.js';
 import { type MathPuzzle, generateMathPuzzle } from './games/math-puzzle.js';
 import { type ReactionGame, generateReactionGame } from './games/reaction-speed.js';
 
@@ -179,6 +184,21 @@ function buildOutcomeEmbed(
     });
 }
 
+function outcomeCard(
+  member: GuildMember,
+  outcome: TribulationOutcome,
+  xpDelta: number,
+): Promise<Rendered | null> {
+  if (outcome === 'aborted') return Promise.resolve(null);
+  return renderTribulationOutcome({
+    name: member.displayName,
+    look: getLook(member.id),
+    outcome,
+    xpDelta,
+    pills: outcome === 'pass' ? 5 : 0,
+  }).catch(() => null);
+}
+
 function buildButtonsForMath(eventId: string, puzzle: MathPuzzle): ActionRowBuilder<ButtonBuilder> {
   const row = new ActionRowBuilder<ButtonBuilder>();
   for (let i = 0; i < puzzle.options.length; i++) {
@@ -322,9 +342,18 @@ export async function runTribulation(
 
   let sent: Message;
   try {
+    const introCard = await renderTribulationIntro({
+      name: member.displayName,
+      look: getLook(member.id),
+      rankName: rankById(user?.cultivation_rank ?? 'pham_nhan').name,
+      question: game === 'math' ? question : null,
+      seconds: Math.floor(timeoutMs / 1000),
+      passXp: PASS_XP,
+      failXp: FAIL_XP_PENALTY,
+    }).catch(() => null);
     sent = await channel.send({
       content: `${member}`,
-      embeds: [buildIntroEmbed(member, game, question, timeoutMs)],
+      ...withCard(buildIntroEmbed(member, game, question, timeoutMs), introCard),
       components: [row],
       allowedMentions: { users: [member.id] },
     });
@@ -357,7 +386,9 @@ export async function runTribulation(
       try {
         await i.deferUpdate();
         await sent.edit({ components: [] });
-        await channel.send({ embeds: [buildOutcomeEmbed(member, outcome, xpDelta)] });
+        await channel.send(
+          withCard(buildOutcomeEmbed(member, outcome, xpDelta), await outcomeCard(member, outcome, xpDelta)),
+        );
       } catch (err) {
         logger.warn({ err }, 'tribulation: outcome post failed');
       }
@@ -371,7 +402,9 @@ export async function runTribulation(
       await persistEventEnd(event, outcome, null, xpDelta);
       try {
         await sent.edit({ components: [] });
-        await channel.send({ embeds: [buildOutcomeEmbed(member, outcome, xpDelta)] });
+        await channel.send(
+          withCard(buildOutcomeEmbed(member, outcome, xpDelta), await outcomeCard(member, outcome, xpDelta)),
+        );
       } catch (err) {
         logger.warn({ err }, 'tribulation: timeout post failed');
       }
