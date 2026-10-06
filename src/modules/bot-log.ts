@@ -1,4 +1,4 @@
-import type { Client, MessagePayload, TextChannel } from 'discord.js';
+import type { Client, MessageCreateOptions, MessagePayload, TextChannel } from 'discord.js';
 import { ANNOUNCEMENT_CHANNELS, matchesChannelName } from '../config/channels.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
@@ -38,7 +38,7 @@ function getChannelByKey(canonical: string): TextChannel | null {
 
 async function postToChannel(
   canonical: string,
-  content: string | MessagePayload,
+  content: string | MessagePayload | MessageCreateOptions,
   logKey: string,
 ): Promise<void> {
   const ch = getChannelByKey(canonical);
@@ -70,6 +70,8 @@ export async function postBotLog(content: string | MessagePayload): Promise<void
  * was staff-only via the `bot_log` perm preset — Bill 2026-05-20: "vong
  * ngôn... cũng ko thông báo ra kênh public").
  */
-export async function postTribulation(content: string | MessagePayload): Promise<void> {
+export async function postTribulation(
+  content: string | MessagePayload | MessageCreateOptions,
+): Promise<void> {
   return postToChannel(ANNOUNCEMENT_CHANNELS.tribulation, content, 'tribulation');
 }

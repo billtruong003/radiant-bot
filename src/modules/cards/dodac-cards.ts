@@ -1,6 +1,7 @@
 import type { AvatarLook } from '../avatar/catalog.js';
 import {
   type Ctx,
+  ensureFont,
   frame,
   label,
   measure,
@@ -141,7 +142,8 @@ export interface ItemDetail extends ItemView {
 }
 
 /** /gear … info — one item, big, with its stats and lore. */
-export function renderItemCard(d: ItemDetail): Promise<Rendered> {
+export async function renderItemCard(d: ItemDetail): Promise<Rendered> {
+  await ensureFont(); // wrap() below measures before rendering starts
   const W = 620;
   const lore = d.lore ? wrap(null, d.lore, W - 40, 19).slice(0, 3) : [];
   const skill = d.skill ? wrap(null, d.skill, W - 40, 20).slice(0, 2) : [];

@@ -11,6 +11,7 @@ import { wireAvatarDiscord } from './modules/avatar/discord.js';
 import { clearBotLogClient, setBotLogClient } from './modules/bot-log.js';
 import { startCooldownSweeps, stopCooldownSweeps } from './modules/leveling/cooldown.js';
 import { assertZeroCostRouting } from './modules/llm/startup-audit.js';
+import { ensureFont } from './modules/pixel/canvas.js';
 import { startScheduler, stopScheduler } from './modules/scheduler/index.js';
 import { startHealthServer, stopHealthServer } from './utils/health.js';
 import { logger } from './utils/logger.js';
@@ -76,6 +77,8 @@ export async function startBot(): Promise<Client> {
     startCooldownSweeps();
     startAkiCooldownSweeps();
     wireAvatarDiscord();
+    // Load the pixel font once up front so the first card of the day is fast.
+    void ensureFont().catch((err: unknown) => logger.error({ err }, 'pixel font failed to load'));
     startHealthServer(env.HEALTH_PORT, c);
   });
 

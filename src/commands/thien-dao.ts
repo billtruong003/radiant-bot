@@ -1,4 +1,5 @@
 import {
+  AttachmentBuilder,
   type ChatInputCommandInteraction,
   EmbedBuilder,
   PermissionFlagsBits,
@@ -6,7 +7,9 @@ import {
 } from 'discord.js';
 import { ROLE_SECT_MASTER } from '../config/roles.js';
 import { judgeAndPunish } from '../modules/admin/divine-judgment.js';
+import { getLook } from '../modules/avatar/service.js';
 import { postBotLog, postTribulation } from '../modules/bot-log.js';
+import { renderJudgmentCard } from '../modules/cards/judgment-card.js';
 import { logger } from '../utils/logger.js';
 import { sanitizeForDisplay } from '../utils/sanitize.js';
 
@@ -174,8 +177,20 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   // AND verdict text is empty — nothing meaningful to announce.
   const publicShouldPost = publicLines.length > 0 || result.verdict.trim().length > 0;
   if (publicShouldPost) {
-    await postTribulation(
-      [
+    const card = await renderJudgmentCard({
+      name: safeName,
+      look: getLook(member.id),
+      rankName: `${result.targetSnapshot.rank} · Lv ${result.targetSnapshot.level}`,
+      verdict: result.verdict,
+      punishments: result.applied
+        .filter((a) => a.result === 'applied')
+        .map((a) => a.punishmentName),
+    }).catch((err: unknown) => {
+      logger.warn({ err }, 'thien-dao: card render failed');
+      return null;
+    });
+    await postTribulation({
+      content: [
         `🌩️ **Thiên Đạo giáng phạt** — đệ tử **${safeName}** (${result.targetSnapshot.rank} · Lv ${result.targetSnapshot.level})`,
         '',
         `_${result.verdict}_`,
@@ -184,7 +199,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           ? ['**Hình phạt**:', ...publicLines]
           : ['_Cảnh báo công khai — chưa hình phạt vật chất._']),
       ].join('\n'),
-    );
+      files: card ? [new AttachmentBuilder(card.buffer, { name: card.name })] : [],
+      allowedMentions: { parse: [] },
+    });
   }
 }
 

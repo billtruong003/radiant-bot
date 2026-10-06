@@ -22,6 +22,7 @@ import {
   renderSubTitleCard,
   renderTitlesCard,
 } from './hoso-cards.js';
+import { renderJudgmentCard } from './judgment-card.js';
 import { renderKitSheet } from './kit-sheet.js';
 import { renderLeaderboardCard } from './leaderboard-card.js';
 import { renderProfileCard } from './profile-card.js';
@@ -479,4 +480,13 @@ export const PREVIEWS: Record<string, () => Promise<Rendered>> = {
         }),
     ]),
   ),
+  'thien-dao': () =>
+    renderJudgmentCard({
+      name: 'Tán Tu 042',
+      look: null,
+      rankName: 'Luyện Khí · Lv 12',
+      verdict:
+        'Kẻ này ba lần rải quảng cáo trong chính điện, coi lời răn của tông môn như gió thoảng. Thiên đạo tuần hoàn, không ai thoát được nhân quả.',
+      punishments: ['Trừ 800 XP', 'Tịch thu 5 đan dược', 'Cấm khẩu 60 phút'],
+    }),
 };
