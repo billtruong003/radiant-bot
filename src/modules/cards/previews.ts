@@ -1,5 +1,7 @@
 import type { Rendered } from '../pixel/output.js';
+import { MONSTERS, ZONES } from '../raid/zones.js';
 import { renderAvatarCard } from './avatar-card.js';
+import { renderBestiaryCard } from './bestiary-card.js';
 import { renderDailyCard, renderQuestCard } from './daily-cards.js';
 import {
   renderForgeCard,
@@ -27,6 +29,7 @@ import { renderKitSheet } from './kit-sheet.js';
 import { renderLeaderboardCard } from './leaderboard-card.js';
 import { renderProfileCard } from './profile-card.js';
 import { renderQuizCard } from './quiz-card.js';
+import { renderRaidCard } from './raid-card.js';
 import { renderRealmUpCard } from './realm-card.js';
 import {
   LOOK_AKI,
@@ -525,4 +528,38 @@ export const PREVIEWS: Record<string, () => Promise<Rendered>> = {
         explain: 'Phải kiểm tra object tồn tại trước khi đọc thuộc tính.',
       },
     }),
+  ...Object.fromEntries(
+    ZONES.map((z, i) => [
+      `raid-${z.id}`,
+      () =>
+        renderRaidCard({
+          name: 'Bill The Dev',
+          look: LOOK_BILL,
+          companions:
+            i % 2
+              ? [{ name: 'Lam', look: LOOK_LAM }]
+              : [
+                  { name: 'Lam', look: LOOK_LAM },
+                  { name: 'Mộc', look: LOOK_MOC },
+                ],
+          zone: z,
+          floor: 3 + i,
+          monsters: z.monsters
+            .map((m) => MONSTERS[m])
+            .filter((m): m is NonNullable<typeof m> => Boolean(m)),
+          power: 1840,
+          monsterPower: i === 5 ? 9000 : 1500,
+          killsPerHour: i === 5 ? 0 : 42,
+          elapsedMs: 5.5 * 3600_000,
+          idleCapMs: 8 * 3600_000,
+          pendingKills: 231,
+          loot: { xp: 600, pills: 4, coins: 200 },
+          dayCapped: i === 1,
+          boss: { name: 'Cửu Vĩ Yêu Hồ', hp: 128_400, maxHp: 200_000 },
+          claimed:
+            i === 2 ? { kills: 231, xp: 540, pills: 3, coins: 180, cleared: true } : undefined,
+        }),
+    ]),
+  ),
+  bestiary: () => renderBestiaryCard(['thanh-moc-lam', 'lang-coc', 'doc-xa-dam', 'huyet-doi-dong']),
 };

@@ -6,10 +6,10 @@ import { mergeCommands } from '../../src/commands/merge.js';
 type Opt = { type: number; name: string; description: string; options?: Opt[] };
 
 describe('merged slash commands', () => {
-  it('register 17 commands that satisfy Discord limits', () => {
+  it('register 18 commands that satisfy Discord limits', () => {
     const all = listCommands().map((c) => c.data.toJSON() as unknown as Opt & { name: string });
-    expect(all).toHaveLength(17);
-    expect(new Set(all.map((c) => c.name)).size).toBe(17);
+    expect(all).toHaveLength(18);
+    expect(new Set(all.map((c) => c.name)).size).toBe(18);
     const check = (o: Opt, depth: number) => {
       expect(o.name).toMatch(/^[\p{Ll}\p{Lo}\p{N}_-]{1,32}$/u);
       expect(o.description.length).toBeGreaterThan(0);

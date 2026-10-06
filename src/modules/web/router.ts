@@ -4,6 +4,7 @@ import path from 'node:path';
 import { logger } from '../../utils/logger.js';
 import { handleAvatarWeb } from '../avatar/web.js';
 import { handleJudgeWeb } from '../judge/web.js';
+import { handleRaidWeb } from '../raid/web.js';
 
 /**
  * Routes for the player-facing web pages, served by the bot's HTTP server
@@ -113,6 +114,10 @@ export async function handleWeb(req: IncomingMessage, res: ServerResponse): Prom
   }
   if (p === '/judge' || p.startsWith('/judge/')) {
     await handleJudgeWeb(req, res, url);
+    return true;
+  }
+  if (p === '/raid' || p.startsWith('/raid/')) {
+    await handleRaidWeb(req, res, url);
     return true;
   }
   return false;

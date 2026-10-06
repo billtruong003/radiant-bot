@@ -36,7 +36,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font-family:VT323,monos
 a{color:var(--gold)}a:hover{color:#f0c860}
 button{font-family:VT323,monospace;font-size:22px;cursor:pointer;min-height:44px}
 button:focus-visible,a:focus-visible{outline:3px solid var(--bright);outline-offset:2px}
-button:disabled{cursor:not-allowed}
+button:disabled{cursor:not-allowed;opacity:.45}
 .wrap{max-width:1180px;margin:0 auto;padding:20px 20px 40px;display:flex;flex-direction:column;gap:18px}
 .head{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-end;border-bottom:4px solid #2e2939;padding-bottom:12px}
 .kicker{font-size:20px;color:var(--muted);letter-spacing:1px}

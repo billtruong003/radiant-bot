@@ -11,6 +11,7 @@ import { findCommand } from '../commands/index.js';
 import { loadVerificationConfig } from '../config/verification.js';
 import { AVATAR_RANDOM_ID, handleAvatarButton } from '../modules/avatar/discord.js';
 import { handleQuestButton } from '../modules/quests/discord.js';
+import { handleRaidButton } from '../modules/raid/discord.js';
 import {
   BUTTON_ID_OPEN_MODAL,
   BUTTON_ID_START,
@@ -41,6 +42,7 @@ async function dispatchButton(interaction: ButtonInteraction): Promise<void> {
       return;
     default:
       // Study quest buttons; anything else belongs to a collector elsewhere.
+      if (await handleRaidButton(interaction)) return;
       await handleQuestButton(interaction);
       return;
   }

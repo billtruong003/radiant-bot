@@ -12,6 +12,7 @@ import { command as askMeifeng } from './ask-meifeng.js';
 import { command as ask } from './ask.js';
 import { command as automodConfig } from './automod-config.js';
 import { command as avatar } from './avatar.js';
+import { command as biCanh } from './bi-canh.js';
 import { command as breakthrough } from './breakthrough.js';
 import { command as congPhap } from './cong-phap.js';
 import { command as contributeDoc } from './contribute-doc.js';
@@ -134,6 +135,7 @@ const ALL: SlashCommand[] = [
   ),
   daily as SlashCommand,
   quest as SlashCommand,
+  biCanh as SlashCommand,
   duel as SlashCommand,
   leaderboard as SlashCommand,
   breakthrough as SlashCommand,

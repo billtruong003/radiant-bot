@@ -72,7 +72,11 @@ const PAGES: readonly Page[] = [
     rows: [
       { cmd: '/help tutorial', use_case: 'Hướng dẫn 5 trang button — đọc trước hết.' },
       { cmd: '/daily', use_case: 'Điểm danh nhận 100 XP + streak bonus + 2 đan dược.' },
-      { cmd: '/quest', use_case: 'Xem nhiệm vụ hôm nay, hoàn thành → thưởng.' },
+      { cmd: '/quest', use_case: 'Bảng nhiệm vụ hôm nay: hằng ngày, học tập, trảm yêu.' },
+      {
+        cmd: '/bi-canh xem',
+        use_case: 'Bí cảnh treo máy: đội săn yêu thú tới 8 giờ, quay lại thu hoạch, đánh boss tuần (có trang web).',
+      },
       { cmd: '/profile rank', use_case: 'Xem level + cảnh giới + XP đến mốc kế.' },
       { cmd: '/profile me', use_case: 'Tóm tắt nhanh + gợi ý "bước kế nên làm gì".' },
     ],
@@ -86,7 +90,11 @@ const PAGES: readonly Page[] = [
     rows: [
       { cmd: '/profile stat [user?]', use_case: 'Combat profile — LC breakdown + danh hiệu + progress.' },
       { cmd: '/profile alloc', use_case: 'Phân điểm DMG/HP/DEF/SPD — mỗi level cộng 2 điểm.' },
-      { cmd: '/breakthrough', use_case: 'Khởi thiên kiếp đột phá (Lv 10+, tốn 1 đan dược).' },
+      {
+        cmd: '/breakthrough',
+        use_case:
+          'Khởi thiên kiếp (Lv 10+, 1 đan). Cảnh giới cao gặp Phong Kiếp (câu hỏi) và Thiên Kiếp Đài (giải thuật trên web).',
+      },
       { cmd: '/leaderboard [mode]', use_case: 'Top 10 theo XP hoặc lực chiến.' },
       { cmd: '/title phong-hieu list|add|remove', use_case: 'Sub-title (Kiếm Tu / Đan Sư / Trận Pháp Sư / Tán Tu).' },
       { cmd: '/title danh-hieu', use_case: 'Honor titles auto-earn — equip vào /profile stat.' },

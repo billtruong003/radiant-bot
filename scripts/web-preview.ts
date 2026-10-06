@@ -14,6 +14,8 @@ import type { User } from '../src/db/types.js';
 import { createAvatarLink } from '../src/modules/avatar/link.js';
 import { webSecret } from '../src/modules/avatar/web.js';
 import { createTrial, pickProblems, trialToken } from '../src/modules/judge/trial.js';
+import { raidToken } from '../src/modules/raid/discord.js';
+import { changeRaid } from '../src/modules/raid/service.js';
 import { handleWeb } from '../src/modules/web/router.js';
 
 const port = Number(process.argv[2] ?? 4567);
@@ -49,3 +51,15 @@ const trial = await createTrial({
 process.stdout.write(
   `judge: http://127.0.0.1:${port}/judge?t=${encodeURIComponent(trialToken(trial, webSecret()))}\n`,
 );
+
+// A raid that has been running for 3 hours, with one companion.
+await store.users.set({
+  discord_id: 'dev2',
+  username: 'lam',
+  display_name: 'Lam Nguyệt',
+  cultivation_rank: 'truc_co',
+  level: 18,
+  xp: 9000,
+} as User);
+await changeRaid('dev1', { zone: 'lang-coc', floor: 1, companions: ['dev2'] }, Date.now() - 3 * 3600_000);
+process.stdout.write(`raid: http://127.0.0.1:${port}/raid?t=${encodeURIComponent(raidToken('dev1'))}\n`);

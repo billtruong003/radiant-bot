@@ -93,17 +93,17 @@ Thay embed chữ bằng ảnh, giữ phần chữ quan trọng trong embed để
 ## P5 — Nhiệm vụ hằng ngày mới
 
 - [x] P5.1 Nhóm Học tập: giải 1 bài ở Tàng Kinh Các (dùng bộ chấm P4, đề dễ, không tính kiếp); đọc 1 bài docs + trả lời 3 câu.
-- [ ] P5.2 Nhóm Trảm yêu: hạ N quái ở bí cảnh (nối P6).
-- [ ] P5.3 Boss tuần dùng chung máu cho cả tông môn.
+- [x] P5.2 Nhóm Trảm yêu: hạ N quái ở bí cảnh (nối P6).
+- [x] P5.3 Boss tuần dùng chung máu cho cả tông môn.
 - [x] P5.4 Tên tiếng Việt cho mọi loại nhiệm vụ; nút "Vào web" cho nhiệm vụ cần web.
 
 ## P6 — Bí cảnh treo máy (web)
 
-- [ ] P6.1 Mô phỏng tất định phía server: sóng quái, đội tối đa 3, chỉ số lấy từ lực chiến, kỹ năng hồi chiêu; treo tối đa 8 giờ tính lúc quay lại (không cần chạy liên tục).
-- [ ] P6.2 Bảng rơi đồ và giới hạn thu nhập mỗi ngày để không phá kinh tế đan dược.
-- [ ] P6.3 Trang web vẽ bằng canvas trình duyệt, dùng chung sprite và hiệu ứng (bản JS của P0), có nút Rút lui, Lên tầng.
-- [ ] P6.4 Báo cáo raid gửi về Discord khi người chơi quay lại; góp máu boss tuần.
-- [ ] P6.5 Yêu thú lục: lệnh xem quái theo bãi và đồ rơi.
+- [x] P6.1 Mô phỏng tất định phía server: sóng quái, đội tối đa 3, chỉ số lấy từ lực chiến, kỹ năng hồi chiêu; treo tối đa 8 giờ tính lúc quay lại (không cần chạy liên tục).
+- [x] P6.2 Bảng rơi đồ và giới hạn thu nhập mỗi ngày để không phá kinh tế đan dược.
+- [x] P6.3 Trang web vẽ bằng canvas trình duyệt, dùng chung sprite và hiệu ứng (bản JS của P0), có nút Rút lui, Lên tầng.
+- [x] P6.4 Báo cáo raid gửi về Discord khi người chơi quay lại; góp máu boss tuần.
+- [x] P6.5 Yêu thú lục: lệnh xem quái theo bãi và đồ rơi.
 
 ## P7 — Cân bằng và chống lạm dụng
 
