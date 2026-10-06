@@ -41,6 +41,8 @@ const envSchema = z.object({
   GITHUB_OAUTH_CLIENT_SECRET: z.string().default(''),
   /** Signs the OAuth state so a link cannot be forged for someone else. Any long random string. */
   HUNTER_STATE_SECRET: z.string().default(''),
+  /** Signs player web links (tạo hình, Thiên Kiếp Đài, bí cảnh). Empty = falls back to HUNTER_STATE_SECRET. */
+  WEB_LINK_SECRET: z.string().default(''),
   AWAKEN_API_URL: z.string().default('https://git-profile-awaken.vercel.app'),
 
   // --- Aki AI helper (Phase 10; moved to free-tier models in Phase 15) ---

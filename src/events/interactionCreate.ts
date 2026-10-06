@@ -9,6 +9,7 @@ import {
 } from 'discord.js';
 import { findCommand } from '../commands/index.js';
 import { loadVerificationConfig } from '../config/verification.js';
+import { AVATAR_RANDOM_ID, handleAvatarButton } from '../modules/avatar/discord.js';
 import {
   BUTTON_ID_OPEN_MODAL,
   BUTTON_ID_START,
@@ -33,6 +34,9 @@ async function dispatchButton(interaction: ButtonInteraction): Promise<void> {
       return;
     case BUTTON_ID_OPEN_MODAL:
       await handleFallbackOpenModalButton(interaction);
+      return;
+    case AVATAR_RANDOM_ID:
+      await handleAvatarButton(interaction);
       return;
     default:
       // Unknown button — ignore. Other modules will own their own IDs.

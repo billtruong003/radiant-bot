@@ -11,6 +11,7 @@ import { runWeeklyAnalytics } from '../modules/insights/group-analytics.js';
 import { runMemberProfiling } from '../modules/insights/member-profiles.js';
 import { githubAccountFor, readState } from '../modules/hunter/oauth.js';
 import { linkHunter } from '../modules/hunter/link.js';
+import { handleWeb } from '../modules/web/router.js';
 import { logger } from './logger.js';
 
 /**
@@ -109,8 +110,16 @@ export function startHealthServer(port: number, client: Client): void {
       void handleAgentMessagePin(req, res);
       return;
     }
-    res.writeHead(404, { 'content-type': 'text/plain' });
-    res.end('not found\n');
+    void handleWeb(req, res)
+      .then((handled) => {
+        if (handled) return;
+        res.writeHead(404, { 'content-type': 'text/plain' });
+        res.end('not found\n');
+      })
+      .catch((err) => {
+        logger.error({ err: (err as Error).message, url: req.url }, 'web: handler failed');
+        if (!res.headersSent) res.writeHead(500).end();
+      });
   });
   server.listen(port, () => {
     logger.info({ port }, 'health: listening on /health');

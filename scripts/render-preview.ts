@@ -16,5 +16,6 @@ for (const [name, make] of Object.entries(PREVIEWS)) {
   const started = Date.now();
   const r = await make();
   await writeFile(path.join(out, r.name), r.buffer);
-  console.log(`${r.name.padEnd(34)} ${(r.buffer.byteLength / 1024).toFixed(0).padStart(6)} KB  ${Date.now() - started} ms`);
+  process.stdout.write(`${r.name.padEnd(34)} ${(r.buffer.byteLength / 1024).toFixed(0).padStart(6)} KB  ${Date.now() - started} ms
+`);
 }

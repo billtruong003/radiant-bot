@@ -7,6 +7,7 @@ import { register as registerMessageCreate } from './events/messageCreate.js';
 import { register as registerMessageReactionAdd } from './events/messageReactionAdd.js';
 import { register as registerMessageReactionRemove } from './events/messageReactionRemove.js';
 import { startAkiCooldownSweeps, stopAkiCooldownSweeps } from './modules/aki/rate-limit.js';
+import { wireAvatarDiscord } from './modules/avatar/discord.js';
 import { clearBotLogClient, setBotLogClient } from './modules/bot-log.js';
 import { startCooldownSweeps, stopCooldownSweeps } from './modules/leveling/cooldown.js';
 import { assertZeroCostRouting } from './modules/llm/startup-audit.js';
@@ -74,6 +75,7 @@ export async function startBot(): Promise<Client> {
     startScheduler(c);
     startCooldownSweeps();
     startAkiCooldownSweeps();
+    wireAvatarDiscord();
     startHealthServer(env.HEALTH_PORT, c);
   });
 

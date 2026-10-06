@@ -3,8 +3,8 @@ import { rect, text } from '../pixel/canvas.js';
 import { drawCharacterOnGround } from '../pixel/character.js';
 import { drawEnchanted, lightning, realmScene, stormClouds } from '../pixel/fx.js';
 import { drawGridMonster, drawStrip } from '../pixel/monsters.js';
-import { PX } from '../pixel/palette.js';
 import { type Rendered, renderGif } from '../pixel/output.js';
+import { PX } from '../pixel/palette.js';
 
 /** Contact sheet of the pixel kit, used to check the art after changes. */
 export function renderKitSheet(): Promise<Rendered> {
@@ -24,7 +24,18 @@ export function renderKitSheet(): Promise<Rendered> {
       drawGridMonster(ctx, 'ho_yeu', 980, ground, 5);
       drawGridMonster(ctx, 'nguu_ma', 1110, ground, 4);
       for (const [i, lv] of [0, 3, 5, 8, 10].entries())
-        await drawEnchanted(ctx, 'jian_sword__icy_frost_steel', lv, '#5fa8e8', 40 + i * 150, 290, 100, 64, t, { seed: i });
+        await drawEnchanted(
+          ctx,
+          'jian_sword__icy_frost_steel',
+          lv,
+          '#5fa8e8',
+          40 + i * 150,
+          290,
+          100,
+          64,
+          t,
+          { seed: i },
+        );
       for (let i = 0; i < 4; i++) {
         ctx.save();
         ctx.translate(780 + (i % 2) * 210, 280 + Math.floor(i / 2) * 230);

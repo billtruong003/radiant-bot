@@ -15,6 +15,8 @@ export const SAVES_PER_MINUTE = 10;
 export interface ReplyHandle {
   applicationId: string;
   interactionToken: string;
+  /** The customizer url, so an edited reply keeps its button. */
+  url?: string;
 }
 
 interface LiveLink {
@@ -67,6 +69,15 @@ export function readAvatarLink(
   const current = live.get(body.d);
   if (body.e < now || !current || current.nonce !== body.n) return null;
   return { discordId: body.d, expiresAt: body.e, reply: current.reply };
+}
+
+/** The member's current link, if it has not expired. */
+export function liveLink(
+  discordId: string,
+  now = Date.now(),
+): { reply: ReplyHandle | null; expiresAt: number } | null {
+  const l = live.get(discordId);
+  return l && l.expiresAt >= now ? { reply: l.reply, expiresAt: l.expiresAt } : null;
 }
 
 /** True when this member may save again; records the attempt. */

@@ -11,6 +11,7 @@ import { command as askAkira } from './ask-akira.js';
 import { command as askMeifeng } from './ask-meifeng.js';
 import { command as ask } from './ask.js';
 import { command as automodConfig } from './automod-config.js';
+import { command as avatar } from './avatar.js';
 import { command as breakthrough } from './breakthrough.js';
 import { command as congPhap } from './cong-phap.js';
 import { command as contributeDoc } from './contribute-doc.js';
@@ -76,6 +77,7 @@ const ALL: SlashCommand[] = [
     { as: 'rank', command: rank as SlashCommand },
     { as: 'stat', command: stat as SlashCommand },
     { as: 'alloc', command: statAlloc as SlashCommand },
+    { as: 'avatar', command: avatar as SlashCommand },
   ]),
   mergeCommands('title', 'Phong hiệu và danh hiệu', [
     { as: 'phong-hieu', command: title as SlashCommand },
