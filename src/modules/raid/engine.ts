@@ -15,8 +15,8 @@ export const CLEAR_RATIO = 1;
 export const COMPANION_SHARE = 0.5;
 export const MAX_COMPANIONS = 2;
 
-/** Daily raid income cap per member (VN day). */
-export const RAID_DAILY_CAP = { xp: 600, pills: 4, coins: 200 } as const;
+/** Daily raid income cap per member (VN day); tuned in docs/ECONOMY.md. */
+export const RAID_DAILY_CAP = { xp: 400, pills: 2, coins: 40 } as const;
 
 export function monsterPower(zone: ZoneDef, floor: number): number {
   return Math.round(zone.basePower * FLOOR_STEP ** (floor - 1));

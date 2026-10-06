@@ -347,9 +347,43 @@ export async function submitSolution(
   if (result.verdict === 'accepted' && !t.meta.solved.includes(slug))
     t.meta.solved = [...t.meta.solved, slug];
   await save(t);
+  if (result.verdict === 'accepted') void reportCopies(t, slug, fingerprint(code));
   if (t.meta.problems.every((s) => t.meta.solved.includes(s))) await finish(t, 'passed');
   else if (t.meta.submits >= MAX_SUBMITS) await finish(t, 'failed');
   return { ok: true, result, trial: t };
+}
+
+/** Earlier accepted submits of the same problem with the same code fingerprint by someone else. */
+export function findCopies(t: Trial, slug: string, sha: string): string[] {
+  const others = new Set<string>();
+  for (const e of getStore().events.query(
+    (ev) => (ev.metadata as TrialMeta | null)?.kind === 'judge',
+  )) {
+    const m = e.metadata as unknown as TrialMeta;
+    if (m.discord_id === t.meta.discord_id) continue;
+    if (
+      m.log.some(
+        (l) => l.kind === 'submit' && l.slug === slug && l.sha === sha && l.verdict === 'accepted',
+      )
+    )
+      others.add(m.discord_id);
+  }
+  return [...others];
+}
+
+async function reportCopies(t: Trial, slug: string, sha: string): Promise<void> {
+  const others = findCopies(t, slug, sha);
+  if (others.length === 0) return;
+  logger.warn(
+    { trial: t.id, discord_id: t.meta.discord_id, slug, others },
+    'judge: identical accepted code',
+  );
+  const { postBotLog } = await import('../bot-log.js');
+  await postBotLog(
+    `🔎 Thiên Kiếp Đài: <@${t.meta.discord_id}> nộp lời giải \`${slug}\` giống hệt (bỏ khoảng trắng) bài đã qua của ${others
+      .map((id) => `<@${id}>`)
+      .join(', ')}. Có thể là chép bài, xem lại nhật ký nộp (trial ${t.id}).`,
+  );
 }
 
 let sweeper: NodeJS.Timeout | null = null;

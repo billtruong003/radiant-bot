@@ -107,9 +107,9 @@ Thay embed chữ bằng ảnh, giữ phần chữ quan trọng trong embed để
 
 ## P7 — Cân bằng và chống lạm dụng
 
-- [ ] P7.1 Bảng kinh tế: nguồn vào / nguồn ra của XP, đan dược, cống hiến trước và sau khi thêm raid + kiếp mới.
-- [ ] P7.2 Giới hạn tần suất các API web, log đáng ngờ vào `#bot-log`.
-- [ ] P7.3 Test hồi quy cho công thức lực chiến và phần thưởng.
+- [x] P7.1 Bảng kinh tế: nguồn vào / nguồn ra của XP, đan dược, cống hiến trước và sau khi thêm raid + kiếp mới.
+- [x] P7.2 Giới hạn tần suất các API web, log đáng ngờ vào `#bot-log`.
+- [x] P7.3 Test hồi quy cho công thức lực chiến và phần thưởng.
 
 ## P8 — Hạ tầng và deploy
 

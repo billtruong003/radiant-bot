@@ -21,6 +21,7 @@ import {
   type Trial,
   clearTrialHooks,
   createTrial,
+  findCopies,
   forfeitTrial,
   getTrial,
   onTrialFinished,
@@ -165,5 +166,33 @@ describe('trial lifecycle', () => {
     await forfeitTrial(t);
     expect(t.meta.status).toBe('failed');
     expect(finished).toHaveLength(1);
+  });
+});
+
+describe('copy detection', () => {
+  it('flags the same accepted code from another member', async () => {
+    const a = await createTrial({
+      discordId: 'ca',
+      mode: 'practice',
+      tier: null,
+      problems: ['two-sum'],
+      durationMs: 60_000,
+      now: 1_000,
+    });
+    const b = await createTrial({
+      discordId: 'cb',
+      mode: 'practice',
+      tier: null,
+      problems: ['two-sum'],
+      durationMs: 60_000,
+      now: 1_000,
+    });
+    await openTrial(a, 2_000);
+    await openTrial(b, 2_000);
+    await submitSolution(a, 'two-sum', 'python', 'GOOD  code', 3_000);
+    await submitSolution(b, 'two-sum', 'python', 'GOOD code', 3_000);
+    const sha = b.meta.log.at(-1)?.sha ?? '';
+    expect(findCopies(b, 'two-sum', sha)).toEqual(['ca']);
+    expect(findCopies(b, 'coin-change', sha)).toEqual([]);
   });
 });
