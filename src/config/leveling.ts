@@ -69,3 +69,27 @@ export const TRIBULATION_REACTION_TIMEOUT_MS = 5_000;
 
 /** Daily 18:00 VN cron — probability that a tribulation actually fires. */
 export const TRIBULATION_DAILY_TRIGGER_CHANCE = 0.25;
+
+/**
+ * Tribulation tiers by realm. Lôi Kiếp is the old math / reaction test;
+ * Phong Kiếp is the 3-question quiz; Tâm Ma and Cửu Thiên are the web
+ * algorithm judge (until it ships they fall back to Phong Kiếp).
+ * Reward numbers are the proposal in docs/TU_TIEN_PIXEL_PLAN.md, still
+ * waiting for Bill's sign-off.
+ */
+export type TribulationTier = 'loi' | 'phong' | 'tam_ma' | 'cuu_thien';
+
+export const TRIBULATION_TIERS: Record<
+  TribulationTier,
+  { name: string; passXp: number; passPills: number; failXp: number }
+> = {
+  loi: { name: 'Lôi Kiếp', passXp: TRIBULATION_PASS_XP, passPills: 5, failXp: TRIBULATION_FAIL_PENALTY },
+  phong: { name: 'Phong Kiếp', passXp: 900, passPills: 8, failXp: 150 },
+  tam_ma: { name: 'Tâm Ma Kiếp', passXp: 1800, passPills: 15, failXp: 250 },
+  cuu_thien: { name: 'Cửu Thiên Lôi Kiếp', passXp: 4000, passPills: 30, failXp: 400 },
+};
+
+/** Phong Kiếp: questions asked, needed to pass, and seconds per question. */
+export const PHONG_KIEP_QUESTIONS = 3;
+export const PHONG_KIEP_TO_PASS = 2;
+export const PHONG_KIEP_TIMEOUT_MS = 45_000;

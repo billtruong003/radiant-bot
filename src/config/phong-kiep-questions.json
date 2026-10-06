@@ -1,0 +1,768 @@
+{
+  "$schema": "phong-kiep-v1",
+  "questions": [
+    {
+      "id": "py-floor",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "print(7 // 2, 7 % 2)",
+      "options": [
+        "3 1",
+        "3.5 1",
+        "3 0",
+        "4 1"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/so/",
+      "explain": "// là chia lấy phần nguyên, % là lấy dư."
+    },
+    {
+      "id": "py-alias",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "a = [1, 2, 3]\nb = a\nb.append(4)\nprint(len(a))",
+      "options": [
+        "4",
+        "3",
+        "Lỗi",
+        "None"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/list/",
+      "explain": "b = a không sao chép list, hai biến cùng trỏ một list."
+    },
+    {
+      "id": "py-strmul",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "print(\"ab\" * 3)",
+      "options": [
+        "ababab",
+        "ab3",
+        "Lỗi TypeError",
+        "ab ab ab"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/chuoi/",
+      "explain": "Nhân chuỗi với số nguyên là lặp chuỗi."
+    },
+    {
+      "id": "py-int",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "x = \"5\"\nprint(int(x) + 2)",
+      "options": [
+        "7",
+        "52",
+        "Lỗi TypeError",
+        "5 2"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/ep-kieu/",
+      "explain": "int(\"5\") đổi chuỗi thành số 5."
+    },
+    {
+      "id": "py-bool",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "print(bool(\"\"), bool(\"0\"))",
+      "options": [
+        "False True",
+        "False False",
+        "True True",
+        "True False"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/bool-va-toan-tu/",
+      "explain": "Chuỗi rỗng là False, mọi chuỗi có ký tự (kể cả \"0\") là True."
+    },
+    {
+      "id": "py-set",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "print(len({1, 2, 2, 3}))",
+      "options": [
+        "3",
+        "4",
+        "2",
+        "Lỗi"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/set/",
+      "explain": "Set bỏ phần tử trùng."
+    },
+    {
+      "id": "py-get",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "d = {\"a\": 1}\nprint(d.get(\"b\", 0))",
+      "options": [
+        "0",
+        "None",
+        "KeyError",
+        "1"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/dictionary/",
+      "explain": "get trả giá trị mặc định khi không có khóa."
+    },
+    {
+      "id": "py-range",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "print(list(range(1, 10, 3)))",
+      "options": [
+        "[1, 4, 7]",
+        "[1, 4, 7, 10]",
+        "[3, 6, 9]",
+        "[1, 3, 9]"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/vong-lap-for/",
+      "explain": "range dừng trước 10, bước nhảy 3."
+    },
+    {
+      "id": "py-lambda",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "f = lambda x: x * x\nprint(f(3) + 1)",
+      "options": [
+        "10",
+        "16",
+        "7",
+        "9"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/lambda/",
+      "explain": "f(3) = 9, cộng 1 là 10."
+    },
+    {
+      "id": "py-slice",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "print(\"Hello\"[1:4])",
+      "options": [
+        "ell",
+        "Hel",
+        "ello",
+        "ell o"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/chuoi/",
+      "explain": "Cắt từ vị trí 1 tới trước vị trí 4."
+    },
+    {
+      "id": "py-tuple",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "t = (1, 2)\nt[0] = 5\nprint(t)",
+      "options": [
+        "TypeError",
+        "(5, 2)",
+        "(1, 2)",
+        "None"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/tuple/",
+      "explain": "Tuple không sửa được sau khi tạo."
+    },
+    {
+      "id": "py-try",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "try:\n    print(1 / 0)\nexcept ZeroDivisionError:\n    print(\"chia 0\")\nfinally:\n    print(\"xong\")",
+      "options": [
+        "chia 0 rồi xong",
+        "xong",
+        "chia 0",
+        "Lỗi ZeroDivisionError"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/try-except/",
+      "explain": "except bắt lỗi, finally luôn chạy."
+    },
+    {
+      "id": "py-default",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "def f(a, b=2):\n    return a * b\nprint(f(3), f(3, 3))",
+      "options": [
+        "6 9",
+        "6 6",
+        "9 9",
+        "Lỗi"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/ham/",
+      "explain": "b mặc định là 2 khi không truyền."
+    },
+    {
+      "id": "py-sort",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "nums = [3, 1, 2]\nnums.sort()\nprint(nums[0], nums[-1])",
+      "options": [
+        "1 3",
+        "3 2",
+        "1 2",
+        "3 1"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/list/",
+      "explain": "sort sắp tăng dần, -1 là phần tử cuối."
+    },
+    {
+      "id": "py-comp",
+      "kind": "output",
+      "lang": "python",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "print(sum([i for i in range(5) if i % 2 == 0]))",
+      "options": [
+        "6",
+        "10",
+        "4",
+        "9"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/vong-lap-for/",
+      "explain": "0 + 2 + 4 = 6."
+    },
+    {
+      "id": "cs-intdiv",
+      "kind": "output",
+      "lang": "csharp",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "int a = 7;\nint b = 2;\nConsole.WriteLine(a / b);",
+      "options": [
+        "3",
+        "3.5",
+        "4",
+        "Lỗi"
+      ],
+      "answer": 0,
+      "docs": "/docs/csharp/toan-tu/",
+      "explain": "Chia hai số int cho ra int, bỏ phần lẻ."
+    },
+    {
+      "id": "cs-prec",
+      "kind": "output",
+      "lang": "csharp",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "Console.WriteLine(10 % 3 + 2 * 2);",
+      "options": [
+        "5",
+        "6",
+        "3",
+        "8"
+      ],
+      "answer": 0,
+      "docs": "/docs/csharp/toan-tu/",
+      "explain": "% và * làm trước: 1 + 4."
+    },
+    {
+      "id": "cs-concat",
+      "kind": "output",
+      "lang": "csharp",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "string s = \"abc\";\nConsole.WriteLine(s.Length + s.ToUpper());",
+      "options": [
+        "3ABC",
+        "ABC3",
+        "6",
+        "Lỗi"
+      ],
+      "answer": 0,
+      "docs": "/docs/csharp/chuoi/",
+      "explain": "Số cộng chuỗi thì nối chuỗi."
+    },
+    {
+      "id": "cs-last",
+      "kind": "output",
+      "lang": "csharp",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "int[] arr = {3, 1, 2};\nConsole.WriteLine(arr[arr.Length - 1]);",
+      "options": [
+        "2",
+        "3",
+        "1",
+        "IndexOutOfRangeException"
+      ],
+      "answer": 0,
+      "docs": "/docs/csharp/mang/",
+      "explain": "Phần tử cuối ở chỉ số Length - 1."
+    },
+    {
+      "id": "cs-break",
+      "kind": "output",
+      "lang": "csharp",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "for (int i = 0; i < 5; i++) {\n    if (i == 3) break;\n    Console.Write(i);\n}",
+      "options": [
+        "012",
+        "0123",
+        "01234",
+        "0124"
+      ],
+      "answer": 0,
+      "docs": "/docs/csharp/break-continue/",
+      "explain": "break thoát vòng lặp khi i = 3."
+    },
+    {
+      "id": "cs-continue",
+      "kind": "output",
+      "lang": "csharp",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "for (int i = 0; i < 5; i++) {\n    if (i % 2 == 0) continue;\n    Console.Write(i);\n}",
+      "options": [
+        "13",
+        "024",
+        "1234",
+        "0"
+      ],
+      "answer": 0,
+      "docs": "/docs/csharp/break-continue/",
+      "explain": "continue bỏ qua các số chẵn."
+    },
+    {
+      "id": "cs-null",
+      "kind": "output",
+      "lang": "csharp",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "string? name = null;\nConsole.WriteLine(name ?? \"ẩn danh\");",
+      "options": [
+        "ẩn danh",
+        "null",
+        "(trống)",
+        "NullReferenceException"
+      ],
+      "answer": 0,
+      "docs": "/docs/csharp/null/",
+      "explain": "?? lấy vế phải khi vế trái là null."
+    },
+    {
+      "id": "cs-remove",
+      "kind": "output",
+      "lang": "csharp",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "var list = new List<int> {1, 2, 3};\nlist.Remove(2);\nConsole.WriteLine(list.Count);",
+      "options": [
+        "2",
+        "1",
+        "3",
+        "Lỗi"
+      ],
+      "answer": 0,
+      "docs": "/docs/csharp/list/",
+      "explain": "Remove(2) xóa giá trị 2, không phải vị trí 2."
+    },
+    {
+      "id": "cs-cast",
+      "kind": "output",
+      "lang": "csharp",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "Console.WriteLine((int)3.9);",
+      "options": [
+        "3",
+        "4",
+        "3.9",
+        "Lỗi"
+      ],
+      "answer": 0,
+      "docs": "/docs/csharp/ep-kieu/",
+      "explain": "Ép double sang int cắt bỏ phần lẻ, không làm tròn."
+    },
+    {
+      "id": "cs-switch",
+      "kind": "output",
+      "lang": "csharp",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "int day = 3;\nswitch (day) {\n    case 1: Console.Write(\"A\"); break;\n    case 3: Console.Write(\"C\"); break;\n    default: Console.Write(\"?\"); break;\n}",
+      "options": [
+        "C",
+        "A",
+        "?",
+        "AC"
+      ],
+      "answer": 0,
+      "docs": "/docs/csharp/switch/",
+      "explain": "Chỉ nhánh case 3 chạy."
+    },
+    {
+      "id": "cs-enum",
+      "kind": "output",
+      "lang": "csharp",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "enum Realm { PhamNhan, LuyenKhi, TrucCo }\nConsole.WriteLine((int)Realm.TrucCo);",
+      "options": [
+        "2",
+        "3",
+        "TrucCo",
+        "1"
+      ],
+      "answer": 0,
+      "docs": "/docs/csharp/enum/",
+      "explain": "Enum đánh số từ 0."
+    },
+    {
+      "id": "cs-order",
+      "kind": "output",
+      "lang": "csharp",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "Console.WriteLine(\"1\" + 2 + 3);\nConsole.WriteLine(1 + 2 + \"3\");",
+      "options": [
+        "123 rồi 33",
+        "6 rồi 6",
+        "123 rồi 123",
+        "15 rồi 33"
+      ],
+      "answer": 0,
+      "docs": "/docs/csharp/chuoi/",
+      "explain": "Tính từ trái sang: gặp chuỗi trước thì nối, cộng số trước thì cộng."
+    },
+    {
+      "id": "js-plus",
+      "kind": "output",
+      "lang": "javascript",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "console.log(1 + \"2\");",
+      "options": [
+        "12",
+        "3",
+        "NaN",
+        "Lỗi"
+      ],
+      "answer": 0,
+      "docs": "/docs/javascript/toan-tu/",
+      "explain": "+ với chuỗi là nối chuỗi."
+    },
+    {
+      "id": "js-minus",
+      "kind": "output",
+      "lang": "javascript",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "console.log(\"5\" - 2);",
+      "options": [
+        "3",
+        "52",
+        "NaN",
+        "\"3\""
+      ],
+      "answer": 0,
+      "docs": "/docs/javascript/kieu-du-lieu/",
+      "explain": "- ép chuỗi về số."
+    },
+    {
+      "id": "js-map",
+      "kind": "output",
+      "lang": "javascript",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "console.log([1, 2, 3].map(x => x * 2).join(\"-\"));",
+      "options": [
+        "2-4-6",
+        "1-2-3",
+        "246",
+        "[2,4,6]"
+      ],
+      "answer": 0,
+      "docs": "/docs/javascript/arrow-function/",
+      "explain": "map nhân đôi, join nối bằng dấu gạch."
+    },
+    {
+      "id": "js-eq",
+      "kind": "output",
+      "lang": "javascript",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "console.log(0 == \"0\", 0 === \"0\");",
+      "options": [
+        "true false",
+        "true true",
+        "false false",
+        "false true"
+      ],
+      "answer": 0,
+      "docs": "/docs/javascript/toan-tu/",
+      "explain": "== ép kiểu, === so cả kiểu."
+    },
+    {
+      "id": "js-const",
+      "kind": "output",
+      "lang": "javascript",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "const o = { a: 1 };\no.a = 2;\nconsole.log(o.a);",
+      "options": [
+        "2",
+        "1",
+        "TypeError",
+        "undefined"
+      ],
+      "answer": 0,
+      "docs": "/docs/javascript/bien/",
+      "explain": "const khóa biến, không khóa nội dung object."
+    },
+    {
+      "id": "js-typeof",
+      "kind": "output",
+      "lang": "javascript",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "console.log(typeof null);",
+      "options": [
+        "object",
+        "null",
+        "undefined",
+        "number"
+      ],
+      "answer": 0,
+      "docs": "/docs/javascript/kieu-du-lieu/",
+      "explain": "Một lỗi lịch sử của JavaScript: typeof null là \"object\"."
+    },
+    {
+      "id": "js-json",
+      "kind": "output",
+      "lang": "javascript",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "console.log(JSON.stringify({ x: [1, 2] }));",
+      "options": [
+        "{\"x\":[1,2]}",
+        "{x:[1,2]}",
+        "[object Object]",
+        "{\"x\":\"1,2\"}"
+      ],
+      "answer": 0,
+      "docs": "/docs/javascript/json/",
+      "explain": "JSON.stringify bỏ khoảng trắng và đặt khóa trong ngoặc kép."
+    },
+    {
+      "id": "js-sort",
+      "kind": "output",
+      "lang": "javascript",
+      "prompt": "Đoạn code này in ra gì?",
+      "code": "console.log([10, 1, 3].sort().join(\",\"));",
+      "options": [
+        "1,10,3",
+        "1,3,10",
+        "10,3,1",
+        "3,10,1"
+      ],
+      "answer": 0,
+      "docs": "/docs/javascript/mang/",
+      "explain": "sort mặc định so chuỗi, \"10\" đứng trước \"3\"."
+    },
+    {
+      "id": "en-undef",
+      "kind": "english",
+      "prompt": "Lỗi này nghĩa là gì?",
+      "options": [
+        "Đang đọc .name trên một giá trị undefined",
+        "Biến name chưa khai báo",
+        "Object có thuộc tính name rỗng",
+        "Sai kiểu dữ liệu của name"
+      ],
+      "answer": 0,
+      "docs": "/docs/javascript/object/",
+      "explain": "Phải kiểm tra object tồn tại trước khi đọc thuộc tính.",
+      "code": "TypeError: Cannot read properties\nof undefined (reading 'name')"
+    },
+    {
+      "id": "en-index",
+      "kind": "english",
+      "prompt": "Lỗi này nghĩa là gì?",
+      "options": [
+        "Truy cập vị trí vượt quá độ dài list",
+        "List bị rỗng nên không in được",
+        "Chỉ số phải là chuỗi",
+        "List không sắp xếp"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/list/",
+      "explain": "Chỉ số hợp lệ từ 0 tới len - 1.",
+      "code": "IndexError: list index out of range"
+    },
+    {
+      "id": "en-nullref",
+      "kind": "english",
+      "prompt": "Lỗi này nghĩa là gì?",
+      "options": [
+        "Dùng một biến đang là null như thể nó có object",
+        "Bộ nhớ đầy",
+        "Thiếu using System",
+        "Gọi hàm sai tham số"
+      ],
+      "answer": 0,
+      "docs": "/docs/csharp/null/",
+      "explain": "Dùng ?. hoặc kiểm tra null trước khi gọi.",
+      "code": "NullReferenceException: Object reference\nnot set to an instance of an object"
+    },
+    {
+      "id": "en-eof",
+      "kind": "english",
+      "prompt": "Lỗi này thường do đâu?",
+      "options": [
+        "Thiếu ngoặc đóng, code kết thúc đột ngột",
+        "File quá dài",
+        "Sai thụt lề trong hàm",
+        "Chưa cài Python"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/cu-phap/",
+      "explain": "EOF là cuối file: trình đọc hết code mà câu lệnh vẫn chưa đóng.",
+      "code": "SyntaxError: unexpected EOF while parsing"
+    },
+    {
+      "id": "en-key",
+      "kind": "english",
+      "prompt": "Lỗi này nghĩa là gì?",
+      "options": [
+        "Dictionary không có khóa 'email'",
+        "Giá trị email bị rỗng",
+        "Email sai định dạng",
+        "Khóa phải là số"
+      ],
+      "answer": 0,
+      "docs": "/docs/python/dictionary/",
+      "explain": "Dùng d.get(\"email\") nếu khóa có thể không có.",
+      "code": "KeyError: 'email'"
+    },
+    {
+      "id": "en-deprecated",
+      "kind": "english",
+      "prompt": "\"This method is deprecated\" nghĩa là?",
+      "options": [
+        "Đã lỗi thời, có thể bị bỏ ở bản sau",
+        "Đang bị lỗi",
+        "Chỉ chạy trên máy chủ",
+        "Đã được tối ưu"
+      ],
+      "answer": 0,
+      "docs": "/docs/javascript/module/",
+      "explain": "Nên chuyển sang cách mới mà tài liệu gợi ý."
+    },
+    {
+      "id": "en-idempotent",
+      "kind": "english",
+      "prompt": "\"This endpoint is idempotent\" nghĩa là?",
+      "options": [
+        "Gọi nhiều lần cho cùng kết quả như gọi một lần",
+        "Chỉ được gọi một lần",
+        "Gọi không cần đăng nhập",
+        "Trả kết quả ngẫu nhiên"
+      ],
+      "answer": 0,
+      "docs": "/docs/javascript/ham/",
+      "explain": "Gửi lại cùng request không gây thêm tác dụng phụ."
+    },
+    {
+      "id": "en-bigo",
+      "kind": "english",
+      "prompt": "\"The time complexity is O(n log n)\" nghĩa là?",
+      "options": [
+        "Thời gian chạy tăng cỡ n nhân log n theo cỡ đầu vào",
+        "Chạy đúng n log n giây",
+        "Dùng n log n byte bộ nhớ",
+        "Luôn nhanh hơn O(n)"
+      ],
+      "answer": 0,
+      "docs": "/docs/algorithms/do-phuc-tap-big-o/",
+      "explain": "Big-O mô tả tốc độ tăng, không phải số giây."
+    },
+    {
+      "id": "en-ci",
+      "kind": "english",
+      "prompt": "\"The PR is blocked by a failing CI check\" nghĩa là?",
+      "options": [
+        "PR chưa merge được vì bước kiểm tra tự động bị lỗi",
+        "PR bị người khác khóa",
+        "Server CI bị sập",
+        "Thiếu người duyệt"
+      ],
+      "answer": 0,
+      "docs": "/docs/",
+      "explain": "CI chạy test và build mỗi lần đẩy code."
+    },
+    {
+      "id": "en-race",
+      "kind": "english",
+      "prompt": "\"race condition\" là gì?",
+      "options": [
+        "Kết quả phụ thuộc thứ tự chạy của các tác vụ song song",
+        "Hai hàm chạy thi tốc độ",
+        "Vòng lặp chạy quá nhanh",
+        "Lỗi do mạng chậm"
+      ],
+      "answer": 0,
+      "docs": "/docs/javascript/async-await/",
+      "explain": "Hay gặp khi nhiều tác vụ cùng sửa một dữ liệu."
+    },
+    {
+      "id": "en-await",
+      "kind": "english",
+      "prompt": "Lỗi này bảo bạn phải làm gì?",
+      "options": [
+        "Chỉ dùng await bên trong hàm khai báo async",
+        "Bỏ await đi",
+        "Thêm try catch",
+        "Đổi sang var"
+      ],
+      "answer": 0,
+      "docs": "/docs/javascript/async-await/",
+      "explain": "Đánh dấu hàm bằng async để dùng await bên trong.",
+      "code": "SyntaxError: await is only valid\nin async functions"
+    },
+    {
+      "id": "en-unhandled",
+      "kind": "english",
+      "prompt": "\"Unhandled promise rejection\" nghĩa là?",
+      "options": [
+        "Một Promise bị lỗi mà không có catch xử lý",
+        "Promise chạy quá lâu",
+        "Promise trả về undefined",
+        "Promise bị gọi hai lần"
+      ],
+      "answer": 0,
+      "docs": "/docs/javascript/async-await/",
+      "explain": "Bọc await trong try catch hoặc thêm .catch()."
+    },
+    {
+      "id": "en-recursion",
+      "kind": "english",
+      "prompt": "Lỗi này thường do đâu?",
+      "options": [
+        "Đệ quy gọi quá sâu, thường thiếu điều kiện dừng",
+        "Vòng lặp while chạy mãi",
+        "Thiếu bộ nhớ RAM",
+        "Hàm trả về None"
+      ],
+      "answer": 0,
+      "docs": "/docs/algorithms/fibonacci-de-quy-va-memo/",
+      "explain": "Mỗi hàm đệ quy cần điểm dừng.",
+      "code": "RecursionError: maximum recursion\ndepth exceeded"
+    },
+    {
+      "id": "en-offbyone",
+      "kind": "english",
+      "prompt": "\"off-by-one error\" là gì?",
+      "options": [
+        "Lệch đúng 1 vị trí, hay gặp ở biên vòng lặp",
+        "Sai một ký tự trong tên biến",
+        "Thiếu một dấu chấm phẩy",
+        "Chạy chậm hơn 1 giây"
+      ],
+      "answer": 0,
+      "docs": "/docs/csharp/vong-lap-for/",
+      "explain": "Xem kỹ < hay <= ở điều kiện vòng lặp."
+    }
+  ]
+}

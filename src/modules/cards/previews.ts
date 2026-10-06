@@ -26,6 +26,7 @@ import { renderJudgmentCard } from './judgment-card.js';
 import { renderKitSheet } from './kit-sheet.js';
 import { renderLeaderboardCard } from './leaderboard-card.js';
 import { renderProfileCard } from './profile-card.js';
+import { renderQuizCard } from './quiz-card.js';
 import { renderRealmUpCard } from './realm-card.js';
 import {
   LOOK_AKI,
@@ -488,5 +489,40 @@ export const PREVIEWS: Record<string, () => Promise<Rendered>> = {
       verdict:
         'Kẻ này ba lần rải quảng cáo trong chính điện, coi lời răn của tông môn như gió thoảng. Thiên đạo tuần hoàn, không ai thoát được nhân quả.',
       punishments: ['Trừ 800 XP', 'Tịch thu 5 đan dược', 'Cấm khẩu 60 phút'],
+    }),
+  quiz: () =>
+    renderQuizCard({
+      tierName: 'Phong Kiếp',
+      name: 'Bill The Dev',
+      index: 2,
+      total: 3,
+      correctSoFar: 1,
+      seconds: 45,
+      prompt: 'Đoạn code này in ra gì?',
+      lang: 'csharp',
+      code: 'Console.WriteLine("1" + 2 + 3);\nConsole.WriteLine(1 + 2 + "3");',
+      options: ['15 rồi 33', '123 rồi 33', '6 rồi 6', '123 rồi 123'],
+    }),
+  'quiz-reveal': () =>
+    renderQuizCard({
+      tierName: 'Phong Kiếp',
+      name: 'Bill The Dev',
+      index: 1,
+      total: 3,
+      correctSoFar: 0,
+      seconds: 45,
+      prompt: 'Lỗi này nghĩa là gì?',
+      code: "TypeError: Cannot read properties\nof undefined (reading 'name')",
+      options: [
+        'Biến name chưa khai báo',
+        'Đang đọc .name trên một giá trị undefined',
+        'Object có thuộc tính name rỗng',
+        'Sai kiểu dữ liệu của name',
+      ],
+      reveal: {
+        chosen: 0,
+        correct: 1,
+        explain: 'Phải kiểm tra object tồn tại trước khi đọc thuộc tính.',
+      },
     }),
 };

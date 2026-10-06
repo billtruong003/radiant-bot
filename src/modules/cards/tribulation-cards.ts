@@ -84,6 +84,8 @@ export function renderTribulationIntro(o: {
 export function renderTribulationOutcome(o: {
   name: string;
   look: AvatarLook | null;
+  /** e.g. "Phong Kiếp"; defaults to the generic Thiên Kiếp label. */
+  tierName?: string;
   outcome: 'pass' | 'fail' | 'timeout';
   xpDelta: number;
   pills: number;
@@ -123,7 +125,14 @@ export function renderTribulationOutcome(o: {
         ]);
         particles(ctx, 23, 18, CX - 100, GROUND - 200, 200, 200, ['#5a5a6a', '#3a3a48'], t);
       }
-      label(ctx, 'THIÊN KIẾP', 440, 96, 22, pass ? PX.goldBright : '#9fb8ff');
+      label(
+        ctx,
+        (o.tierName ?? 'Thiên Kiếp').toUpperCase(),
+        440,
+        96,
+        22,
+        pass ? PX.goldBright : '#9fb8ff',
+      );
       text(
         ctx,
         pass

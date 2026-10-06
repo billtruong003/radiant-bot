@@ -9,7 +9,7 @@ import {
 } from 'discord.js';
 import { ulid } from 'ulid';
 import { ANNOUNCEMENT_CHANNELS, matchesChannelName } from '../../config/channels.js';
-import { rankById } from '../../config/cultivation.js';
+import { rankById, rankIndex } from '../../config/cultivation.js';
 import {
   TRIBULATION_COOLDOWN_MS,
   TRIBULATION_FAIL_PENALTY,
@@ -17,10 +17,12 @@ import {
   TRIBULATION_MIN_LEVEL,
   TRIBULATION_PASS_XP,
   TRIBULATION_REACTION_TIMEOUT_MS,
+  TRIBULATION_TIERS,
+  type TribulationTier,
 } from '../../config/leveling.js';
 import { DIVIDER, DIVIDER_DOUBLE, ICONS } from '../../config/ui.js';
 import { getStore } from '../../db/index.js';
-import type { SectEvent } from '../../db/types.js';
+import type { CultivationRankId, SectEvent } from '../../db/types.js';
 import { themedEmbed } from '../../utils/embed.js';
 import { logger } from '../../utils/logger.js';
 import { getLook } from '../avatar/service.js';
@@ -30,6 +32,7 @@ import { applyXpPenalty, awardXp } from '../leveling/tracker.js';
 import type { Rendered } from '../pixel/output.js';
 import { type MathPuzzle, generateMathPuzzle } from './games/math-puzzle.js';
 import { type ReactionGame, generateReactionGame } from './games/reaction-speed.js';
+import { runPhongKiep } from './phong-kiep.js';
 
 /**
  * Tribulation event orchestrator — one "Thiên Kiếp" challenge.
@@ -62,7 +65,25 @@ const FAIL_XP_PENALTY = TRIBULATION_FAIL_PENALTY;
 const SERVER_COOLDOWN_MS = TRIBULATION_COOLDOWN_MS;
 const TRIBULATION_LEVEL_MIN = TRIBULATION_MIN_LEVEL;
 
-export type TribulationGameType = 'math' | 'reaction';
+export type TribulationGameType = 'math' | 'reaction' | 'quiz';
+
+/** Which tribulation a realm faces (see TRIBULATION_TIERS). */
+export function tierForRank(rank: CultivationRankId): TribulationTier {
+  const i = rankIndex(rank);
+  if (i >= rankIndex('do_kiep')) return 'cuu_thien';
+  if (i >= rankIndex('luyen_hu')) return 'tam_ma';
+  if (i >= rankIndex('nguyen_anh')) return 'phong';
+  return 'loi';
+}
+
+/**
+ * The tier actually run. Tâm Ma and Cửu Thiên need the web judge
+ * (Thiên Kiếp Đài); until it is live they run Phong Kiếp's quiz but keep
+ * their own rewards.
+ */
+export function playedGame(tier: TribulationTier): 'loi' | 'quiz' {
+  return tier === 'loi' ? 'loi' : 'quiz';
+}
 export type TribulationOutcome = 'pass' | 'fail' | 'timeout' | 'aborted';
 
 export interface TribulationResult {
@@ -188,14 +209,17 @@ function outcomeCard(
   member: GuildMember,
   outcome: TribulationOutcome,
   xpDelta: number,
+  tier: TribulationTier,
 ): Promise<Rendered | null> {
   if (outcome === 'aborted') return Promise.resolve(null);
+  const t = TRIBULATION_TIERS[tier];
   return renderTribulationOutcome({
     name: member.displayName,
     look: getLook(member.id),
+    tierName: t.name,
     outcome,
     xpDelta,
-    pills: outcome === 'pass' ? 5 : 0,
+    pills: outcome === 'pass' ? t.passPills : 0,
   }).catch(() => null);
 }
 
@@ -262,21 +286,23 @@ async function persistEventEnd(
 async function applyOutcomeRewards(
   member: GuildMember,
   outcome: TribulationOutcome,
+  tier: TribulationTier,
 ): Promise<number> {
+  const t = TRIBULATION_TIERS[tier];
   if (outcome === 'pass') {
     const result = await awardXp({
       discordId: member.id,
       username: member.user.username,
       displayName: member.displayName,
-      amount: PASS_XP,
+      amount: t.passXp,
       source: 'tribulation_pass',
-      metadata: { event: 'tribulation' },
+      metadata: { event: 'tribulation', tier },
     });
     // Phase 12 — pass also grants +5 pills (Đan dược độ kiếp).
     const store = (await import('../../db/index.js')).getStore();
     const user = store.users.get(member.id);
     if (user) {
-      await store.users.set({ ...user, pills: (user.pills ?? 0) + 5 });
+      await store.users.set({ ...user, pills: (user.pills ?? 0) + t.passPills });
     }
     // Phase 14 quest — tribulation_pass.
     {
@@ -290,10 +316,10 @@ async function applyOutcomeRewards(
       const { awardEligibleTitles } = await import('../titles/index.js');
       void awardEligibleTitles(member.id);
     }
-    return result.newXp - (result.newXp - PASS_XP); // i.e., PASS_XP
+    return result.newXp - (result.newXp - t.passXp); // i.e., the tier's pass XP
   }
   // fail OR timeout → penalty (floored)
-  const penalty = await applyXpPenalty(member.id, FAIL_XP_PENALTY);
+  const penalty = await applyXpPenalty(member.id, t.failXp);
   return -penalty.applied;
 }
 
@@ -315,9 +341,34 @@ export async function runTribulation(
   }
 
   const eventId = ulid();
-  const game = opts.game ?? pickGameType();
   const user = getStore().users.get(member.id);
   const level = user?.level ?? 10;
+  const tier = opts.game ? 'loi' : tierForRank(user?.cultivation_rank ?? 'pham_nhan');
+  const game = opts.game ?? (playedGame(tier) === 'quiz' ? 'quiz' : pickGameType());
+
+  if (game === 'quiz') {
+    const quizTier = tier === 'loi' ? 'phong' : tier;
+    const event = await persistEventStart(eventId, member.id, 'quiz', 'quiz');
+    const run = await runPhongKiep(member, channel, eventId, TRIBULATION_TIERS[quizTier].name);
+    const xpDelta = await applyOutcomeRewards(member, run.outcome, quizTier);
+    await persistEventEnd(
+      event,
+      run.outcome,
+      run.asked.map((a) => `${a.id}:${a.chosen ?? '-'}`).join(','),
+      xpDelta,
+    );
+    try {
+      await channel.send(
+        withCard(
+          buildOutcomeEmbed(member, run.outcome, xpDelta),
+          await outcomeCard(member, run.outcome, xpDelta, quizTier),
+        ),
+      );
+    } catch (err) {
+      logger.warn({ err }, 'tribulation: quiz outcome post failed');
+    }
+    return { outcome: run.outcome, xpDelta, eventId, game };
+  }
 
   let question: string;
   let row: ActionRowBuilder<ButtonBuilder>;
@@ -381,13 +432,13 @@ export async function runTribulation(
       const clicked = button?.label ?? button?.emoji?.name ?? '';
       const passed = clicked === expected;
       const outcome: TribulationOutcome = passed ? 'pass' : 'fail';
-      const xpDelta = await applyOutcomeRewards(member, outcome);
+      const xpDelta = await applyOutcomeRewards(member, outcome, 'loi');
       await persistEventEnd(event, outcome, clicked, xpDelta);
       try {
         await i.deferUpdate();
         await sent.edit({ components: [] });
         await channel.send(
-          withCard(buildOutcomeEmbed(member, outcome, xpDelta), await outcomeCard(member, outcome, xpDelta)),
+          withCard(buildOutcomeEmbed(member, outcome, xpDelta), await outcomeCard(member, outcome, xpDelta, 'loi')),
         );
       } catch (err) {
         logger.warn({ err }, 'tribulation: outcome post failed');
@@ -398,12 +449,12 @@ export async function runTribulation(
     collector.on('end', async (collected) => {
       if (collected.size > 0) return; // already resolved by 'collect'
       const outcome: TribulationOutcome = 'timeout';
-      const xpDelta = await applyOutcomeRewards(member, outcome);
+      const xpDelta = await applyOutcomeRewards(member, outcome, 'loi');
       await persistEventEnd(event, outcome, null, xpDelta);
       try {
         await sent.edit({ components: [] });
         await channel.send(
-          withCard(buildOutcomeEmbed(member, outcome, xpDelta), await outcomeCard(member, outcome, xpDelta)),
+          withCard(buildOutcomeEmbed(member, outcome, xpDelta), await outcomeCard(member, outcome, xpDelta, 'loi')),
         );
       } catch (err) {
         logger.warn({ err }, 'tribulation: timeout post failed');

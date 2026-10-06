@@ -76,10 +76,10 @@ Thay embed chữ bằng ảnh, giữ phần chữ quan trọng trong embed để
 
 ## P3 — Phong Kiếp (thiên kiếp bậc 2, trong Discord)
 
-- [ ] P3.1 Định tuyến kiếp theo cảnh giới: Trúc Cơ–Kim Đan → Lôi Kiếp; Nguyên Anh–Hóa Thần → Phong Kiếp; Luyện Hư trở lên → Tâm Ma / Cửu Thiên (P4).
-- [ ] P3.2 Ngân hàng câu hỏi (JSON có kiểm tra zod): tiếng Anh cho dev (đọc lỗi, chọn nghĩa) và đoán output C#/Python, mỗi câu gắn bài docs liên quan trên billthedev.com/docs.
-- [ ] P3.3 Luồng 3 câu, 45 giây mỗi câu, đúng 2/3 là qua; ảnh câu hỏi + nút A–D; mở link bài docs sau khi trả lời.
-- [ ] P3.4 Phần thưởng theo bậc (chờ ⛔ số liệu), test luồng qua và trượt.
+- [x] P3.1 Định tuyến kiếp theo cảnh giới: Trúc Cơ–Kim Đan → Lôi Kiếp; Nguyên Anh–Hóa Thần → Phong Kiếp; Luyện Hư trở lên → Tâm Ma / Cửu Thiên (P4).
+- [x] P3.2 Ngân hàng câu hỏi (JSON có kiểm tra zod): tiếng Anh cho dev (đọc lỗi, chọn nghĩa) và đoán output C#/Python, mỗi câu gắn bài docs liên quan trên billthedev.com/docs.
+- [x] P3.3 Luồng 3 câu, 45 giây mỗi câu, đúng 2/3 là qua; ảnh câu hỏi + nút A–D; mở link bài docs sau khi trả lời.
+- [x] P3.4 Phần thưởng theo bậc (đang dùng số đề xuất trong `TRIBULATION_TIERS`, đổi khi Bill chốt ⛔), test luồng qua và trượt.
 
 ## P4 — Thiên Kiếp Đài (giải thuật toán trên web)
 
