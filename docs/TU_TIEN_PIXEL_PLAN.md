@@ -116,7 +116,7 @@ Thay embed chữ bằng ảnh, giữ phần chữ quan trọng trong embed để
 - [x] P8.1 nginx: mở thêm `/avatar/`, `/judge/`, `/raid/` (hiện chỉ mở `/oauth/`). (Caddy, không phải nginx: DEPLOY.md mục 3c)
 - [x] P8.2 `.env`: khóa ký link, JDoodle client id/secret (Bill tự điền), giới hạn hạn mức.
 - [x] P8.3 Kiểm tra RAM/CPU VPS khi vẽ GIF; hàng đợi vẽ ảnh nếu nhiều người gọi cùng lúc.
-- [ ] P8.4 Deploy theo từng phase, có bản backup trước mỗi lần như `DEPLOY.md`.
+- [x] P8.4 Deploy theo từng phase, có bản backup trước mỗi lần như `DEPLOY.md`. (đợt 1: 2026-10-06, toàn bộ P0–P8)
 - [x] P8.5 Ghi nguồn asset: Pixel People (CC0), wuxia icons (CC0), VT323 (OFL), các pack quái (theo license ⛔).
 
 ## P9 — Kiếm tiền (làm sau khi có người chơi thật)

@@ -209,19 +209,23 @@ fontconfig; if the card shows a plain sans-serif font, install `fontconfig` and 
 The player pages are served by the same HTTP server as `/oauth/*`. Each link is signed and private to one
 member; nothing else on the server becomes public.
 
-1. **Caddy:** add the page paths to the `hunter.billthedev.com` block (or a new `tutien.billthedev.com` block
-   with the same `reverse_proxy`):
+1. **Proxy.** The live VPS (`hordecall`) uses **nginx**: `/etc/nginx/sites-available/hunter`. Next to the
+   `/oauth/` block (backup of the old file in `~/bots/nginx-hunter.bak-*`):
 
-   ```
-   hunter.billthedev.com {
-     @player path /oauth/* /avatar /avatar/* /judge /judge/* /raid /raid/* /cult/* /app/*
-     handle @player {
-       reverse_proxy localhost:3030
-     }
-     respond 404
+   ```nginx
+   location ~ ^/(avatar|judge|raid)(/|$) {
+       proxy_pass http://127.0.0.1:3030;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       proxy_read_timeout 90s;   # a judge submit waits for the code runner
    }
+   location ^~ /cult/ { proxy_pass http://127.0.0.1:3030; }
+   location ^~ /app/  { proxy_pass http://127.0.0.1:3030; }
    ```
 
+   Then `nginx -t && systemctl reload nginx`. With Caddy instead, the same paths go in one
+   `@player path /oauth/* /avatar /avatar/* /judge /judge/* /raid /raid/* /cult/* /app/*` matcher.
    `/cult/*` serves the pixel art, `/app/*` the page scripts (bundled by esbuild on first request, so the
    `web-client/` folder must be on the VM; it is, with the git checkout).
 2. **.env** (Bill fills the secrets himself):
