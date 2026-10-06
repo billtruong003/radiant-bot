@@ -7,6 +7,8 @@ import { getStore } from '../db/index.js';
 import {
   TRIBULATION_CONSTANTS,
   isTribulationOnCooldown,
+  judgeLinkFor,
+  judgeLinkRow,
   runTribulation,
 } from '../modules/events/tribulation.js';
 import { logger } from '../utils/logger.js';
@@ -52,6 +54,17 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
+  // A Thiên Kiếp Đài trial still open: hand its link out again instead of starting another.
+  const open = judgeLinkFor(member.id);
+  if (open) {
+    await interaction.reply({
+      content: `⚡ Bạn đang độ **${open.tierName}** trên Thiên Kiếp Đài. Link riêng của bạn:`,
+      components: [judgeLinkRow(open.url, 'Vào Thiên Kiếp Đài')],
+      ephemeral: true,
+    });
+    return;
+  }
+
   if (isTribulationOnCooldown()) {
     await interaction.reply({
       content:
@@ -85,7 +98,17 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   });
 
   try {
-    const result = await runTribulation(member);
+    const result = await runTribulation(member, {
+      deliverLink: async (url) => {
+        await interaction.followUp({
+          content:
+            '⚡ Link Thiên Kiếp Đài của bạn (chỉ mình bạn dùng, mở trong 24 giờ; giờ chỉ bắt đầu chạy khi mở trang):',
+          components: [judgeLinkRow(url, 'Vào Thiên Kiếp Đài')],
+          ephemeral: true,
+        });
+        return true;
+      },
+    });
     logger.info({ discord_id: member.id, ...result }, 'breakthrough: tribulation complete');
   } catch (err) {
     logger.error({ err, discord_id: member.id }, 'breakthrough: tribulation threw');

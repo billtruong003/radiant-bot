@@ -2,6 +2,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  type Client,
   type EmbedBuilder,
   type GuildMember,
   type Message,
@@ -10,6 +11,8 @@ import {
 import { ulid } from 'ulid';
 import { ANNOUNCEMENT_CHANNELS, matchesChannelName } from '../../config/channels.js';
 import { rankById, rankIndex } from '../../config/cultivation.js';
+import { env } from '../../config/env.js';
+import { judgeProblem } from '../../config/judge-problems.js';
 import {
   TRIBULATION_COOLDOWN_MS,
   TRIBULATION_FAIL_PENALTY,
@@ -20,14 +23,25 @@ import {
   TRIBULATION_TIERS,
   type TribulationTier,
 } from '../../config/leveling.js';
+import { DOCS_ORIGIN } from '../../config/phong-kiep.js';
 import { DIVIDER, DIVIDER_DOUBLE, ICONS } from '../../config/ui.js';
 import { getStore } from '../../db/index.js';
 import type { CultivationRankId, SectEvent } from '../../db/types.js';
 import { themedEmbed } from '../../utils/embed.js';
 import { logger } from '../../utils/logger.js';
 import { getLook } from '../avatar/service.js';
+import { webSecret } from '../avatar/web.js';
 import { withCard } from '../cards/attach.js';
 import { renderTribulationIntro, renderTribulationOutcome } from '../cards/tribulation-cards.js';
+import { runnerAvailable } from '../judge/runners.js';
+import {
+  TRIAL_SHAPE,
+  createTrial,
+  onTrialFinished,
+  openTrialOf,
+  pickProblems,
+  trialToken,
+} from '../judge/trial.js';
 import { applyXpPenalty, awardXp } from '../leveling/tracker.js';
 import type { Rendered } from '../pixel/output.js';
 import { type MathPuzzle, generateMathPuzzle } from './games/math-puzzle.js';
@@ -65,7 +79,7 @@ const FAIL_XP_PENALTY = TRIBULATION_FAIL_PENALTY;
 const SERVER_COOLDOWN_MS = TRIBULATION_COOLDOWN_MS;
 const TRIBULATION_LEVEL_MIN = TRIBULATION_MIN_LEVEL;
 
-export type TribulationGameType = 'math' | 'reaction' | 'quiz';
+export type TribulationGameType = 'math' | 'reaction' | 'quiz' | 'judge';
 
 /** Which tribulation a realm faces (see TRIBULATION_TIERS). */
 export function tierForRank(rank: CultivationRankId): TribulationTier {
@@ -84,7 +98,8 @@ export function tierForRank(rank: CultivationRankId): TribulationTier {
 export function playedGame(tier: TribulationTier): 'loi' | 'quiz' {
   return tier === 'loi' ? 'loi' : 'quiz';
 }
-export type TribulationOutcome = 'pass' | 'fail' | 'timeout' | 'aborted';
+/** 'pending': a Thiên Kiếp Đài trial was opened; the result arrives later via the trial hook. */
+export type TribulationOutcome = 'pass' | 'fail' | 'timeout' | 'aborted' | 'pending';
 
 export interface TribulationResult {
   outcome: TribulationOutcome;
@@ -211,7 +226,7 @@ function outcomeCard(
   xpDelta: number,
   tier: TribulationTier,
 ): Promise<Rendered | null> {
-  if (outcome === 'aborted') return Promise.resolve(null);
+  if (outcome === 'aborted' || outcome === 'pending') return Promise.resolve(null);
   const t = TRIBULATION_TIERS[tier];
   return renderTribulationOutcome({
     name: member.displayName,
@@ -329,7 +344,11 @@ async function applyOutcomeRewards(
  */
 export async function runTribulation(
   member: GuildMember,
-  opts: { game?: TribulationGameType } = {},
+  opts: {
+    game?: TribulationGameType;
+    /** Hands the private Thiên Kiếp Đài link to the member; false = fall back to a DM. */
+    deliverLink?: (url: string) => Promise<boolean>;
+  } = {},
 ): Promise<TribulationResult> {
   const channel = findTribulationChannel(member);
   if (!channel) {
@@ -345,6 +364,16 @@ export async function runTribulation(
   const level = user?.level ?? 10;
   const tier = opts.game ? 'loi' : tierForRank(user?.cultivation_rank ?? 'pham_nhan');
   const game = opts.game ?? (playedGame(tier) === 'quiz' ? 'quiz' : pickGameType());
+
+  if (
+    !opts.game &&
+    (tier === 'tam_ma' || tier === 'cuu_thien') &&
+    runnerAvailable() &&
+    env.PUBLIC_BASE_URL &&
+    webSecret()
+  ) {
+    return startJudgeTrial(member, channel, tier, opts.deliverLink);
+  }
 
   if (game === 'quiz') {
     const quizTier = tier === 'loi' ? 'phong' : tier;
@@ -473,3 +502,146 @@ export const TRIBULATION_CONSTANTS = {
   MATH_TIMEOUT_MS,
   REACTION_TIMEOUT_MS,
 } as const;
+
+// ---------------------------------------------------------------- Thiên Kiếp Đài
+
+export function judgeLinkRow(url: string, label: string): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(label).setURL(url),
+  );
+}
+
+/**
+ * Tâm Ma / Cửu Thiên: open a web trial, announce it, hand the member their
+ * private link. The outcome is applied by the trial hook (wireJudgeTribulations).
+ */
+async function startJudgeTrial(
+  member: GuildMember,
+  channel: TextChannel,
+  tier: 'tam_ma' | 'cuu_thien',
+  deliver?: (url: string) => Promise<boolean>,
+): Promise<TribulationResult> {
+  const t = TRIBULATION_TIERS[tier];
+  const shape = TRIAL_SHAPE[tier];
+  const trial = await createTrial({
+    discordId: member.id,
+    mode: 'tribulation',
+    tier,
+    problems: pickProblems(tier),
+    durationMs: shape.durationMs,
+  });
+  const url = `${env.PUBLIC_BASE_URL}/judge?t=${encodeURIComponent(trialToken(trial, webSecret()))}`;
+  const titles = trial.meta.problems.map((slug) => judgeProblem(slug)?.title ?? slug);
+  const minutes = Math.round(shape.durationMs / 60_000);
+  const user = getStore().users.get(member.id);
+  const card = await renderTribulationIntro({
+    name: member.displayName,
+    look: getLook(member.id),
+    rankName: rankById(user?.cultivation_rank ?? 'pham_nhan').name,
+    tierName: t.name,
+    question: null,
+    box: { title: `Thiên Kiếp Đài · ${titles.length} bài giải thuật`, lines: titles },
+    seconds: 0,
+    timeText: `${minutes} phút trên web · giờ chạy khi mở trang`,
+    passXp: t.passXp,
+    passPills: t.passPills,
+    failXp: t.failXp,
+  }).catch(() => null);
+  const embed = themedEmbed('cultivation', {
+    title: `${ICONS.tribulation} ${t.name}`,
+    description: [
+      `${member} bước lên **Thiên Kiếp Đài**: giải ${titles.length} bài giải thuật trong ${minutes} phút.`,
+      'Link riêng đã được gửi cho đạo hữu, giờ chỉ bắt đầu chạy khi mở trang.',
+    ].join('\n'),
+    footer: 'Code bằng Python, JavaScript hoặc C# · Tàng Kinh Các mở sẵn bài nền tảng',
+  });
+  try {
+    await channel.send({
+      content: `${member}`,
+      ...withCard(embed, card),
+      allowedMentions: { users: [member.id] },
+    });
+  } catch (err) {
+    logger.warn({ err }, 'tribulation: judge announce failed');
+  }
+  let delivered = false;
+  if (deliver) delivered = await deliver(url).catch(() => false);
+  if (!delivered) {
+    delivered = await member
+      .send({
+        content: `⚡ **${t.name}**: link Thiên Kiếp Đài của bạn (chỉ mình bạn dùng, mở trong 24 giờ, mở ra là bắt đầu tính ${minutes} phút).`,
+        components: [judgeLinkRow(url, 'Vào Thiên Kiếp Đài')],
+      })
+      .then(() => true)
+      .catch(() => false);
+  }
+  if (!delivered) {
+    logger.warn({ discord_id: member.id }, 'tribulation: judge link could not be delivered');
+    await channel
+      .send({
+        content: `${member} chưa nhận được link riêng (DM đang tắt). Gõ \`/breakthrough\` lần nữa để lấy lại link.`,
+        allowedMentions: { users: [member.id] },
+      })
+      .catch(() => undefined);
+  }
+  return { outcome: 'pending', xpDelta: 0, eventId: trial.id, game: 'judge' };
+}
+
+/** The member's open Thiên Kiếp Đài link, to hand out again. */
+export function judgeLinkFor(discordId: string): { url: string; tierName: string } | null {
+  const trial = openTrialOf(discordId, 'tribulation');
+  if (!trial || !env.PUBLIC_BASE_URL || !webSecret()) return null;
+  return {
+    url: `${env.PUBLIC_BASE_URL}/judge?t=${encodeURIComponent(trialToken(trial, webSecret()))}`,
+    tierName: trial.meta.tier ? TRIBULATION_TIERS[trial.meta.tier].name : 'Thiên Kiếp',
+  };
+}
+
+/** Applies a finished Thiên Kiếp Đài trial: rewards, record, public result. */
+export function wireJudgeTribulations(client: Client): void {
+  onTrialFinished(async (trial) => {
+    if (trial.meta.mode !== 'tribulation' || !trial.meta.tier) return;
+    const tier = trial.meta.tier;
+    const guild = client.guilds.cache.get(env.DISCORD_GUILD_ID);
+    const member = await guild?.members.fetch(trial.meta.discord_id).catch(() => null);
+    if (!member) {
+      logger.warn({ trial: trial.id }, 'tribulation: judge member gone, no rewards');
+      return;
+    }
+    const outcome: TribulationOutcome =
+      trial.meta.status === 'passed' ? 'pass' : trial.meta.status === 'expired' ? 'timeout' : 'fail';
+    const xpDelta = await applyOutcomeRewards(member, outcome, tier);
+    const store = getStore();
+    const e = store.events.get(trial.id);
+    if (e)
+      await store.events.set({
+        ...e,
+        metadata: { ...(e.metadata ?? {}), outcome, xp_delta: xpDelta },
+      });
+    const channel = findTribulationChannel(member);
+    if (!channel) return;
+    const lessons = trial.meta.problems
+      .map((slug) => judgeProblem(slug))
+      .filter((p): p is NonNullable<typeof p> => p !== null)
+      .slice(0, 5);
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      lessons.map((p) =>
+        new ButtonBuilder()
+          .setStyle(ButtonStyle.Link)
+          .setLabel(`Lời giải: ${p.title}`.slice(0, 80))
+          .setURL(`${DOCS_ORIGIN}${p.docs}`),
+      ),
+    );
+    try {
+      await channel.send({
+        ...withCard(
+          buildOutcomeEmbed(member, outcome, xpDelta),
+          await outcomeCard(member, outcome, xpDelta, tier),
+        ),
+        components: lessons.length ? [row] : [],
+      });
+    } catch (err) {
+      logger.warn({ err }, 'tribulation: judge outcome post failed');
+    }
+  });
+}

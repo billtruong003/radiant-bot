@@ -85,10 +85,10 @@ Thay embed chữ bằng ảnh, giữ phần chữ quan trọng trong embed để
 
 - [x] P4.1 Ngân hàng đề lấy từ 23 bài Interview Algorithms, kể lại theo chất tu tiên; mỗi đề có ví dụ, 15+ test ẩn, giới hạn thời gian, link bài nền tảng và link lời giải (khóa tới khi xong kiếp).
 - [x] P4.2 Bộ chấm: gói code người chơi + toàn bộ test ẩn thành MỘT lần chạy (harness C#, Python, JS), so kết quả trên server bot; gọi JDoodle, lỗi thì thử Piston public; đếm hạn mức ngày.
-- [ ] P4.3 Trang web theo mockup: đề, Tàng Kinh Các, ô soạn code (CodeMirror 6), Chạy thử trong trình duyệt (Pyodide cho Python, Worker cho JS; C# đi qua API), Nộp bài, đồng hồ, số lần nộp.
-- [ ] P4.4 Link riêng có ký (dùng chung cơ chế P1.3), mở trang là bắt đầu tính giờ, hết giờ tự nộp.
-- [ ] P4.5 Kết quả gửi về Discord (GIF qua / trượt), cộng thưởng, mở bài giải; nhật ký nộp bài để chống gian lận.
-- [ ] P4.6 Cửu Thiên Lôi Kiếp: 2 bài quy hoạch động / đồ thị, test lớn để ép đúng độ phức tạp.
+- [x] P4.3 Trang web theo mockup: đề, Tàng Kinh Các, ô soạn code (CodeMirror 6), Chạy thử trong trình duyệt (Pyodide cho Python, Worker cho JS; C# đi qua API), Nộp bài, đồng hồ, số lần nộp.
+- [x] P4.4 Link riêng có ký (dùng chung cơ chế P1.3), mở trang là bắt đầu tính giờ, hết giờ tự nộp.
+- [x] P4.5 Kết quả gửi về Discord (GIF qua / trượt), cộng thưởng, mở bài giải; nhật ký nộp bài để chống gian lận.
+- [x] P4.6 Cửu Thiên Lôi Kiếp: 2 bài quy hoạch động / đồ thị, test lớn để ép đúng độ phức tạp.
 
 ## P5 — Nhiệm vụ hằng ngày mới
 

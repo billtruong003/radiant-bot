@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
 import { logger } from '../../utils/logger.js';
 import { handleAvatarWeb } from '../avatar/web.js';
+import { handleJudgeWeb } from '../judge/web.js';
 
 /**
  * Routes for the player-facing web pages, served by the bot's HTTP server
@@ -108,6 +109,10 @@ export async function handleWeb(req: IncomingMessage, res: ServerResponse): Prom
   }
   if (p === '/avatar' || p.startsWith('/avatar/')) {
     await handleAvatarWeb(req, res, url);
+    return true;
+  }
+  if (p === '/judge' || p.startsWith('/judge/')) {
+    await handleJudgeWeb(req, res, url);
     return true;
   }
   return false;

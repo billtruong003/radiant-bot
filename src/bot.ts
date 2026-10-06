@@ -9,6 +9,8 @@ import { register as registerMessageReactionRemove } from './events/messageReact
 import { startAkiCooldownSweeps, stopAkiCooldownSweeps } from './modules/aki/rate-limit.js';
 import { wireAvatarDiscord } from './modules/avatar/discord.js';
 import { clearBotLogClient, setBotLogClient } from './modules/bot-log.js';
+import { wireJudgeTribulations } from './modules/events/tribulation.js';
+import { startTrialSweeper } from './modules/judge/trial.js';
 import { startCooldownSweeps, stopCooldownSweeps } from './modules/leveling/cooldown.js';
 import { assertZeroCostRouting } from './modules/llm/startup-audit.js';
 import { ensureFont } from './modules/pixel/canvas.js';
@@ -77,6 +79,8 @@ export async function startBot(): Promise<Client> {
     startCooldownSweeps();
     startAkiCooldownSweeps();
     wireAvatarDiscord();
+    wireJudgeTribulations(c);
+    startTrialSweeper();
     // Load the pixel font once up front so the first card of the day is fast.
     void ensureFont().catch((err: unknown) => logger.error({ err }, 'pixel font failed to load'));
     startHealthServer(env.HEALTH_PORT, c);

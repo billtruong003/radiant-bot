@@ -38,6 +38,13 @@ export function renderTribulationIntro(o: {
   seconds: number;
   passXp: number;
   failXp: number;
+  passPills?: number;
+  /** Tier label, e.g. "Tâm Ma Kiếp"; defaults to Thiên Kiếp. */
+  tierName?: string;
+  /** Replaces the question box (Thiên Kiếp Đài: title + problem names). */
+  box?: { title: string; lines: string[] };
+  /** Replaces "N giây" (e.g. "45 phút trên web"). */
+  timeText?: string;
 }): Promise<Rendered> {
   return renderGif(
     W,
@@ -48,10 +55,22 @@ export function renderTribulationIntro(o: {
       lightning(ctx, CX + 140, 40, GROUND, t, { seed: 8, phase: 0.5 });
       screenFlash(ctx, W, H, t);
       await drawCharacterOnGround(ctx, o.look, CX, GROUND, 5);
-      label(ctx, `THIÊN KIẾP · ${o.rankName.toUpperCase()}`, 440, 96, 22, '#9fb8ff');
+      label(
+        ctx,
+        `${(o.tierName ?? 'Thiên Kiếp').toUpperCase()} · ${o.rankName.toUpperCase()}`,
+        440,
+        96,
+        22,
+        '#9fb8ff',
+      );
       text(ctx, o.name, 440, 120, { size: 40, bold: true, color: PX.inkBright, maxWidth: 500 });
       panel(ctx, 440, 176, 496, 120, { fill: '#0e1022', border: '#3a4a7a', t: 3 });
-      if (o.question) {
+      if (o.box) {
+        label(ctx, o.box.title, 460, 186, 20, PX.muted);
+        o.box.lines.slice(0, 3).forEach((l, i) => {
+          text(ctx, l, 460, 212 + i * 28, { size: 26, bold: true, color: PX.white, maxWidth: 460 });
+        });
+      } else if (o.question) {
         label(ctx, 'Giải bài toán', 460, 186, 20, PX.muted);
         text(ctx, o.question, 688, 214, {
           size: 56,
@@ -69,11 +88,21 @@ export function renderTribulationIntro(o: {
           color: PX.white,
         });
       }
-      text(ctx, `${o.seconds} giây`, 440, 310, { size: 26, bold: true, color: PX.goldBright });
-      text(ctx, `Qua: +${fmt(o.passXp)} XP, +5 đan · Trượt: -${fmt(o.failXp)} XP`, 440, 342, {
-        size: 21,
-        color: PX.muted,
+      text(ctx, o.timeText ?? `${o.seconds} giây`, 440, 310, {
+        size: 26,
+        bold: true,
+        color: PX.goldBright,
       });
+      text(
+        ctx,
+        `Qua: +${fmt(o.passXp)} XP, +${o.passPills ?? 5} đan · Trượt: -${fmt(o.failXp)} XP`,
+        440,
+        342,
+        {
+          size: 21,
+          color: PX.muted,
+        },
+      );
     },
     'loi-kiep',
     { frames: 12, delayMs: 120, stillT: 0.12 },
