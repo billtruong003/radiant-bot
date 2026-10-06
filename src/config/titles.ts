@@ -54,7 +54,7 @@ export const TITLES: readonly TitleDef[] = [
   {
     id: 'sat_tinh_so',
     name: 'Sát Tinh Sơ Chân',
-    emoji: '✦',
+    emoji: '⭐',
     description: 'Thắng 10 trận duel — bước đầu khẳng định.',
     check: (c) => c.duelWins >= 10,
   },
