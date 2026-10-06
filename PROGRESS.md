@@ -826,11 +826,25 @@ keys on VPS).
 - [x] Fix: `guardianStrikes` was missing from the WAL dispatch map (strikes lost on crash)
 - [ ] Deploy: DNS + Caddy + GitHub OAuth App + env (DEPLOY.md §3b), `npm run deploy-commands`
 
-### Tu Tiên Pixel (2026-10-06, planned)
+### Tu Tiên Pixel (2026-10-06, built, awaiting deploy)
 
 Pixel art cards/GIFs for every cultivation command, avatar customizer, tiered tribulations
 (incl. algorithm judge on the web), study + monster quests, idle raid. Task list and order:
 `docs/TU_TIEN_PIXEL_PLAN.md`. Mockups: https://claude.ai/artifact/TqVLxNw7dfCHcwKj96Zsg8
+
+**Status 2026-10-06: built on branch `feat/tu-tien-pixel` (not pushed, not deployed).** P0–P8 done except
+P8.4 (deploy, waits for Bill). P9 (monetization) waits for real players.
+
+- Pixel cards / GIFs on every cultivation command (`src/modules/cards`, renderer in `src/modules/pixel`).
+
+- Tribulations by realm: Lôi Kiếp, Phong Kiếp quiz (49 checked questions), Tâm Ma / Cửu Thiên on the web
+  judge (Thiên Kiếp Đài, 19 problems, JDoodle runner).
+
+- Daily board with study and slay rows; `/bi-canh` idle raid on Discord and `/raid` web page; weekly boss.
+
+- Economy: `docs/ECONOMY.md`. Deploy steps: `DEPLOY.md` §3c. Credits: `docs/ASSETS.md`.
+
+- Open: monster pack licences, JDoodle keys (Bill), tribulation reward numbers, domain.
 
 ## Blockers / Notes
 
