@@ -16,7 +16,16 @@ describe('server vocabulary parity', () => {
     // findCommand is the public surface; probe it with the mirrored names
     // and also confirm nothing in the registry is missing from the mirror.
     for (const name of SERVER_COMMAND_NAMES) {
-      expect(mod.findCommand(name), `"${name}" is in server-vocab but not registered`).toBeDefined();
+      expect(
+        mod.findCommand(name),
+        `"${name}" is in server-vocab but not registered`,
+      ).toBeDefined();
+    }
+    for (const command of mod.listCommands()) {
+      expect(
+        SERVER_COMMAND_NAMES,
+        `"${command.data.name}" is registered but missing from server-vocab`,
+      ).toContain(command.data.name);
     }
   });
 

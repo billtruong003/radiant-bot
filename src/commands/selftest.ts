@@ -14,7 +14,7 @@ import { logger } from '../utils/logger.js';
 import { requireAdmin } from '../utils/command-guard.js';
 
 /**
- * /selftest — admin-only health diagnostic.
+ * /admin selftest — admin-only health diagnostic.
  *
  * Runs a battery of read-only in-process checks (store, scheduler, Discord
  * guild, health HTTP endpoint, GitHub backup freshness, Aki budget, automod
@@ -174,7 +174,7 @@ async function checkAutomod(): Promise<CheckResult> {
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!(await requireAdmin(interaction))) return;
-  logger.info({ invoked_by: interaction.user.id, tag: interaction.user.tag }, 'command: /selftest');
+  logger.info({ invoked_by: interaction.user.id, tag: interaction.user.tag }, 'command: /admin selftest');
 
   await interaction.deferReply({ ephemeral: true });
 
@@ -206,7 +206,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const lines = checks.map((c) => `${STATUS_ICON[c.status]} **${c.name}** — ${c.detail}`);
 
   const embed = themedEmbed(theme, {
-    title: '🩺 /selftest — Bot diagnostic',
+    title: '🩺 /admin selftest — Bot diagnostic',
     description: [headline, '', ...lines, '', `_Hoàn tất trong ${elapsed}ms_`].join('\n'),
     footer: `selftest · run by ${interaction.user.tag}`,
   });

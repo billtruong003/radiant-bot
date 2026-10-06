@@ -662,10 +662,10 @@ async function smokeVerifyConfigPhase11(): Promise<void> {
   expectEq(config.thresholds.accountAgeKickDays, 0, 'accountAgeKickDays = 0 (auto-kick disabled)');
 }
 
-// --- Phase 11 1A: /ask context prompt formatting -----------------------
+// --- Phase 11 1A: /ask aki context prompt formatting -----------------------
 
 async function smokeAskContextFormat(): Promise<void> {
-  group('Phase 11 · /ask prompt formatting (identity + recent messages)');
+  group('Phase 11 · /ask aki prompt formatting (identity + recent messages)');
 
   // We can't easily exercise askAki without an OpenAI client, but we
   // CAN inspect the exact prompt-string assembly logic by reading

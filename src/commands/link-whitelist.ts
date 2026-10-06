@@ -8,7 +8,7 @@ import { loadAutomodConfig, persistAutomodConfig } from '../config/automod.js';
 import { requireAdmin } from '../utils/command-guard.js';
 
 /**
- * `/link-whitelist add|remove|list` — admin tooling for the link
+ * `/mod links add|remove|list` — admin tooling for the link
  * whitelist. Replaces the prior workflow (edit `automod.json` by hand
  * over SSH + restart) so trusted domains can be added in seconds
  * without dropping the bot.

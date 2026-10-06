@@ -7,7 +7,7 @@ import { levelProgress } from '../modules/leveling/engine.js';
 import { inlineField, themedEmbed } from '../utils/embed.js';
 
 /**
- * /rank [user?] — show level / XP / cultivation rank for the caller
+ * /profile rank [user?] — show level / XP / cultivation rank for the caller
  * (default) or a target user. Embed:
  *   - Author block: target avatar + display name + sub-title
  *   - Hero line: rank icon + rank name + level + cultivation phase
@@ -101,7 +101,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       // Phase 12 — currencies row
       inlineField('💊 Đan dược', (user.pills ?? 0).toLocaleString('vi-VN')),
       inlineField('🪙 Cống hiến', (user.contribution_points ?? 0).toLocaleString('vi-VN')),
-      inlineField('⚔️ Lực chiến', 'Xem `/stat`'),
+      inlineField('⚔️ Lực chiến', 'Xem `/profile stat`'),
     );
 
   await interaction.reply({ embeds: [embed] });

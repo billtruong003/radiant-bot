@@ -6,7 +6,7 @@ import { requireSectMaster } from '../utils/command-guard.js';
 import { themedEmbed } from '../utils/embed.js';
 
 /**
- * /ai-models — live view of the zero-cost pool: what is enabled, what is
+ * /ai models — live view of the zero-cost pool: what is enabled, what is
  * blocked and why, which model currently leads each workload, and which
  * ones are cooling down after failures.
  *

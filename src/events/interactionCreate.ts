@@ -22,7 +22,7 @@ import { logger } from '../utils/logger.js';
 /**
  * `interactionCreate` event: dispatches verification fallback buttons +
  * modal submits to `flow.ts`. Slash commands are routed here too in
- * Chunk 6 once `/raid-mode` lands.
+ * Chunk 6 once `/mod raid` lands.
  */
 
 async function dispatchButton(interaction: ButtonInteraction): Promise<void> {

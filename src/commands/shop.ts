@@ -35,7 +35,7 @@ import { logger } from '../utils/logger.js';
 import { buildPageNavRow, pageOf } from '../utils/pagination.js';
 
 /**
- * /shop — Phase 14.5 four-tab shop.
+ * /shop browse — Phase 14.5 four-tab shop.
  *
  * 📜 Công pháp · ⚔️ Vũ khí · ✨ Pháp khí · 💍 Nhẫn
  *
@@ -566,14 +566,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       const expiredRow = new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId('shop:expired')
-          .setLabel('Phiên hết hạn — chạy /shop lại')
+          .setLabel('Phiên hết hạn — chạy /shop browse lại')
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(true),
       );
       await msg.edit({
         embeds: [
           buildEmbed(activeTab, userId).setFooter({
-            text: '⏱️ Hết phiên — chạy /shop lại để tiếp.',
+            text: '⏱️ Hết phiên — chạy /shop browse lại để tiếp.',
           }),
         ],
         components: [expiredRow],

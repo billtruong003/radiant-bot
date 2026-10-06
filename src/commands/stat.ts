@@ -14,14 +14,14 @@ import { computeCombatPowerBreakdown } from '../modules/combat/power.js';
 import { themedEmbed } from '../utils/embed.js';
 
 /**
- * `/stat [user?]` — Phase 12 Lát 1 profile embed.
+ * `/profile stat [user?]` — Phase 12 Lát 1 profile embed.
  *
  * Read-only combat profile: lực chiến breakdown + currencies + cảnh giới
  * + sub-title + equipped công pháp. Default target = caller; admin can
  * inspect another user.
  *
- * Separate from `/rank` (which is XP-progress focused) — this is the
- * combat/economy view. Both can stay alongside; `/stat` becomes the
+ * Separate from `/profile rank` (which is XP-progress focused) — this is the
+ * combat/economy view. Both can stay alongside; `/profile stat` becomes the
  * canonical "show me my numbers" command once Tier C ships.
  */
 
@@ -147,7 +147,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
                   `**Slot ${i + 1}**: ${s.item.icon ?? '📜'} ${s.item.name}${s.level > 0 ? ` **+${s.level}**` : ''} _(${s.item.rarity})_`,
               )
               .join('\n')
-          : '_Chưa trang bị — `/inventory` để chọn._',
+          : '_Chưa trang bị — `/gear inventory` để chọn._',
         inline: false,
       },
     );

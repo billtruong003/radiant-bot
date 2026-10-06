@@ -10,7 +10,7 @@ import { autocompleteNhan } from '../modules/combat/autocomplete.js';
 import { maxNhanSlots, readEquippedRingSlugs } from '../modules/combat/equipment-resolver.js';
 
 /**
- * /nhan list|info|buy|equip|unequip — Phase 14 round 3.
+ * /gear nhan list|info|buy|equip|unequip — Phase 14 round 3.
  *
  * Up to 2 nhẫn equipped (slot 1 free, slot 2 unlocks at Nguyên Anh).
  * No upgrade on nhẫn (yet) — flat CP bonus + xp_multiplier/pill_discount
@@ -92,7 +92,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const owned = store.userNhan.query((u) => u.discord_id === userId);
     if (owned.length === 0) {
       await interaction.reply({
-        content: '💍 Bạn chưa có nhẫn. `/shop` (tab nhẫn) để mua.',
+        content: '💍 Bạn chưa có nhẫn. `/shop browse` (tab nhẫn) để mua.',
         ephemeral: true,
       });
       return;

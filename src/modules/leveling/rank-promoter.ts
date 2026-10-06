@@ -134,7 +134,7 @@ async function promptSubTitleSelection(member: GuildMember): Promise<void> {
     '🔮  `Trận Pháp Sư`   — tech / dev',
     '🌀  `Tán Tu`         — mixed (giữ tự do)',
     '',
-    'Dùng `/title add <name>` để chọn. Đổi sau cũng được bằng `/title remove`.',
+    'Dùng `/title phong-hieu add <name>` để chọn. Đổi sau cũng được bằng `/title phong-hieu remove`.',
     '',
     '_Đường tu càng rõ chí, càng vững (◕‿◕)_',
   ].join('\n');
@@ -143,7 +143,7 @@ async function promptSubTitleSelection(member: GuildMember): Promise<void> {
     await member.send(dm);
     logger.info({ discord_id: member.id }, 'rank-promoter: sub-title prompt DM sent');
   } catch {
-    // DM blocked — silent skip. The user can still use /title anytime.
+    // DM blocked — silent skip. The user can still use /title phong-hieu anytime.
   }
 }
 

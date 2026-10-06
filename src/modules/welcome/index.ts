@@ -39,9 +39,9 @@ function buildWelcomeEmbed(member: GuildMember): EmbedBuilder {
     '• `/daily` — điểm danh hằng ngày, nhận **+100 XP**',
     '• Nhắn tin trong các kênh — **15–25 XP** mỗi message (cooldown 60s)',
     '• Tham gia voice channel — **10 XP**/phút (**15 XP** ở Focus Room)',
-    '• `/rank` — xem cấp độ + tiến độ',
+    '• `/profile rank` — xem cấp độ + tiến độ',
     '• `/leaderboard` — top 10 đệ tử',
-    `• \`/ask\` — hỏi **Aki** ${ICONS.aki_happy} hầu gái của tông môn`,
+    `• \`/ask aki\` — hỏi **Aki** ${ICONS.aki_happy} hầu gái của tông môn`,
   ].join('\n');
 
   const path = [
@@ -70,7 +70,7 @@ function buildQuickStartDm(): string {
     '',
     '**Lệnh hữu ích:**',
     '• `/daily` — điểm danh hằng ngày (+100 XP, streak bonus ở ngày 7/14/30)',
-    '• `/rank` — xem cấp độ + cảnh giới',
+    '• `/profile rank` — xem cấp độ + cảnh giới',
     '• `/leaderboard` — top 10',
     '',
     '**Earn XP tự động:**',

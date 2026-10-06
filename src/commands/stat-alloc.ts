@@ -14,20 +14,20 @@ import type { User } from '../db/types.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * /stat-alloc — Phase 14 stat-point allocation UI.
+ * /profile alloc — Phase 14 stat-point allocation UI.
  *
  * Each level grants the user 2 stat points (per Bill's 2026-05-20 design).
  * Points distribute across 4 categories (dmg/hp/def/spd) via button clicks.
  * Reset is FREE — refunds all spent points into stat_points_unspent.
  *
  * Migration: existing users predating Phase 14 have `stat_points_unspent`
- * undefined. On first /stat-alloc access we lazy-migrate by granting
+ * undefined. On first /profile alloc access we lazy-migrate by granting
  * `level × 2` points (back-pay for everything earned before today).
  * `stat_points_granted_for_level` records the last level we paid out for
  * so subsequent level-ups grant incrementally without re-paying.
  *
  * UI: ephemeral embed with current alloc + 5 buttons (+1 each of 4 categories,
- * Reset). Button collector idle-timeouts after 5 min — re-run /stat-alloc
+ * Reset). Button collector idle-timeouts after 5 min — re-run /profile alloc
  * to resume.
  */
 
@@ -254,7 +254,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         return newRow;
       });
       await msg.edit({
-        embeds: [buildEmbed(displayName, user.level, state).setFooter({ text: '⏱️ Hết phiên — chạy /stat-alloc lại để tiếp.' })],
+        embeds: [buildEmbed(displayName, user.level, state).setFooter({ text: '⏱️ Hết phiên — chạy /profile alloc lại để tiếp.' })],
         components: disabledRows,
       });
     } catch {

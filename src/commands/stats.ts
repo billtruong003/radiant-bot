@@ -8,7 +8,7 @@ import { getStore } from '../db/index.js';
 import { requireAdmin } from '../utils/command-guard.js';
 
 /**
- * `/stats` — admin-only ephemeral dashboard for Phase 11.2 visibility.
+ * `/admin stats` — admin-only ephemeral dashboard for Phase 11.2 visibility.
  *
  * Bill shipped a lot of new behaviour in Phase 11.2 (graduated profanity,
  * narration, history sweep, permissive link policy) with no surfaced

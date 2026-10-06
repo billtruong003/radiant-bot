@@ -11,7 +11,7 @@ import { logger } from '../utils/logger.js';
 import { sanitizeForDisplay } from '../utils/sanitize.js';
 
 /**
- * /thien-dao — Áp Chế Thiên Đạo. Chưởng Môn invokes the cosmic judge:
+ * /mod thien-dao — Áp Chế Thiên Đạo. Chưởng Môn invokes the cosmic judge:
  *   - Target = the disciple being punished
  *   - Crime  = free text (e.g., "spammer phá đám trong #general")
  *

@@ -12,9 +12,9 @@ import {
 import { HUB_ICONS } from '../config/ui.js';
 
 /**
- * /help — Phase 14.8 task-based hub.
+ * /help menu — Phase 14.8 task-based hub.
  *
- * Bill 2026-05-20: "33 commands quá nhiều cho user nhớ". Old /help was a
+ * Bill 2026-05-20: "33 commands quá nhiều cho user nhớ". Old /help menu was a
  * flat list. This redesign groups by USE CASE not by feature area:
  *
  *   1. 🌌 Khởi đạo       — "I'm new, what now?"
@@ -68,13 +68,13 @@ const PAGES: readonly Page[] = [
     emoji: HUB_ICONS.start,
     title: 'Khởi đạo — mới bắt đầu',
     color: 0xf5d76e,
-    intro: 'Đệ tử nhập môn nên làm thứ tự: tutorial → daily → quest → /stat xem mình ở đâu.',
+    intro: 'Đệ tử nhập môn nên làm thứ tự: tutorial → daily → quest → /profile stat xem mình ở đâu.',
     rows: [
-      { cmd: '/tutorial', use_case: 'Hướng dẫn 5 trang button — đọc trước hết.' },
+      { cmd: '/help tutorial', use_case: 'Hướng dẫn 5 trang button — đọc trước hết.' },
       { cmd: '/daily', use_case: 'Điểm danh nhận 100 XP + streak bonus + 2 đan dược.' },
       { cmd: '/quest', use_case: 'Xem nhiệm vụ hôm nay, hoàn thành → thưởng.' },
-      { cmd: '/rank', use_case: 'Xem level + cảnh giới + XP đến mốc kế.' },
-      { cmd: '/me', use_case: 'Tóm tắt nhanh + gợi ý "bước kế nên làm gì".' },
+      { cmd: '/profile rank', use_case: 'Xem level + cảnh giới + XP đến mốc kế.' },
+      { cmd: '/profile me', use_case: 'Tóm tắt nhanh + gợi ý "bước kế nên làm gì".' },
     ],
   },
   // Page 2 — Tu vi
@@ -84,12 +84,12 @@ const PAGES: readonly Page[] = [
     color: 0x9ec1c4,
     intro: 'Quản lý sự tu hành: lực chiến, phân điểm, đột phá, danh hiệu.',
     rows: [
-      { cmd: '/stat [user?]', use_case: 'Combat profile — LC breakdown + danh hiệu + progress.' },
-      { cmd: '/stat-alloc', use_case: 'Phân điểm DMG/HP/DEF/SPD — mỗi level cộng 2 điểm.' },
+      { cmd: '/profile stat [user?]', use_case: 'Combat profile — LC breakdown + danh hiệu + progress.' },
+      { cmd: '/profile alloc', use_case: 'Phân điểm DMG/HP/DEF/SPD — mỗi level cộng 2 điểm.' },
       { cmd: '/breakthrough', use_case: 'Khởi thiên kiếp đột phá (Lv 10+, tốn 1 đan dược).' },
       { cmd: '/leaderboard [mode]', use_case: 'Top 10 theo XP hoặc lực chiến.' },
-      { cmd: '/title list|add|remove', use_case: 'Sub-title (Kiếm Tu / Đan Sư / Trận Pháp Sư / Tán Tu).' },
-      { cmd: '/danh-hieu', use_case: 'Honor titles auto-earn — equip vào /stat.' },
+      { cmd: '/title phong-hieu list|add|remove', use_case: 'Sub-title (Kiếm Tu / Đan Sư / Trận Pháp Sư / Tán Tu).' },
+      { cmd: '/title danh-hieu', use_case: 'Honor titles auto-earn — equip vào /profile stat.' },
     ],
   },
   // Page 3 — Trang bị
@@ -97,14 +97,14 @@ const PAGES: readonly Page[] = [
     emoji: HUB_ICONS.gear,
     title: 'Trang bị — shop & inventory',
     color: 0xf4d03f,
-    intro: '/inventory là trung tâm: 5 tab quản lý mọi trang bị. /shop là nơi mua. Còn lại là CRUD chi tiết.',
+    intro: '/gear inventory là trung tâm: 5 tab quản lý mọi trang bị. /shop browse là nơi mua. Còn lại là CRUD chi tiết.',
     rows: [
-      { cmd: '/inventory', use_case: '⭐ Hub: 5 tab, click toggle equip. Bắt đầu từ đây.' },
-      { cmd: '/shop', use_case: '4 tab mua: 📜 CP · ⚔️ Vũ khí · ✨ Pháp khí · 💍 Nhẫn.' },
-      { cmd: '/cong-phap upgrade <slug>', use_case: 'Cường hóa công pháp (autocomplete chỉ show owned).' },
-      { cmd: '/weapon upgrade <slug>', use_case: 'Cường hóa vũ khí (RNG fail có thể tụt cấp).' },
-      { cmd: '/phap-khi upgrade <slug>', use_case: 'Cường hóa pháp khí (single slot, Kim Đan unlock).' },
-      { cmd: '/nhan equip|unequip <slug>', use_case: 'Quản lý nhẫn — 1 slot free, slot 2 từ Nguyên Anh.' },
+      { cmd: '/gear inventory', use_case: '⭐ Hub: 5 tab, click toggle equip. Bắt đầu từ đây.' },
+      { cmd: '/shop browse', use_case: '4 tab mua: 📜 CP · ⚔️ Vũ khí · ✨ Pháp khí · 💍 Nhẫn.' },
+      { cmd: '/gear cong-phap upgrade <slug>', use_case: 'Cường hóa công pháp (autocomplete chỉ show owned).' },
+      { cmd: '/gear weapon upgrade <slug>', use_case: 'Cường hóa vũ khí (RNG fail có thể tụt cấp).' },
+      { cmd: '/gear phap-khi upgrade <slug>', use_case: 'Cường hóa pháp khí (single slot, Kim Đan unlock).' },
+      { cmd: '/gear nhan equip|unequip <slug>', use_case: 'Quản lý nhẫn — 1 slot free, slot 2 từ Nguyên Anh.' },
     ],
   },
   // Page 4 — Combat
@@ -115,9 +115,9 @@ const PAGES: readonly Page[] = [
     intro: 'Duel xen kẽ Arena game. Miểu sát khi cảnh giới chênh ≥ 2 — instant kill.',
     rows: [
       { cmd: '/duel @opponent [stake?]', use_case: '5 hiệp PvP. Cách 2 cảnh giới = miểu sát instant.' },
-      { cmd: '/arena forge', use_case: 'Rèn bản mệnh khí — 1 trong 6 template theo Discord ID.' },
-      { cmd: '/arena status', use_case: 'Kiểm trạng thái arena server.' },
-      { cmd: '/trade sell <slug>', use_case: 'Bán công pháp lấy 50-100% pills refund.' },
+      { cmd: '/admin arena forge', use_case: 'Rèn bản mệnh khí — 1 trong 6 template theo Discord ID.' },
+      { cmd: '/admin arena status', use_case: 'Kiểm trạng thái arena server.' },
+      { cmd: '/shop trade sell <slug>', use_case: 'Bán công pháp lấy 50-100% pills refund.' },
     ],
   },
   // Page 5 — Aki AI
@@ -127,10 +127,10 @@ const PAGES: readonly Page[] = [
     color: 0xff8fb1,
     intro: '3 NPC voice khác nhau. Aki sass-helpful, Akira formal-scholar, Meifeng combat-sass.',
     rows: [
-      { cmd: '/ask <question> [image?]', use_case: 'Hỏi Aki — hầu gái mặc định.' },
-      { cmd: '/ask-akira <question>', use_case: 'Hỏi Akira — học giả kiên nhẫn.' },
-      { cmd: '/ask-meifeng <question>', use_case: 'Hỏi Meifeng — kiếm sĩ thẳng tính.' },
-      { cmd: '/aki-memory', use_case: 'Toggle bật/tắt Aki nhớ 3 câu hỏi gần (opt-in).' },
+      { cmd: '/ask aki <question> [image?]', use_case: 'Hỏi Aki — hầu gái mặc định.' },
+      { cmd: '/ask akira <question>', use_case: 'Hỏi Akira — học giả kiên nhẫn.' },
+      { cmd: '/ask meifeng <question>', use_case: 'Hỏi Meifeng — kiếm sĩ thẳng tính.' },
+      { cmd: '/ask memory', use_case: 'Toggle bật/tắt Aki nhớ 3 câu hỏi gần (opt-in).' },
       { cmd: '/contribute-doc <title> <body>', use_case: 'Submit document — Aki LLM tự duyệt + tag.' },
     ],
   },
@@ -141,14 +141,14 @@ const PAGES: readonly Page[] = [
     color: 0x9c3848,
     intro: 'Chỉ Chưởng Môn / Trưởng Lão / Chấp Pháp. Other thấy "permission denied".',
     rows: [
-      { cmd: '/stats', use_case: 'Dashboard 24h: members, automod hits, Aki cost.' },
-      { cmd: '/grant currency:pills|contribution|xp', use_case: 'Cấp/trừ currency hoặc XP cho user.' },
-      { cmd: '/thien-dao @user <crime>', use_case: 'Chưởng Môn ONLY — LLM tự chọn hình phạt.' },
-      { cmd: '/raid-mode on|off', use_case: 'Hard captcha cho mọi join (anti-raid).' },
-      { cmd: '/automod-config', use_case: 'Xem cấu hình automod hiện tại.' },
-      { cmd: '/link-whitelist add|remove|list', use_case: 'Quản lý whitelist domain runtime.' },
-      { cmd: '/sync-pinned', use_case: 'Re-post canonical pinned messages.' },
-      { cmd: '/verify-test', use_case: 'Test captcha flow trên chính bạn (dev).' },
+      { cmd: '/admin stats', use_case: 'Dashboard 24h: members, automod hits, Aki cost.' },
+      { cmd: '/mod grant currency:pills|contribution|xp', use_case: 'Cấp/trừ currency hoặc XP cho user.' },
+      { cmd: '/mod thien-dao @user <crime>', use_case: 'Chưởng Môn ONLY — LLM tự chọn hình phạt.' },
+      { cmd: '/mod raid on|off', use_case: 'Hard captcha cho mọi join (anti-raid).' },
+      { cmd: '/mod automod', use_case: 'Xem cấu hình automod hiện tại.' },
+      { cmd: '/mod links add|remove|list', use_case: 'Quản lý whitelist domain runtime.' },
+      { cmd: '/admin sync-pinned', use_case: 'Re-post canonical pinned messages.' },
+      { cmd: '/admin verify-test', use_case: 'Test captcha flow trên chính bạn (dev).' },
     ],
   },
 ];
@@ -279,7 +279,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     try {
       await msg.edit({
         embeds: [
-          buildEmbed(pageIdx).setFooter({ text: '⏱️ Hết phiên — chạy /help lại để tiếp.' }),
+          buildEmbed(pageIdx).setFooter({ text: '⏱️ Hết phiên — chạy /help menu lại để tiếp.' }),
         ],
         components: [],
       });

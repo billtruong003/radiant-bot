@@ -211,7 +211,7 @@ export function stopScheduler(): void {
   logger.info('scheduler: stopped');
 }
 
-/** Number of cron tasks currently registered. Used by /selftest. */
+/** Number of cron tasks currently registered. Used by /admin selftest. */
 export function getSchedulerTaskCount(): number {
   return tasks.length;
 }

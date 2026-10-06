@@ -22,7 +22,7 @@ import { logger } from '../utils/logger.js';
 import { requireAdmin } from '../utils/command-guard.js';
 
 /**
- * Phase 13 Lát A — `/arena` admin slash.
+ * Phase 13 Lát A — `/admin arena` admin slash.
  *
  * Subcommands (all admin-only or staff-only):
  *   forge   — forge bản mệnh weapon for the caller (or a target user).
@@ -34,7 +34,7 @@ import { requireAdmin } from '../utils/command-guard.js';
  *
  * This slash is the entry point for the Arena flow. It deliberately does
  * NOT replace `/duel` — `/duel` stays as the in-bot local sim. Once
- * Colyseus (Lát D) lands, `/arena duel @opponent` will create a real
+ * Colyseus (Lát D) lands, `/admin arena duel @opponent` will create a real
  * room; for Lát A it just exposes admin / debug capability.
  */
 
@@ -150,7 +150,7 @@ async function handleInspect(interaction: ChatInputCommandInteraction): Promise<
   const equippedSlug = user.equipped_weapon_slug ?? null;
   if (!equippedSlug) {
     await interaction.reply({
-      content: `📜 ${target.username} chưa trang bị pháp khí Arena nào. Dùng \`/arena forge\` để rèn bản mệnh.`,
+      content: `📜 ${target.username} chưa trang bị pháp khí Arena nào. Dùng \`/admin arena forge\` để rèn bản mệnh.`,
       ephemeral: true,
     });
     return;
@@ -192,7 +192,7 @@ async function handleInspect(interaction: ChatInputCommandInteraction): Promise<
         ? `${desc.icon} **${desc.name}** — ${desc.short}`
         : `_(Mạch chưa định danh: \`${skill.skill_id}\`)_`;
     } else {
-      banMenhSkillLine = '_(Pháp khí cũ — chạy `/arena forge` lại để cập nhật mạch.)_';
+      banMenhSkillLine = '_(Pháp khí cũ — chạy `/admin arena forge` lại để cập nhật mạch.)_';
     }
   } else {
     const w = store.weaponCatalog.get(equippedSlug);
@@ -233,7 +233,7 @@ async function handleInspect(interaction: ChatInputCommandInteraction): Promise<
 }
 
 /**
- * Phase 13 Lát C — /arena catalog handler.
+ * Phase 13 Lát C — /admin arena catalog handler.
  * Paginated browse over `weaponCatalog` collection: 1 weapon per embed,
  * navigated via ⬅/➡ Buttons. Sorted by tier (phẩm → tiên) then category
  * (blunt → pierce → spirit). Author-only button collector with 5-min timeout.

@@ -1,7 +1,7 @@
 /**
  * Phase 13 Lát C — Vietnamese-language short descriptions for every skill_id
- * used in the weapon catalog + bản mệnh forge. Consumed by `/arena inspect`
- * and `/arena catalog` to render skill lines in Discord embeds.
+ * used in the weapon catalog + bản mệnh forge. Consumed by `/admin arena inspect`
+ * and `/admin arena catalog` to render skill lines in Discord embeds.
  *
  * When the server-side `skills.ts` engine ships (separate Lát), it consumes
  * the SAME skill_ids to wire actual gameplay effects. This module is the

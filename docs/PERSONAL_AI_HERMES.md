@@ -111,7 +111,7 @@ Skill cộng đồng tham khảo (đã vet sơ, hợp Claude Code):
 ## 6. Kỷ luật an toàn & chi phí
 
 1. **Thao tác máy + auto-trade = rủi ro tiền thật.** Giai đoạn đầu read-only/cố vấn. Không đụng tiền thật tới khi tin pipeline.
-2. **Cost:** agent 24/7 với Anthropic đốt tiền thật → model rẻ cho việc thường, Claude cho việc khó. Modal/Daytona idle gần free. Cân nhắc daily budget cap (như Aki `/ask`).
+2. **Cost:** agent 24/7 với Anthropic đốt tiền thật → model rẻ cho việc thường, Claude cho việc khó. Modal/Daytona idle gần free. Cân nhắc daily budget cap (như Aki `/ask aki`).
 3. **Secrets** (xem memory `feedback-secrets-paste`): API key model + Telegram token + (sau) API sàn → đặt trên VPS, **KHÔNG paste vào chat**. Key sàn phải **read-only / không rút tiền**.
 
 ---

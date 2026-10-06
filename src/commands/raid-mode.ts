@@ -35,7 +35,7 @@ function statusEmbed() {
   return themedEmbed(s.is_active ? 'danger' : 'info', {
     title: '🛡️ Raid Mode Status',
     description,
-    footer: 'Auto-disable sau 30 phút quiet · /raid-mode on|off để toggle',
+    footer: 'Auto-disable sau 30 phút quiet · /mod raid on|off để toggle',
   });
 }
 
@@ -44,7 +44,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const sub = interaction.options.getSubcommand(true);
   logger.info(
     { sub, invoked_by: interaction.user.id, tag: interaction.user.tag },
-    'command: /raid-mode',
+    'command: /mod raid',
   );
 
   switch (sub) {

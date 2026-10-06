@@ -104,7 +104,7 @@ This is the "last mile" defense — even if Tier 1 + 2 fail, the WAL on disk is 
 
 **Data state**: Snapshot from last hour + all WAL entries since. Replay applies WAL on top. **Zero data loss** beyond the last few ms.
 
-**Action**: None. Auto-recovered. Verify via `/stats` that recent activity (last hour) still present.
+**Action**: None. Auto-recovered. Verify via `/admin stats` that recent activity (last hour) still present.
 
 ### Scenario B: Snapshot file corrupted
 
@@ -162,7 +162,7 @@ Recovery time: ~30 minutes for full re-provision + restore.
    cp /tmp/backup/wal.jsonl /root/bots/radiant-bot/data/
    pm2 start radiant-tech-sect-bot
    ```
-3. Communicate to users — anyone XP earned in the rollback window will lose it. Compensate via `/grant` if material.
+3. Communicate to users — anyone XP earned in the rollback window will lose it. Compensate via `/mod grant` if material.
 
 ### Scenario F: Database growth runaway
 
@@ -189,7 +189,7 @@ Quarterly drill — verify backups actually work:
 2. Configure bot with TEST env vars pointing at test server.
 3. Pull production backup from GitHub.
 4. Run bot against test server with the backup data.
-5. Verify: `/stats`, `/rank` for a few sample users, `/leaderboard` — data matches expected production snapshot.
+5. Verify: `/admin stats`, `/profile rank` for a few sample users, `/leaderboard` — data matches expected production snapshot.
 6. Spot-check: random user's pills + contribution match what they had in production.
 7. Document drill outcome in `docs/recovery-drill-YYYY-Q.md`.
 

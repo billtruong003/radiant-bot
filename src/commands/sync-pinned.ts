@@ -9,7 +9,7 @@ import { logger } from '../utils/logger.js';
 import { requireAdmin } from '../utils/command-guard.js';
 
 /**
- * `/sync-pinned` — admin slash to push canonical pinned messages to
+ * `/admin sync-pinned` — admin slash to push canonical pinned messages to
  * #rules, #announcements, #introductions, #leveling-guide, #tribulation,
  * #bot-commands.
  *

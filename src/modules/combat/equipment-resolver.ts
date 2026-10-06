@@ -18,14 +18,14 @@ import { resolveWeaponContribution } from './power.js';
  *   - vũ khí:    always 1 slot (bản mệnh forge from arena)
  *
  * `resolveEquippedSlots(userId)` returns the fully-hydrated view used by
- * /stat, /duel, /inventory. Reads from store; pure read, no mutation.
+ * /profile stat, /duel, /gear inventory. Reads from store; pure read, no mutation.
  */
 
 /**
  * Phase 14.6 — Bill: "có bn công pháp trang bị bấy nhiêu". Công pháp
  * unlock is now uncapped: a user can equip as many công pháp slugs as
  * they own. Kept as an empty array to preserve the export shape (used
- * by /stat next-unlock indicator which now skips it).
+ * by /profile stat next-unlock indicator which now skips it).
  */
 export const CONG_PHAP_SLOT_UNLOCK: readonly { slotIdx: number; minRank: CultivationRankId }[] = [];
 

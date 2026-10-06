@@ -74,9 +74,9 @@ pm2 logs radiant-tech-sect-bot --lines 30 --nostream
 - [ ] Voice channels: `🏛️ Main Hall 🏛️`, `🎮 Gaming 🎮`, etc
 - [ ] Bot vẫn post bot-log / level-up / tribulation đúng channel (lookups dùng canonical name)
 
-**A7 · /ask context**
-- [ ] `/ask question: explain git rebase` → Aki reply tự nhiên, có thể ref nickname người hỏi
-- [ ] Chat vài câu trước trong channel → `/ask` → Aki có context (reference các câu trước)
+**A7 · /ask aki context**
+- [ ] `/ask aki question: explain git rebase` → Aki reply tự nhiên, có thể ref nickname người hỏi
+- [ ] Chat vài câu trước trong channel → `/ask aki` → Aki có context (reference các câu trước)
 
 **B1 · Thread cleanup cron**
 - [ ] Sau 24h, archived `verify-*` threads bị sweep (manual check sau ngày deploy)
@@ -89,9 +89,9 @@ pm2 logs radiant-tech-sect-bot --lines 30 --nostream
 - [ ] Alt level lên 10 → DM gợi ý sub-title (Kiếm Tu / Đan Sư / Trận Pháp Sư / Tán Tu)
 
 **LLM router**
-- [ ] `/ask test` → pre-filter rejection (Aki dunk gentle)
-- [ ] `/ask chéo cánh không em` → Groq filter rejection (Aki sass)
-- [ ] `/ask cách lên cảnh giới` → forward to Grok, full answer with context
+- [ ] `/ask aki test` → pre-filter rejection (Aki dunk gentle)
+- [ ] `/ask aki chéo cánh không em` → Groq filter rejection (Aki sass)
+- [ ] `/ask aki cách lên cảnh giới` → forward to Grok, full answer with context
 - [ ] Check `pm2 logs` → `aki-filter: classified` entries có `provider: "groq"`
 
 ---
@@ -159,9 +159,9 @@ pm2 logs radiant-tech-sect-bot --lines 30 --nostream
 | Item | Why deferred |
 |---|---|
 | **B2** dedicated `#audit-log` consolidation | Current `#bot-log` already centralised; revisit if staff want separation |
-| **B5** `/stats` admin dashboard | Useful but not blocking; tackle after narration ships |
+| **B5** `/admin stats` admin dashboard | Useful but not blocking; tackle after narration ships |
 | **B6** verify re-attempt cooldown (1h after kick) | Edge case; current flow handles rejoin via A1 if previously verified |
-| **B7** Aki memory per user (retrieve last N /ask) | UX nice-to-have; current /ask context (Phase 11 A7) already provides recent-channel-history |
+| **B7** Aki memory per user (retrieve last N /ask aki) | UX nice-to-have; current /ask aki context (Phase 11 A7) already provides recent-channel-history |
 | Role-tier channel visibility (Inner Sect, etc) | Would need new presets + UX design + rename more channels; revisit when community ready |
 
 ---

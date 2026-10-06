@@ -67,7 +67,7 @@ export interface CombatPowerBreakdown {
 /**
  * Resolved weapon view — caller can pass a `Weapon` catalog entry OR a
  * bản-mệnh UserWeapon (which carries custom_stats). The narrow shape
- * lets `simulateDuel` and `/stat` share one resolver.
+ * lets `simulateDuel` and `/profile stat` share one resolver.
  */
 export interface WeaponContribution {
   damage_base: number;

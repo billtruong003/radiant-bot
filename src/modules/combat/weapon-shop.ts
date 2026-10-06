@@ -4,10 +4,10 @@ import type { CultivationRankId, Weapon } from '../../db/types.js';
 
 /**
  * Phase 14 — weapon shop helper. Mirrors `combat/cong-phap.ts` shape so
- * `/shop` and `/weapon buy` share rank-gating + ownership semantics.
+ * `/shop browse` and `/gear weapon buy` share rank-gating + ownership semantics.
  *
  * Bản mệnh weapons (`tier = 'ban_menh'`) are NOT shop-buyable — they're
- * forged via `/arena forge`. Shop only lists weapons with `shop != null`.
+ * forged via `/admin arena forge`. Shop only lists weapons with `shop != null`.
  */
 
 const RANK_ORDER: readonly CultivationRankId[] = [

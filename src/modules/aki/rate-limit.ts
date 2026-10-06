@@ -1,7 +1,7 @@
 import { getStore } from '../../db/index.js';
 
 /**
- * Per-user quota for /ask, enforced by counting non-refusal calls in
+ * Per-user quota for /ask aki, enforced by counting non-refusal calls in
  * `akiLogs` over a sliding window. Two limits:
  *
  *   - 5 calls / 1 minute (burst protection)
@@ -32,7 +32,7 @@ export interface QuotaCheckResult {
 }
 
 /**
- * Returns whether the user can make another /ask call right now.
+ * Returns whether the user can make another /ask aki call right now.
  * Does NOT mutate state — counting is over the AkiCallLog history,
  * which gets appended inside `askAki` itself. Caller checks this
  * BEFORE invoking askAki.

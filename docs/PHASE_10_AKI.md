@@ -2,7 +2,7 @@
 
 **Status:** `designed, awaiting implementation`
 **Estimated complexity:** M (1-2 sessions)
-**Goal:** `/ask` slash command that calls Grok 4.1 Fast Reasoning as
+**Goal:** `/ask aki` slash command that calls Grok 4.1 Fast Reasoning as
 Aki — a maid persona who answers server/game questions but refuses
 to write code for users.
 
@@ -25,7 +25,7 @@ specifically chosen because:
 - 2M context window (we'll never come close)
 - OpenAI-compatible API, use `openai` npm SDK with custom baseURL
 
-A typical `/ask` call ≈ 800 tokens total ≈ **$0.0003**. 1000 calls/day
+A typical `/ask aki` call ≈ 800 tokens total ≈ **$0.0003**. 1000 calls/day
 ≈ **$0.30/day** ≈ $9/mo. With prompt caching of the system prompt
 (75% discount), real cost is **closer to $3-4/mo at heavy use**.
 
@@ -69,7 +69,7 @@ nếu có. Ví dụ:
 - "Cảnh giới là gì?" → giải thích 10 cảnh giới + hint `#leveling-guide`
 - "Earn XP thế nào?" → list rate + cooldown + `/daily`
 - "Tribulation là gì?" → giải thích + hint `/breakthrough`
-- "Sub-title là gì?" → 4 loại + `/title` command
+- "Sub-title là gì?" → 4 loại + `/title phong-hieu` command
 
 ## Yêu cầu CODE
 KHÔNG ĐƯỢC viết code đầy đủ. Đây là policy chống spam.
@@ -119,12 +119,12 @@ chuyên gia khác đi (◕‿◕)"
 - Tribulation pass: +500 XP · fail: -100 XP (sàn ở ngưỡng cảnh giới)
 
 ## Slash commands
-- `/rank [user?]` — xem level + cảnh giới + XP
+- `/profile rank [user?]` — xem level + cảnh giới + XP
 - `/leaderboard [period=all|weekly]` — top 10
 - `/daily` — điểm danh
-- `/title add|remove|list` — sub-title (Kiếm Tu / Đan Sư / Trận Pháp Sư / Tán Tu)
+- `/title phong-hieu add|remove|list` — sub-title (Kiếm Tu / Đan Sư / Trận Pháp Sư / Tán Tu)
 - `/breakthrough` — tự khởi Thiên Kiếp (cần level ≥ 10, cooldown 24h server-wide)
-- Admin only: `/raid-mode`, `/automod-config`
+- Admin only: `/mod raid`, `/mod automod`
 
 ## Automod (cho user thấy mình bị xoá message)
 5 rules: profanity (warn+delete), spam ≥ 5 dupes (timeout), mass-mention
@@ -139,7 +139,7 @@ hoặc image+math. 5 phút / 3 lần thử. DM blocked → button fallback ở
 # Hard rules
 
 1. KHÔNG dùng dữ liệu user thật để bịa số (XP của X, level của Y).
-   Nếu user hỏi "level tao bao nhiêu" → bảo họ dùng `/rank`.
+   Nếu user hỏi "level tao bao nhiêu" → bảo họ dùng `/profile rank`.
 2. KHÔNG bịa lệnh không tồn tại. Chỉ dùng commands trong context trên.
 3. KHÔNG đe doạ user thật / KHÔNG dùng ngôn ngữ thô tục.
 4. KHÔNG share API key / token / credential gì.
@@ -180,7 +180,7 @@ src/modules/aki/
 └── token-tracker.ts # log token usage to store for cost monitoring
 
 src/commands/
-└── ask.ts           # /ask <question> [image?]
+└── ask.ts           # /ask aki <question> [image?]
 ```
 
 ### 3.3. Env vars
@@ -290,7 +290,7 @@ animations (only first frame would be processed).
 ### 3.7. Slash command
 
 ```
-/ask <question> [image?]
+/ask aki <question> [image?]
 ```
 
 - `question`: required, string, max 500 chars
@@ -347,7 +347,7 @@ chatty refusals, low-cost = working).
      cost, compare to `AKI_DAILY_BUDGET_USD`
    - Tests for both
 
-3. **Chunk 3**: `/ask` slash command + interactionCreate dispatch
+3. **Chunk 3**: `/ask aki` slash command + interactionCreate dispatch
    - `src/commands/ask.ts`
    - Image attachment validation
    - Response chunking if > 2000 chars
@@ -362,7 +362,7 @@ chatty refusals, low-cost = working).
    - Test 5-10 question types (lazy, server-rules, code, off-topic,
      jailbreak attempt, image)
    - Tune persona based on actual responses
-   - Update channel guides to mention `/ask`
+   - Update channel guides to mention `/ask aki`
 
 ---
 
@@ -373,7 +373,7 @@ Things to confirm before starting Phase 10:
 1. **Daily budget cap** — $2/day is the suggested default. Up or down?
 2. **Per-user limits** — 5/min, 50/day. Tighter for prod?
 3. **Image input** — confirm we want it (adds vision token cost).
-4. **Channels** — should `/ask` work in all channels or just specific
+4. **Channels** — should `/ask aki` work in all channels or just specific
    ones (e.g., `#bot-commands`, `#help-me`)?
 5. **Response tone test** — should we hard-code 3-4 specific
    "Aki responses to lazy questions" examples in the prompt, or rely
@@ -407,7 +407,7 @@ Things to confirm before starting Phase 10:
   question + matches a known pattern (configurable)
 - **Aki personality variants** — switch persona via `/ask-as cool`,
   `/ask-as senpai`, etc.
-- **Tool use** — let Aki call `/rank`, `/leaderboard` internally and
+- **Tool use** — let Aki call `/profile rank`, `/leaderboard` internally and
   cite real data
 - **Aki voice mode** — using xAI's TTS if available, post audio
   responses to a voice channel

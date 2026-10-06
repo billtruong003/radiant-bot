@@ -171,7 +171,7 @@ const envSchema = z.object({
 
   // --- Phase 13 Lát A — Radiant Arena bridge ---
   /**
-   * Master feature flag. When false (default), `/arena` slash returns a
+   * Master feature flag. When false (default), `/admin arena` slash returns a
    * "not yet enabled" notice, `requestRoom()` returns a mock OK without
    * touching Colyseus, and `/api/arena/result` returns 503. Flip to true
    * only after Colyseus is reachable at ARENA_COLYSEUS_URL.

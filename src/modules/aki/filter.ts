@@ -5,7 +5,7 @@ import type { LlmFilterStage } from '../llm/types.js';
 import { AKI_FILTER_SYSTEM_PROMPT, preFilterObvious } from './persona-filter.js';
 
 /**
- * Aki filter stage. Sits BEFORE Grok in /ask. Classifies the question:
+ * Aki filter stage. Sits BEFORE Grok in /ask aki. Classifies the question:
  *   - legit=true  → caller forwards to Grok for the real answer
  *   - legit=false → Aki's sass-tier rejection (no Grok call, saves $$$)
  *
@@ -68,7 +68,7 @@ function parseFilterJson(raw: string): { legit: boolean; response: string | null
 
 /**
  * Run the filter. Returns FilterResult. Never throws — fail-open by
- * design (errors → legit=true so /ask falls through to Grok).
+ * design (errors → legit=true so /ask aki falls through to Grok).
  */
 /**
  * @param recentContext Lát 4 (2026-07-31) — a few surrounding channel

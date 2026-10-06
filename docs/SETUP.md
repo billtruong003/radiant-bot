@@ -27,7 +27,7 @@
 ### Optional API keys (tăng feature)
 - **Groq API key** (free tier) — https://console.groq.com/keys — bật Aki + narration LLM
 - **Gemini API key** (free tier) — https://aistudio.google.com/app/apikey — LLM fallback chain
-- **xAI Grok key** (paid) — https://console.x.ai/ — `/ask` actual Grok answer
+- **xAI Grok key** (paid) — https://console.x.ai/ — `/ask aki` actual Grok answer
 - **GitHub PAT** — chỉ cần nếu muốn auto-backup snapshot nightly
 
 ---
@@ -64,11 +64,11 @@ LOG_LEVEL=info
 DATA_DIR=./data
 SNAPSHOT_INTERVAL_MS=3600000            # 1 hour
 WAL_FSYNC=true                          # durable, ~5ms/write
-ADMIN_USER_IDS=                         # CSV của user IDs có /verify-test (dev) + future privileged
+ADMIN_USER_IDS=                         # CSV của user IDs có /admin verify-test (dev) + future privileged
 HEALTH_PORT=3030                        # 0 = disable HTTP server (also disables docs API)
 
 # === Aki AI (Phase 10+) ===
-XAI_API_KEY=                            # xai-... — empty disables /ask
+XAI_API_KEY=                            # xai-... — empty disables /ask aki
 AKI_MODEL=grok-4-1-fast-reasoning
 AKI_MAX_OUTPUT_TOKENS=600
 AKI_DAILY_BUDGET_USD=2.0                # server-wide cap
@@ -137,7 +137,7 @@ npm run deploy-commands
 Sau khi bot online và slash commands registered, trong Discord chạy:
 
 ```
-/sync-pinned
+/admin sync-pinned
 ```
 
 Admin-only slash. Đẩy 13 pinned messages chính thức (verify · rules · announcements · introductions · general · daily-checkin · meme · help-me · leveling-guide · tribulation · level-up · docs · bot-commands) — content + emoji palette định nghĩa ở `src/config/pinned-messages.ts`. Idempotent: re-run chỉ thay bot pin, không bao giờ unpin user pin.
@@ -201,18 +201,18 @@ Trong Discord, theo thứ tự:
 
 | Step | Command | Expected |
 |---|---|---|
-| 1 | `/help` | Embed list 26 commands, ephemeral |
+| 1 | `/help menu` | Embed list 26 commands, ephemeral |
 | 2 | Member mới join | Quarantined role "Chưa Xác Minh", DM captcha hoặc verify thread |
 | 3 | Pass captcha | Roles swap → Phàm Nhân, welcome embed ở #general |
 | 4 | Chat 5+ chars trong #general | +15-25 XP, +1-2 contribution_points |
-| 5 | `/rank` | Show XP + level + currency + lực chiến hint |
-| 6 | `/stat` | Combat profile embed |
+| 5 | `/profile rank` | Show XP + level + currency + lực chiến hint |
+| 6 | `/profile stat` | Combat profile embed |
 | 7 | `/daily` | +100 XP + 5 contribution; streak ladder |
 | 8 | `/leaderboard` | Top 10 XP |
 | 9 | `/leaderboard mode:luc-chien` | Top 10 lực chiến |
-| 10 | `/shop` | 12 công pháp với filter rank |
-| 11 | `/grant` (admin) → `/cong-phap buy` → `/inventory` | Currency → mua → trang bị |
-| 12 | `/ask question:hello` | Aki reply (cần XAI_API_KEY) |
+| 10 | `/shop browse` | 12 công pháp với filter rank |
+| 11 | `/mod grant` (admin) → `/gear cong-phap buy` → `/gear inventory` | Currency → mua → trang bị |
+| 12 | `/ask aki question:hello` | Aki reply (cần XAI_API_KEY) |
 | 13 | Profanity ≥15 lần/60s | Tin nhắn bị xóa + sweep history, #bot-log có Thiên Đạo prose |
 | 14 | Post `bit.ly/x` | Bị xoá (shortener) |
 | 15 | Post `medium.com/post` | KHÔNG bị xoá (permissive link policy) |
@@ -263,7 +263,7 @@ Currency labels (đan dược, cống hiến) appear trong multiple commands —
 
 | Feature | How to disable |
 |---|---|
-| Aki AI (/ask) | Empty `XAI_API_KEY` |
+| Aki AI (/ask aki) | Empty `XAI_API_KEY` |
 | LLM narration | Empty `GROQ_API_KEY` + `GEMINI_API_KEY` (uses static fallback) |
 | Image captcha | `src/config/verification.ts` — set `accountAgeSuspectDays: 0` |
 | Auto-kick young accounts | `accountAgeKickDays: 0` (default already 0) |
@@ -297,13 +297,13 @@ pm2 start radiant-tech-sect-bot
 
 # Add domain to link whitelist (live, no restart)
 # (do this in Discord)
-/link-whitelist add domain:billthedev.com
+/mod links add domain:billthedev.com
 
 # Add currency
-/grant currency:pills user:@x amount:10
+/mod grant currency:pills user:@x amount:10
 
 # Check stats
-/stats
+/admin stats
 ```
 
 ---
@@ -321,7 +321,7 @@ src/
 │   ├── verification/       # Captcha gate + audit + raid mode
 │   ├── leveling/           # XP, level math, rank promotion, daily, voice-xp
 │   ├── automod/            # 5 rules + actions + narration
-│   ├── aki/                # /ask pipeline: filter → quota → budget → Grok
+│   ├── aki/                # /ask aki pipeline: filter → quota → budget → Grok
 │   ├── npc/                # Akira + Meifeng + shared ask-runner
 │   ├── combat/             # power.ts (lực chiến), duel.ts (PvP), cong-phap.ts (inventory)
 │   ├── quests/             # daily-quest.ts + cron in scheduler

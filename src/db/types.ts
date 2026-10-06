@@ -84,7 +84,7 @@ export interface User extends Record<string, unknown> {
   premium_boosted_at_ms?: number | null;
   /**
    * Phase 12 B7 — User opted in to having Aki remember their previous
-   * /ask questions across calls. Defaults false. When true, AkiCallLog
+   * /ask aki questions across calls. Defaults false. When true, AkiCallLog
    * stores question_text for this user; client.ts reads last 3 and
    * embeds in Grok system prompt for continuity.
    */
@@ -104,9 +104,9 @@ export interface User extends Record<string, unknown> {
   // --- Phase 14 — Stat allocation + item upgrade --------------------
   /**
    * Unspent stat points the user has accumulated. Granted at level-up
-   * (+2/level per Phase 14 design). Spent via /stat-alloc to bump
+   * (+2/level per Phase 14 design). Spent via /profile alloc to bump
    * `stat_alloc.*` categories. Optional + back-compat: lazy-migrate
-   * to `level × 2` on first /stat-alloc access for users predating
+   * to `level × 2` on first /profile alloc access for users predating
    * Phase 14.
    */
   stat_points_unspent?: number;
@@ -114,7 +114,7 @@ export interface User extends Record<string, unknown> {
    * User-allocated stat distribution. Each category contributes to the
    * lực-chiến formula in `combat/power.ts`. Trade-off design: all-dmg
    * builds big damage but no HP; balanced builds survive longer. Reset
-   * is free via /stat-alloc reset → refunds total into stat_points_unspent.
+   * is free via /profile alloc reset → refunds total into stat_points_unspent.
    */
   stat_alloc?: {
     /** Damage flat add — +8 LC per point. */
@@ -135,7 +135,7 @@ export interface User extends Record<string, unknown> {
   /**
    * Phase 14 — equipped honor title (danh hiệu). Distinct from `sub_title`
    * which is a self-chosen archetype role (Kiếm Tu/Đan Sư/...); a danh hiệu
-   * is achievement-earned and shown in /stat as a flair line. References
+   * is achievement-earned and shown in /profile stat as a flair line. References
    * `id` from the static TITLES catalog in `src/config/titles.ts`. null =
    * none equipped.
    */
@@ -698,7 +698,7 @@ export interface UserWeapon extends Record<string, unknown> {
   /**
    * Phase 14 — Cường Hóa upgrade level 0..10. Each level multiplies the
    * weapon's contribution to LC by +15%. Optional for back-compat (default
-   * 0 when undefined). Upgrade via /weapon upgrade with fail RNG (downgrade
+   * 0 when undefined). Upgrade via /gear weapon upgrade with fail RNG (downgrade
    * at level ≥ 7 on fail; stay-put below).
    */
   level?: number;
@@ -708,7 +708,7 @@ export type ArenaSessionStatus = 'pending' | 'active' | 'ended';
 export type ArenaOutcome = 'win' | 'timeout_join' | 'double_afk' | 'disconnect';
 
 /**
- * Match record for a Colyseus duel. Bot creates row on /arena create,
+ * Match record for a Colyseus duel. Bot creates row on /admin arena create,
  * Colyseus POSTs result to /api/arena/result which marks status='ended'
  * and applies stake transfer + xpLogs. Idempotent on session_id.
  */

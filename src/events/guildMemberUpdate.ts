@@ -78,7 +78,7 @@ async function handleUpdate(
   // Best-effort DM thank-you.
   try {
     await newMember.send(
-      `🌟 Cảm ơn đạo hữu **${newMember.displayName}** đã boost server Radiant Tech Sect!\n\nAki tặng:\n• 💊 **+${BOOST_REWARD_PILLS}** đan dược độ kiếp\n• 🪙 **+${BOOST_REWARD_CONTRIBUTION}** điểm cống hiến\n\nCheck \`/inventory\` để xem nhé ٩(◕‿◕)۶`,
+      `🌟 Cảm ơn đạo hữu **${newMember.displayName}** đã boost server Radiant Tech Sect!\n\nAki tặng:\n• 💊 **+${BOOST_REWARD_PILLS}** đan dược độ kiếp\n• 🪙 **+${BOOST_REWARD_CONTRIBUTION}** điểm cống hiến\n\nCheck \`/gear inventory\` để xem nhé ٩(◕‿◕)۶`,
     );
   } catch {
     // DM closed — silent.

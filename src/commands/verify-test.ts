@@ -16,7 +16,7 @@ import { logger } from '../utils/logger.js';
 import { requireAdmin } from '../utils/command-guard.js';
 
 /**
- * /verify-test — admin-only diagnostic for the verification flow.
+ * /admin verify-test — admin-only diagnostic for the verification flow.
  *
  * Runs the real Layer 1 audit on the caller's own GuildMember, builds
  * the challenge that would be generated, and replies ephemerally with
@@ -72,7 +72,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   logger.info(
     { sub, invoked_by: interaction.user.id, tag: interaction.user.tag },
-    'command: /verify-test',
+    'command: /admin verify-test',
   );
 
   const realAudit = auditMember(member, config);
@@ -123,7 +123,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   ].join('\n');
 
   const embed = themedEmbed('info', {
-    title: '🧪 /verify-test — Preview',
+    title: '🧪 /admin verify-test — Preview',
     description: [
       summary,
       '',

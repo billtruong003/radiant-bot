@@ -9,9 +9,6 @@
  * the wiring is in place for Phase 4+ to drop command files and re-run.
  */
 import 'dotenv/config';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { REST, type RESTPostAPIChatInputApplicationCommandsJSONBody, Routes } from 'discord.js';
 import { env } from '../src/config/env.js';
 import { logger } from '../src/utils/logger.js';
@@ -23,30 +20,10 @@ interface CommandModule {
   };
 }
 
+/** The registry, not the directory: merged commands (e.g. /gear) have no file of their own. */
 async function loadCommands(): Promise<CommandModule[]> {
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  const commandsDir = path.resolve(here, '..', 'src', 'commands');
-  let entries: string[] = [];
-  try {
-    entries = await fs.readdir(commandsDir);
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code === 'ENOENT') return [];
-    throw err;
-  }
-  const commands: CommandModule[] = [];
-  for (const name of entries) {
-    if (!name.endsWith('.ts') && !name.endsWith('.js')) continue;
-    const url = new URL(`../src/commands/${name}`, import.meta.url).href;
-    const mod = (await import(url)) as { default?: CommandModule; command?: CommandModule };
-    const cmd = mod.default ?? mod.command;
-    if (!cmd?.data?.toJSON) {
-      logger.warn({ file: name }, 'deploy-commands: skipping — no `data` export');
-      continue;
-    }
-    commands.push(cmd);
-  }
-  return commands;
+  const { listCommands } = await import('../src/commands/index.js');
+  return listCommands() as unknown as CommandModule[];
 }
 
 async function main(): Promise<void> {

@@ -13,14 +13,14 @@
 
 | Lát | Scope | Status |
 |---|---|---|
-| 1 | Foundation: User entity additions + entities (CongPhap, UserCongPhap, DailyQuest) + `/stat` read-only | 📐 designed |
-| 2 | Currency UI: `/inventory` list + currency display in `/rank` + lực chiến hiển thị `/leaderboard` | 📋 planned |
-| 3 | Công pháp: catalog seed + `/shop` + `/cong-phap` commands (list/info/buy/equip/unequip) | 📋 planned |
+| 1 | Foundation: User entity additions + entities (CongPhap, UserCongPhap, DailyQuest) + `/profile stat` read-only | 📐 designed |
+| 2 | Currency UI: `/gear inventory` list + currency display in `/profile rank` + lực chiến hiển thị `/leaderboard` | 📋 planned |
+| 3 | Công pháp: catalog seed + `/shop browse` + `/gear cong-phap` commands (list/info/buy/equip/unequip) | 📋 planned |
 | 4 | Daily quest: cron generate + tracker + `/quest` | 📋 planned |
-| 5 | Multi-NPC: persona files + `/ask-akira`, `/ask-meifeng` | 📋 planned |
+| 5 | Multi-NPC: persona files + `/ask akira`, `/ask meifeng` | 📋 planned |
 | 6 | PvP `/duel` — design + implement carefully | 📋 planned (future) |
-| 7 | Server boost reward + `/trade` công pháp sell-back | 📐 designed |
-| 8 | Aki occasional premium-buy on /trade | 📐 designed |
+| 7 | Server boost reward + `/shop trade` công pháp sell-back | 📐 designed |
+| 8 | Aki occasional premium-buy on /shop trade | 📐 designed |
 | 9 | Docs threads pipeline (LLM-validated user contributions) | 📐 designed — DEFERRED IMPL |
 
 Status indicators: 📐 designed (plan locked, not coded) · 🔄 in progress · ✅ shipped · ⏸️ paused
@@ -151,8 +151,8 @@ user looked up by `discord_id` + `assigned_at` >= today VN midnight.
 Cached in `User.combat_power_cache`, recomputed when:
 - Level changes (in `awardXp`)
 - Rank changes (in `maybePromoteRank`)
-- Sub-title changes (`/title add` / `/title remove`)
-- Công pháp equipped/unequipped (`/cong-phap equip` / `unequip`)
+- Sub-title changes (`/title phong-hieu add` / `/title phong-hieu remove`)
+- Công pháp equipped/unequipped (`/gear cong-phap equip` / `unequip`)
 - Công pháp acquired (if auto-equipped)
 
 Helper: `computeCombatPower(user, equippedCongPhap)` in `src/modules/combat/power.ts`.
@@ -169,7 +169,7 @@ Helper: `computeCombatPower(user, equippedCongPhap)` in `src/modules/combat/powe
 | Daily quest completion | +1 |
 | Streak milestone day 7 | +2 |
 | Streak milestone day 30 | +10 |
-| Admin grant (`/grant pills @user N`) | N |
+| Admin grant (`/mod grant pills @user N`) | N |
 
 ### Earning contribution points
 | Source | Amount |
@@ -183,10 +183,10 @@ Helper: `computeCombatPower(user, equippedCongPhap)` in `src/modules/combat/powe
 
 ### Spending
 - **Pills**: required for `/breakthrough` tribulation attempt (1 pill consumed per attempt). Bill TODO confirm: keep free for now? → defer to Lát 4 deploy.
-- **Contribution points**: buy công pháp from `/shop`.
+- **Contribution points**: buy công pháp from `/shop browse`.
 
 Note: spending paths gated on lát 3 (shop) shipping. Until then, both
-currencies just accumulate (visible in `/stat`).
+currencies just accumulate (visible in `/profile stat`).
 
 ---
 
@@ -194,15 +194,15 @@ currencies just accumulate (visible in `/stat`).
 
 | Command | Description | Lát |
 |---|---|---|
-| `/stat [user?]` | Profile embed: lực chiến + currencies + cảnh giới + sub_title + equipped công pháp + XP progress | 1 |
-| `/inventory` | List user's owned công pháp + equip/unequip via buttons | 2 |
-| `/shop` | Browse công pháp catalog filtered by user's rank + currency | 3 |
-| `/cong-phap list\|info\|buy\|equip\|unequip <slug>` | CRUD công pháp from CLI | 3 |
+| `/profile stat [user?]` | Profile embed: lực chiến + currencies + cảnh giới + sub_title + equipped công pháp + XP progress | 1 |
+| `/gear inventory` | List user's owned công pháp + equip/unequip via buttons | 2 |
+| `/shop browse` | Browse công pháp catalog filtered by user's rank + currency | 3 |
+| `/gear cong-phap list\|info\|buy\|equip\|unequip <slug>` | CRUD công pháp from CLI | 3 |
 | `/quest` | Show today's daily quest + progress | 4 |
-| `/ask-akira <question>` | Alt NPC — gentle scholar tone | 5 |
-| `/ask-meifeng <question>` | Alt NPC — sharp combat-focused tone | 5 |
+| `/ask akira <question>` | Alt NPC — gentle scholar tone | 5 |
+| `/ask meifeng <question>` | Alt NPC — sharp combat-focused tone | 5 |
 | `/duel @target [stake]` | PvP challenge (future) | 6 |
-| `/grant pills\|contribution @user <n>` | Admin grant | 1 (along with foundation) |
+| `/mod grant pills\|contribution @user <n>` | Admin grant | 1 (along with foundation) |
 
 ---
 
@@ -295,20 +295,20 @@ Defer entity + flow design until Lát 5 done.
 - [ ] User entity additions present + WAL/snapshot round-trip preserves them
 - [ ] CongPhap, UserCongPhap, DailyQuest entities + Store collections
 - [ ] `computeCombatPower(user, equippedCongPhap)` pure function + unit tests
-- [ ] `/stat [user?]` embed shows level + rank + sub_title + lực chiến + pills + contribution
+- [ ] `/profile stat [user?]` embed shows level + rank + sub_title + lực chiến + pills + contribution
 - [ ] Lực chiến cache recomputes on level / rank / sub_title change
 - [ ] Existing 364 unit / 180 smoke + new tests pass
-- [ ] `/grant pills @user N` admin slash works
+- [ ] `/mod grant pills @user N` admin slash works
 
 ### Lát 2 acceptance
-- [ ] `/inventory` shows user's owned công pháp + equip button
+- [ ] `/gear inventory` shows user's owned công pháp + equip button
 - [ ] Equip / unequip updates `User.equipped_cong_phap_slug` + recomputes combat_power_cache
-- [ ] Currency display added to `/rank` (pills + contribution)
+- [ ] Currency display added to `/profile rank` (pills + contribution)
 - [ ] Leaderboard mode: `/leaderboard mode:luc-chien` sorts by combat_power desc
 
 ### Lát 3 acceptance
 - [ ] `cong-phap-catalog.json` seeded with 12-15 entries (common to legendary)
-- [ ] `/shop` paginated embed, filtered by user's rank + currency
+- [ ] `/shop browse` paginated embed, filtered by user's rank + currency
 - [ ] Buy command: deducts currency atomically, inserts UserCongPhap, optional auto-equip
 - [ ] Min-rank gate enforced
 - [ ] All transitions are atomic (no partial state on crash)
@@ -322,7 +322,7 @@ Defer entity + flow design until Lát 5 done.
 
 ### Lát 5 acceptance
 - [ ] 2-3 NPCs with distinct persona files + filter prompts
-- [ ] `/ask-akira`, `/ask-meifeng` work end-to-end via LLM router
+- [ ] `/ask akira`, `/ask meifeng` work end-to-end via LLM router
 - [ ] Shared client.ts refactored to take Persona interface, no duplication
 - [ ] Each persona keeps its own AkiCallLog (track usage per NPC)
 
@@ -356,7 +356,7 @@ schema. Idempotent — re-running on a v12 user is a no-op.
 
 ---
 
-## Lát 7-8 — Server boost + /trade (post-hoc add 2026-05-14)
+## Lát 7-8 — Server boost + /shop trade (post-hoc add 2026-05-14)
 
 ### Server boost reward
 - `guildMemberUpdate` event handler. When `oldMember.premiumSince === null && newMember.premiumSince !== null` → fresh boost.
@@ -364,7 +364,7 @@ schema. Idempotent — re-running on a v12 user is a no-op.
 - Idempotent: only fires on `null → set` transition, not on stale cache re-emits.
 - DM thank-you + #bot-log announcement.
 
-### /trade sell <slug>
+### /shop trade sell <slug>
 - Refund formula: 50% pills + 60% contribution (intentional loss to deter churn).
 - **Aki premium roll**: 10% chance to refund 100% — flavor reward.
 - Auto-unequip if selling the equipped công pháp.
@@ -473,5 +473,5 @@ we're not starting from zero next time.
 | 2026-05-14 | **`/duel` defers to after Lát 5** — duel design is the most complex piece; should not block the rest. |
 | 2026-05-14 | **Daily quest target rate** — 1 quest/day with rewards calibrated to ~3% daily XP boost. Avoids treadmill UX. |
 | 2026-05-14 | **Server boost reward = 5 pills + 500 contribution** — generous one-time on first boost transition to actually motivate Nitro spend. |
-| 2026-05-14 | **/trade refund 50-60%** — intentional loss to discourage buy/sell churn; 10% Aki premium gives full price for variance. |
+| 2026-05-14 | **/shop trade refund 50-60%** — intentional loss to discourage buy/sell churn; 10% Aki premium gives full price for variance. |
 | 2026-05-14 | **Docs pipeline DEFERRED to Lát 9 session** — scope too big to bundle (~1200 LOC). Design locked in this doc; impl in dedicated commit. |

@@ -9,7 +9,7 @@ import { automodEngine } from '../modules/automod/index.js';
 import { requireAdmin } from '../utils/command-guard.js';
 
 /**
- * /automod-config — admin-only readout of the active automod rules +
+ * /mod automod — admin-only readout of the active automod rules +
  * current thresholds + whitelist counts. Doesn't allow editing
  * (that's done by editing `src/config/automod.json` directly and
  * restarting the bot). View-only command per SPEC §5 Phase 5 task.

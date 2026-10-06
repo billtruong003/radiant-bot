@@ -3,8 +3,8 @@ import { AKIRA_SYSTEM_PROMPT } from '../modules/npc/akira-persona.js';
 import { runAskFlow } from '../modules/npc/ask-runner.js';
 
 /**
- * /ask-akira — alt NPC with scholarly/formal persona. Shares the same
- * pipeline (filter + quota + budget + Grok) as /ask, only the system
+ * /ask akira — alt NPC with scholarly/formal persona. Shares the same
+ * pipeline (filter + quota + budget + Grok) as /ask aki, only the system
  * prompt differs.
  */
 

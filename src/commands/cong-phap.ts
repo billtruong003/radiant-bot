@@ -18,7 +18,7 @@ import {
 import { logger } from '../utils/logger.js';
 
 /**
- * /cong-phap list|info|buy|equip|unequip <slug>
+ * /gear cong-phap list|info|buy|equip|unequip <slug>
  */
 
 export const data = new SlashCommandBuilder()
@@ -123,7 +123,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     );
     if (owned.length === 0) {
       await interaction.reply({
-        content: '📜 Bạn chưa sở hữu công pháp nào. Dùng `/shop` để xem cửa hàng.',
+        content: '📜 Bạn chưa sở hữu công pháp nào. Dùng `/shop browse` để xem cửa hàng.',
         ephemeral: true,
       });
       return;
@@ -137,7 +137,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .setColor(0x9b59b6)
       .setTitle(`📜 Công pháp inventory (${equippedSet.size}/${owned.length} đang đeo)`)
       .setDescription(lines.join('\n'))
-      .setFooter({ text: `Max 5 slot · ⭐ = đang trang bị · /inventory để toggle equip` });
+      .setFooter({ text: `Max 5 slot · ⭐ = đang trang bị · /gear inventory để toggle equip` });
     await interaction.reply({ embeds: [embed], ephemeral: true });
     return;
   }
@@ -148,7 +148,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const item = store.congPhapCatalog.get(slug);
     if (!item) {
       await interaction.reply({
-        content: `⚠️ Không tìm thấy công pháp \`${slug}\`. Dùng \`/shop\` xem catalog.`,
+        content: `⚠️ Không tìm thấy công pháp \`${slug}\`. Dùng \`/shop browse\` xem catalog.`,
         ephemeral: true,
       });
       return;
@@ -213,7 +213,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       content: `✅ Đã mua **${item?.name ?? slug}**! Còn lại: ${r.newPills} đan dược, ${r.newContribution} cống hiến.${
         autoEquipped
           ? ` Đã tự động trang bị (slot ${currentEquipped.length + 1}/5).`
-          : ' 5 slot đã đầy — dùng `/inventory` toggle để swap.'
+          : ' 5 slot đã đầy — dùng `/gear inventory` toggle để swap.'
       }`,
       ephemeral: true,
     });
@@ -228,7 +228,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       const msg = (() => {
         switch (r.reason) {
           case 'not-owned':
-            return `⚠️ Bạn chưa sở hữu \`${slug}\`. Mua bằng \`/cong-phap buy\`.`;
+            return `⚠️ Bạn chưa sở hữu \`${slug}\`. Mua bằng \`/gear cong-phap buy\`.`;
           case 'already-equipped':
             return `ℹ️ \`${slug}\` đã trang bị ở slot ${(r.slotIdx ?? 0) + 1}.`;
           case 'slot-locked':
@@ -277,7 +277,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const ownership = owned[0];
     if (!ownership) {
       await interaction.reply({
-        content: `⚠️ Bạn chưa sở hữu \`${slug}\`. Mua bằng \`/cong-phap buy\`.`,
+        content: `⚠️ Bạn chưa sở hữu \`${slug}\`. Mua bằng \`/gear cong-phap buy\`.`,
         ephemeral: true,
       });
       return;

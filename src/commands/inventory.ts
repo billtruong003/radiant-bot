@@ -24,7 +24,7 @@ import { logger } from '../utils/logger.js';
 import { buildPageNavRow, pageOf } from '../utils/pagination.js';
 
 /**
- * /inventory — Phase 14 redesign: three tabs via button row + equip
+ * /gear inventory — Phase 14 redesign: three tabs via button row + equip
  * select-menu inside each item tab.
  *
  *   💰 Tổng       — currency, stat points, equipped summary
@@ -114,7 +114,7 @@ function buildOverviewEmbed(userId: string, displayName: string): EmbedBuilder {
         inline: true,
       },
     )
-    .setFooter({ text: 'Chuyển tab bằng button bên dưới · /stat-alloc để phân điểm' });
+    .setFooter({ text: 'Chuyển tab bằng button bên dưới · /profile alloc để phân điểm' });
 }
 
 function buildCongPhapEmbed(userId: string): {
@@ -139,7 +139,7 @@ function buildCongPhapEmbed(userId: string): {
       embed: new EmbedBuilder()
         .setColor(0x9b59b6)
         .setTitle('📜 Công pháp')
-        .setDescription('_Chưa sở hữu công pháp — `/shop` để xem cửa hàng._'),
+        .setDescription('_Chưa sở hữu công pháp — `/shop browse` để xem cửa hàng._'),
       options: [],
     };
   }
@@ -199,7 +199,7 @@ function buildWeaponEmbed(userId: string): {
       embed: new EmbedBuilder()
         .setColor(0xd4af37)
         .setTitle('⚔️ Vũ khí')
-        .setDescription('_Chưa có vũ khí — forge bản mệnh qua `/arena` hoặc mua từ `/shop`._'),
+        .setDescription('_Chưa có vũ khí — forge bản mệnh qua `/admin arena` hoặc mua từ `/shop browse`._'),
       options: [],
     };
   }
@@ -268,7 +268,7 @@ function buildPhapKhiEmbed(userId: string): {
       embed: new EmbedBuilder()
         .setColor(0xb09bd3)
         .setTitle('✨ Pháp khí')
-        .setDescription('_Chưa có pháp khí — `/shop` tab Pháp khí (yêu cầu Kim Đan)._'),
+        .setDescription('_Chưa có pháp khí — `/shop browse` tab Pháp khí (yêu cầu Kim Đan)._'),
       options: [],
     };
   }
@@ -321,7 +321,7 @@ function buildNhanEmbed(userId: string): {
       embed: new EmbedBuilder()
         .setColor(0xd4a574)
         .setTitle('💍 Nhẫn')
-        .setDescription('_Chưa có nhẫn — `/shop` tab Nhẫn._'),
+        .setDescription('_Chưa có nhẫn — `/shop browse` tab Nhẫn._'),
       options: [],
     };
   }
@@ -631,7 +631,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       await msg.edit({
         embeds: [
           buildOverviewEmbed(userId, displayName).setFooter({
-            text: '⏱️ Hết phiên — chạy /inventory lại để tiếp.',
+            text: '⏱️ Hết phiên — chạy /gear inventory lại để tiếp.',
           }),
         ],
         components: [disabledTab],

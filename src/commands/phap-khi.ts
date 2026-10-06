@@ -17,7 +17,7 @@ import {
 import { logger } from '../utils/logger.js';
 
 /**
- * /phap-khi list|info|buy|equip|unequip|upgrade — Phase 14 round 3.
+ * /gear phap-khi list|info|buy|equip|unequip|upgrade — Phase 14 round 3.
  *
  * Single-slot equipment gated by rank Kim Đan (idx 3). Catalog seeded
  * from phap-khi-catalog.json at startup. Upgrade reuses the công pháp
@@ -89,7 +89,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const owned = store.userPhapKhi.query((u) => u.discord_id === userId);
     if (owned.length === 0) {
       await interaction.reply({
-        content: '✨ Bạn chưa có pháp khí. `/shop` (tab pháp khí) để mua — yêu cầu Kim Đan trở lên.',
+        content: '✨ Bạn chưa có pháp khí. `/shop browse` (tab pháp khí) để mua — yêu cầu Kim Đan trở lên.',
         ephemeral: true,
       });
       return;
@@ -202,7 +202,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       void incrementProgress(userId, 'spend_contribution', item.cost_contribution);
     }
     await interaction.reply({
-      content: `✅ Đã mua **${item.name}** (+${item.stat_bonuses.combat_power} LC). Còn ${newPills}💊 + ${newContribution}🪙. Dùng \`/phap-khi equip ${slug}\` để trang bị.`,
+      content: `✅ Đã mua **${item.name}** (+${item.stat_bonuses.combat_power} LC). Còn ${newPills}💊 + ${newContribution}🪙. Dùng \`/gear phap-khi equip ${slug}\` để trang bị.`,
       ephemeral: true,
     });
     return;
@@ -223,7 +223,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const owned = store.userPhapKhi.query((u) => u.discord_id === userId && u.phap_khi_slug === slug);
     if (owned.length === 0) {
       await interaction.reply({
-        content: `⚠️ Bạn chưa sở hữu \`${slug}\`. Mua qua \`/phap-khi buy\`.`,
+        content: `⚠️ Bạn chưa sở hữu \`${slug}\`. Mua qua \`/gear phap-khi buy\`.`,
         ephemeral: true,
       });
       return;

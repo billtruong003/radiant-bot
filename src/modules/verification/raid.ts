@@ -70,7 +70,7 @@ export async function recordJoinAndCheck(
       'raid: auto-activated — forcing hard captcha for all new joins',
     );
     await postBotLog(
-      `🚨 **Raid mode tự động kích hoạt** — ${pruned.length} join trong ${Math.floor(windowMs / 1000)}s.\nMọi member mới sẽ nhận hard captcha. Dùng \`/raid-mode off\` để tắt thủ công.`,
+      `🚨 **Raid mode tự động kích hoạt** — ${pruned.length} join trong ${Math.floor(windowMs / 1000)}s.\nMọi member mới sẽ nhận hard captcha. Dùng \`/mod raid off\` để tắt thủ công.`,
     );
   }
 
@@ -121,7 +121,7 @@ export async function maybeAutoDisableRaid(
 }
 
 /**
- * Manual toggle, called by /raid-mode on|off. Returns the new state for
+ * Manual toggle, called by /mod raid on|off. Returns the new state for
  * caller-side messaging.
  */
 export async function setRaidMode(

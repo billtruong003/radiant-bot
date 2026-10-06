@@ -66,7 +66,7 @@ export async function postBotLog(content: string | MessagePayload): Promise<void
 
 /**
  * Post a public-facing punishment announcement to #tribulation. Used by
- * /thien-dao so cultivators see verdicts (the previous bot-log-only path
+ * /mod thien-dao so cultivators see verdicts (the previous bot-log-only path
  * was staff-only via the `bot_log` perm preset — Bill 2026-05-20: "vong
  * ngôn... cũng ko thông báo ra kênh public").
  */

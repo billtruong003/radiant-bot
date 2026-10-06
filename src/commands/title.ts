@@ -8,11 +8,11 @@ import { SUB_TITLES } from '../config/cultivation.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * /title <subcommand> — slash-command alternative to the reaction-role
+ * /title phong-hieu <subcommand> — slash-command alternative to the reaction-role
  * picker in `#leveling-guide`. Supports:
- *   - /title add <name>     : grant a sub-title role to yourself
- *   - /title remove <name>  : drop a sub-title role you currently have
- *   - /title list           : show available sub-titles + which you have
+ *   - /title phong-hieu add <name>     : grant a sub-title role to yourself
+ *   - /title phong-hieu remove <name>  : drop a sub-title role you currently have
+ *   - /title phong-hieu list           : show available sub-titles + which you have
  *
  * Available choices are auto-generated from `SUB_TITLES` in
  * config/cultivation.ts so adding a new sub-title there exposes it here
@@ -72,7 +72,7 @@ async function handleAdd(
     return;
   }
   try {
-    await member.roles.add(role, `/title add ${name}`);
+    await member.roles.add(role, `/title phong-hieu add ${name}`);
     await interaction.reply({
       content: `✅ Đã nhận sub-title **${name}**.`,
       ephemeral: true,
@@ -100,7 +100,7 @@ async function handleRemove(
     return;
   }
   try {
-    await member.roles.remove(role, `/title remove ${name}`);
+    await member.roles.remove(role, `/title phong-hieu remove ${name}`);
     await interaction.reply({
       content: `🗑️ Đã bỏ sub-title **${name}**.`,
       ephemeral: true,
@@ -127,7 +127,7 @@ async function handleList(
     .setColor(0x9b59b6)
     .setTitle('🏷️ Sub-title')
     .setDescription(
-      [...lines, '', 'Dùng `/title add <name>` để nhận, `/title remove <name>` để bỏ.'].join('\n'),
+      [...lines, '', 'Dùng `/title phong-hieu add <name>` để nhận, `/title phong-hieu remove <name>` để bỏ.'].join('\n'),
     );
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }

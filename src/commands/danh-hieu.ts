@@ -15,7 +15,7 @@ import { awardEligibleTitles, listOwnedTitleIds } from '../modules/titles/index.
 import { logger } from '../utils/logger.js';
 
 /**
- * /danh-hieu — Phase 14 honor title management.
+ * /title danh-hieu — Phase 14 honor title management.
  *
  * - First runs awardEligibleTitles so the user sees any newly-qualifying
  *   titles when they invoke the command (catches users whose progress
@@ -24,7 +24,7 @@ import { logger } from '../utils/logger.js';
  * - Shows owned + locked titles in an embed.
  * - Equip a title via StringSelectMenu (or "—" sentinel option to unequip).
  *
- * Display elsewhere: /stat embed shows the equipped title as a flair line.
+ * Display elsewhere: /profile stat embed shows the equipped title as a flair line.
  */
 
 const COLLECTOR_TIMEOUT_MS = 5 * 60 * 1000;
@@ -175,7 +175,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       await msg.edit({
         embeds: [
           buildEmbed(userId, displayName).setFooter({
-            text: '⏱️ Hết phiên — chạy /danh-hieu lại để tiếp.',
+            text: '⏱️ Hết phiên — chạy /title danh-hieu lại để tiếp.',
           }),
         ],
         components: [],

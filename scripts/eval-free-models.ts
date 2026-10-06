@@ -118,7 +118,7 @@ const FIXTURES: readonly Fixture[] = [
       '',
       'Trả lời câu hỏi của Bill.',
     ].join('\n'),
-    anyOf: ['/me', '/rank', '/stat', 'tu vi', 'lệnh'],
+    anyOf: ['/profile me', '/profile rank', '/profile stat', 'tu vi', 'lệnh'],
     mustNotInclude: ['bún bò', 'phở'],
     maxTokens: 600,
   },

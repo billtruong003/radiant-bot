@@ -4,7 +4,7 @@ import { unequipCongPhap } from '../modules/combat/cong-phap.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * /trade sell <slug> — sell a công pháp back for partial refund.
+ * /shop trade sell <slug> — sell a công pháp back for partial refund.
  *
  * Refund formula (intentionally less than purchase to avoid churn loop):
  *   - Pills: 50% rounded down

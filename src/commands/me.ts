@@ -11,19 +11,19 @@ import { resolveEquippedSlots } from '../modules/combat/equipment-resolver.js';
 import { computeCombatPowerBreakdown } from '../modules/combat/power.js';
 
 /**
- * /me — Phase 14.8 personalized hub.
+ * /profile me — Phase 14.8 personalized hub.
  *
- * Bill 2026-05-20: "33 commands quá nhiều cho user nhớ". /help is the
- * full discovery menu; /me is the "what next" suggestion engine.
+ * Bill 2026-05-20: "33 commands quá nhiều cho user nhớ". /help menu is the
+ * full discovery menu; /profile me is the "what next" suggestion engine.
  *
  * Logic — surface 3-4 suggested next actions based on current progress:
- *   - new account (Lv 0)          → /daily, /tutorial, /quest
- *   - low rank + no CP equipped   → /shop, /inventory
- *   - mid rank no weapon          → /arena forge, /weapon list
- *   - has unspent stat points     → /stat-alloc
+ *   - new account (Lv 0)          → /daily, /help tutorial, /quest
+ *   - low rank + no CP equipped   → /shop browse, /gear inventory
+ *   - mid rank no weapon          → /admin arena forge, /gear weapon list
+ *   - has unspent stat points     → /profile alloc
  *   - daily streak about to break → /daily nudge
  *   - eligible for breakthrough   → /breakthrough
- *   - has títulos to display      → /danh-hieu equip nudge
+ *   - has títulos to display      → /title danh-hieu equip nudge
  *   - high-rank + ready for duel  → /duel
  *
  * Compact embed — current state at top, 3-4 numbered suggestions below.
@@ -43,7 +43,7 @@ function nextSuggestions(userId: string): Suggestion[] {
   if (!user) {
     return [
       { emoji: HUB_ICONS.start, cmd: '/daily', reason: 'Điểm danh nhận 100 XP đầu tiên.' },
-      { emoji: '📜', cmd: '/tutorial', reason: 'Đọc hướng dẫn 5 trang.' },
+      { emoji: '📜', cmd: '/help tutorial', reason: 'Đọc hướng dẫn 5 trang.' },
     ];
   }
 
@@ -66,7 +66,7 @@ function nextSuggestions(userId: string): Suggestion[] {
   if (unspent > 0) {
     suggestions.push({
       emoji: HUB_ICONS.diamond,
-      cmd: '/stat-alloc',
+      cmd: '/profile alloc',
       reason: `Còn **${unspent} điểm chỉ số** chưa phân — vào ngay để tăng LC.`,
     });
   }
@@ -76,7 +76,7 @@ function nextSuggestions(userId: string): Suggestion[] {
   if (ownedCpCount === 0 && user.level >= 1) {
     suggestions.push({
       emoji: HUB_ICONS.gear,
-      cmd: '/shop',
+      cmd: '/shop browse',
       reason: 'Chưa có công pháp nào — vào shop tab 📜 mua món đầu tiên.',
     });
   }
@@ -86,7 +86,7 @@ function nextSuggestions(userId: string): Suggestion[] {
   if (ownedWeapons === 0) {
     suggestions.push({
       emoji: HUB_ICONS.combat,
-      cmd: '/arena forge',
+      cmd: '/admin arena forge',
       reason: 'Chưa có vũ khí bản mệnh — rèn 1 trong 6 mạch theo Discord ID.',
     });
   }
@@ -96,7 +96,7 @@ function nextSuggestions(userId: string): Suggestion[] {
   if (rankIndex(user.cultivation_rank) >= rankIndex('truc_co') && equippedCpCount < 2 && ownedCpCount >= 2) {
     suggestions.push({
       emoji: HUB_ICONS.path,
-      cmd: '/inventory',
+      cmd: '/gear inventory',
       reason: `Mới đeo ${equippedCpCount} công pháp — bạn có thể đeo tối đa 5 slot.`,
     });
   }
@@ -128,8 +128,8 @@ function nextSuggestions(userId: string): Suggestion[] {
   if (ownedTitles.length > 0 && !user.equipped_title_id) {
     suggestions.push({
       emoji: '🎖',
-      cmd: '/danh-hieu',
-      reason: `Có ${ownedTitles.length} danh hiệu nhưng chưa trang bị — hiển thị trong /stat.`,
+      cmd: '/title danh-hieu',
+      reason: `Có ${ownedTitles.length} danh hiệu nhưng chưa trang bị — hiển thị trong /profile stat.`,
     });
   }
 
@@ -157,7 +157,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           '',
           '1. Chat vài câu trong server (chat tự tạo record)',
           '2. Chạy `/daily` để nhận XP đầu tiên',
-          '3. Đọc `/tutorial` để biết flow toàn cục',
+          '3. Đọc `/help tutorial` để biết flow toàn cục',
         ].join('\n'),
       );
     await interaction.reply({ embeds: [embed], ephemeral: true });
@@ -184,7 +184,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const suggestions = nextSuggestions(userId);
   const suggestionLines = suggestions.length
     ? suggestions.map((s, i) => `**${i + 1}.** ${s.emoji} \`${s.cmd}\` — ${s.reason}`)
-    : ['_Mọi thứ đã chạy mượt — đi /duel hoặc thử /shop xem có gì mới._'];
+    : ['_Mọi thứ đã chạy mượt — đi /duel hoặc thử /shop browse xem có gì mới._'];
 
   const embed = new EmbedBuilder()
     .setColor(Number.parseInt(rank.colorHex.slice(1), 16))
@@ -196,7 +196,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         `${HUB_ICONS.sparkle_alt} **Gợi ý kế:**`,
         ...suggestionLines,
         '',
-        `_${HUB_ICONS.diamond} Dùng \`/help\` để xem toàn bộ lệnh theo mục._`,
+        `_${HUB_ICONS.diamond} Dùng \`/help menu\` để xem toàn bộ lệnh theo mục._`,
       ].join('\n'),
     )
     .setThumbnail(interaction.user.displayAvatarURL({ size: 256 }))

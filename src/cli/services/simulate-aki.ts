@@ -6,13 +6,13 @@ import { SYSTEM_PROMPT_TOKEN_ESTIMATE, estimateTokens } from '../../modules/aki/
 import type { BotCliService } from '../service.js';
 
 /**
- * Dry-run preview of /ask. Two modes:
+ * Dry-run preview of /ask aki. Two modes:
  *
  *   simulate-aki "câu hỏi"           : token + cost estimate, NO API call
  *   simulate-aki "câu hỏi" --live    : actually call Grok (uses budget!)
  *
  * Live mode requires XAI_API_KEY in env. Use sparingly — it counts
- * against the daily budget cap like a real /ask would.
+ * against the daily budget cap like a real /ask aki would.
  */
 
 interface ParsedArgs {
@@ -32,7 +32,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
 
 export const simulateAki: BotCliService = {
   name: 'simulate-aki',
-  description: 'Dry-run preview of /ask — token + cost estimate, optional --live for real call',
+  description: 'Dry-run preview of /ask aki — token + cost estimate, optional --live for real call',
   usage: 'simulate-aki "<câu hỏi>" [--live]',
   needsClient: false,
   async execute(_ctx, args) {
@@ -50,7 +50,7 @@ export const simulateAki: BotCliService = {
         `Length   : ${parsed.question.length} chars`,
         '',
         '--- Configuration ---',
-        `Provider keys  : ${isAkiEnabled() ? 'set ✓' : 'NONE — /ask disabled in prod'}`,
+        `Provider keys  : ${isAkiEnabled() ? 'set ✓' : 'NONE — /ask aki disabled in prod'}`,
         `Model          : chọn động theo task trong llm/router.ts (free-tier)`,
         `Max output     : ${env.AKI_MAX_OUTPUT_TOKENS} tokens`,
         `Daily budget   : $${env.AKI_DAILY_BUDGET_USD.toFixed(2)}`,

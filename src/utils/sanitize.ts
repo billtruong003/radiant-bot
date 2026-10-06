@@ -116,7 +116,7 @@ export function sanitizeForLlmPrompt(
 }
 
 /**
- * Sanitize a longer body of text (e.g. document body or /ask question)
+ * Sanitize a longer body of text (e.g. document body or /ask aki question)
  * for LLM ingestion. Same as sanitizeForLlmPrompt but preserves
  * newlines/tabs and uses a higher default cap.
  */

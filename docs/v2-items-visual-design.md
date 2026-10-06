@@ -58,7 +58,7 @@ export interface CongPhap extends Record<string, unknown> {
   icon: string;           // MỚI — emoji icon, e.g. "⚔️", "🌀", "🔥"
   school: CongPhapSchool; // MỚI — trường phái
   description: string;    // short tagline (1-2 câu, hiện trong shop)
-  lore: string;           // MỚI — lore đầy đủ (3-5 câu, hiện trong /cong-phap info)
+  lore: string;           // MỚI — lore đầy đủ (3-5 câu, hiện trong /gear cong-phap info)
   passive_text: string;   // MỚI — mô tả hiệu ứng bị động human-readable
   rarity: CongPhapRarity;
   cost_pills: number;
@@ -480,7 +480,7 @@ export interface UserNhan extends Record<string, unknown> {
 ### 6.1 Architecture
 
 ```
-/shop                          → Category picker (Select Menu)
+/shop browse                          → Category picker (Select Menu)
   → "Công Pháp" selected       → Công pháp list (Embed + buttons per item)
   → "Pháp Khí" selected        → Pháp khí list
   → "Nhẫn" selected            → Nhẫn list
@@ -622,7 +622,7 @@ Discord không hỗ trợ real visual effects trong embed — giải pháp là:
 
 ### 8.1 Rebrand
 
-`/inventory` → vẫn là lệnh `/inventory` nhưng tiêu đề đổi thành **"Nhẫn Trữ Vật"** (Storage Ring).  
+`/gear inventory` → vẫn là lệnh `/gear inventory` nhưng tiêu đề đổi thành **"Nhẫn Trữ Vật"** (Storage Ring).  
 Theme: tu sĩ trữ đồ trong nhẫn không gian (spatial ring) — thứ không thể thiếu của bất kỳ tu sĩ nào.
 
 ### 8.2 Layout mới
@@ -746,7 +746,7 @@ TânThí_Anh tan biến."
 ## 9.5 Note: Discord text duel sẽ deprecate
 
 Per Bill's decision (2026-05-17): Discord text-based duel (`/duel` simulation trong bot) sẽ bị remove trong tương lai khi Arena Unity (Colyseus) hoàn thiện và stable. Implication:
-- Đơn phương miễu sát logic vẫn implement trong bot — vì cần check khi user thử `/arena create` với gap quá lớn → reject + show miễu sát narrative thay vì tạo room
+- Đơn phương miễu sát logic vẫn implement trong bot — vì cần check khi user thử `/admin arena create` với gap quá lớn → reject + show miễu sát narrative thay vì tạo room
 - Pháp khí `stat_bonuses.duel_damage_bonus` áp dụng cho **Arena Unity** (server authoritative), bot chỉ tính + gửi qua API `/api/arena/loadout`
 - Render duel-card (mục 12.5) tái dụng cho Arena post-match result thay vì duel cũ
 
@@ -838,7 +838,7 @@ Quyết định: **KHÔNG có fail chance**. Lý do:
 /cuong-hoa <slug>                → focus on 1 item, full upgrade panel
 ```
 
-#### Entry point 2: Button trong `/inventory`
+#### Entry point 2: Button trong `/gear inventory`
 Inside Nhẫn Trữ Vật, mỗi owned item có button `[⬆ Cường Hóa]` ngay cạnh.
 
 #### Upgrade Panel UI (Components V2)

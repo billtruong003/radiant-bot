@@ -15,7 +15,7 @@ import { llm } from '../llm/index.js';
 /**
  * Phase 12.4 — Áp Chế Thiên Đạo.
  *
- * Tông Chủ runs /thien-dao with a target + crime description. We:
+ * Tông Chủ runs /mod thien-dao with a target + crime description. We:
  *   1. Snapshot target's stats + recent automod history
  *   2. Send to LLM with Thiên Đạo cosmic-judge persona + the punishment
  *      menu — model picks 1-3 penalties + composes a 1-2 sentence verdict

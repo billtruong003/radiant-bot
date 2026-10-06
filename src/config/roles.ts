@@ -3,7 +3,7 @@
  *
  * Why centralize: role names are VN strings that appear in many code
  * paths (verification grant/remove, bulk onboard, automod staff skip,
- * /title, /breakthrough, rank promoter). Hard-coding them everywhere
+ * /title phong-hieu, /breakthrough, rank promoter). Hard-coding them everywhere
  * means a rename has to touch ~6 files. With this module:
  *   1. Rename here only.
  *   2. `sync-server` reads from `server-structure.ts` which references
@@ -50,7 +50,7 @@ export const STAFF_ROLE_NAMES: ReadonlySet<string> = new Set([
 
 /**
  * Roles allowed to run enforcement commands that alter a member's
- * standing — `/grant` above all, which mints XP, pills and contribution
+ * standing — `/mod grant` above all, which mints XP, pills and contribution
  * points out of nothing.
  *
  * Chấp Pháp is in; Trưởng Lão is NOT (Bill's call, 2026-08-01). Trưởng

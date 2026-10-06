@@ -1,4 +1,8 @@
-import { SERVER_COMMAND_NAMES, SERVER_DOMAIN_TERMS } from '../../config/server-vocab.js';
+import {
+  LEGACY_COMMAND_NAMES,
+  SERVER_COMMAND_NAMES,
+  SERVER_DOMAIN_TERMS,
+} from '../../config/server-vocab.js';
 import { llm } from '../llm/index.js';
 import type { TaskId } from '../llm/types.js';
 
@@ -44,7 +48,7 @@ export interface RequestAnalysis {
   ambiguity: 'none' | 'resolvable' | 'missing';
   /** 0-1. Below ~0.6 the preflight defers to the classifier. */
   confidence: number;
-  /** Where the verdict came from — surfaced by /ai-debug. */
+  /** Where the verdict came from — surfaced by /ai debug. */
   source: 'preflight' | 'classifier' | 'fallback';
 }
 
@@ -97,7 +101,10 @@ const DANGLING_REF =
 const FOLLOWUP_OPENER = /^(còn|vậy|thế|ừ|à|ok|với lại|thêm|nữa|sao|why|and|but|so)\b/i;
 
 const COMMAND_RE = new RegExp(
-  `(^|\\s)/(${SERVER_COMMAND_NAMES.map((n) => n.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})\\b`,
+  `(^|\\s)/(${[...SERVER_COMMAND_NAMES, ...LEGACY_COMMAND_NAMES]
+    .sort((x, y) => y.length - x.length)
+    .map((n) => n.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'))
+    .join('|')})\\b`,
   'i',
 );
 
@@ -313,7 +320,12 @@ const VALID_INTENTS: readonly Intent[] = [
   'current_info',
   'archive',
 ];
-const VALID_COMPLEXITY: readonly Complexity[] = ['trivial', 'normal', 'reasoning', 'deep_reasoning'];
+const VALID_COMPLEXITY: readonly Complexity[] = [
+  'trivial',
+  'normal',
+  'reasoning',
+  'deep_reasoning',
+];
 
 /**
  * Stage 2. One cheap classifier call. Any failure degrades to a safe
@@ -325,7 +337,11 @@ async function classify(input: AnalyzeInput): Promise<RequestAnalysis> {
     intent: 'knowledge',
     complexity: 'normal',
     isFollowUp: input.hasReply,
-    contextDependency: input.hasReply ? 'reply_chain' : input.recentCount > 0 ? 'recent' : 'standalone',
+    contextDependency: input.hasReply
+      ? 'reply_chain'
+      : input.recentCount > 0
+        ? 'recent'
+        : 'standalone',
     needsWeb: false,
     needsArchive: false,
     needsVision: false,

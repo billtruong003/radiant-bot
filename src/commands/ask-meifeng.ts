@@ -3,8 +3,8 @@ import { runAskFlow } from '../modules/npc/ask-runner.js';
 import { MEIFENG_SYSTEM_PROMPT } from '../modules/npc/meifeng-persona.js';
 
 /**
- * /ask-meifeng — alt NPC, combat-focused / sharp sass. Best for /stat
- * /duel /shop questions; same pipeline as /ask.
+ * /ask meifeng — alt NPC, combat-focused / sharp sass. Best for /profile stat
+ * /duel /shop browse questions; same pipeline as /ask aki.
  */
 
 export const data = new SlashCommandBuilder()

@@ -4,7 +4,7 @@ import { getStore } from '../../db/index.js';
 import type { CultivationRankId, PhapKhi } from '../../db/types.js';
 
 /**
- * Pháp khí shop helper. Mirrors weapon-shop.ts shape so /shop can share
+ * Pháp khí shop helper. Mirrors weapon-shop.ts shape so /shop browse can share
  * the tab pattern. Single equip slot (User.equipped_phap_khi_slug),
  * unlock at Kim Đan via canEquipPhapKhi check elsewhere — buy is gated
  * only by rank, not equip-ability.

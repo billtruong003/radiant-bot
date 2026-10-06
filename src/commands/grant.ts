@@ -11,7 +11,7 @@ import { logger } from '../utils/logger.js';
 import { requireEnforcement } from '../utils/command-guard.js';
 
 /**
- * `/grant pills|contribution|xp @user <amount>` — admin-only currency / XP
+ * `/mod grant pills|contribution|xp @user <amount>` — admin-only currency / XP
  * grant. Lets staff seed test accounts, refund users, or hand out event
  * prizes without poking the WAL by hand.
  *

@@ -9,7 +9,7 @@ import type { LlmFilterStage } from '../modules/llm/types.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * /ask <question> [image?] — 2-stage pipeline.
+ * /ask aki <question> [image?] — 2-stage pipeline.
  *
  * Gating, in order:
  *   1. Service enabled (XAI_API_KEY set) → else "Aki đang ngủ"
@@ -169,7 +169,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   // 7. Identity + conversation context. Uses the SAME builder as the
-  //    @-mention path, so `/ask` finally sees Aki's own previous replies
+  //    @-mention path, so `/ask aki` finally sees Aki's own previous replies
   //    and can resolve a follow-up ("còn cái đó thì sao?") instead of
   //    reading it as a fresh question.
   const askerUsername = interaction.user.username;

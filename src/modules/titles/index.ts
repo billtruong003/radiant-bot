@@ -29,8 +29,8 @@ function buildContext(user: User): TitleEarnContext {
   // (the row is a counter marker); their EXISTENCE drives title eligibility.
   // ONE pass, not three. This used to run three separate full-array
   // scans; on the live snapshot that was ~420k predicate calls per
-  // invocation to find ~17 rows, and it runs on /duel, /weapon,
-  // /cong-phap and /danh-hieu. The predicate always returns false so
+  // invocation to find ~17 rows, and it runs on /duel, /gear weapon,
+  // /gear cong-phap and /title danh-hieu. The predicate always returns false so
   // `query` allocates nothing — we only accumulate the counters.
   let duelWins = 0;
   let mieuSatCount = 0;

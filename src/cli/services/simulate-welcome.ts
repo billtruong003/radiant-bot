@@ -92,7 +92,7 @@ export const simulateWelcome: BotCliService = {
     const dmPreview = [
       '🏯 **Chào mừng đến Radiant Tech Sect!**',
       '...',
-      '**Lệnh hữu ích:** /daily, /rank, /leaderboard',
+      '**Lệnh hữu ích:** /daily, /profile rank, /leaderboard',
       '**Earn XP:** Message (15-25), Voice (10-15/min), Reaction (2)',
       'Đột phá cảnh giới tự động ở level milestones.',
     ];

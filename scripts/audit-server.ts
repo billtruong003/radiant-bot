@@ -11,7 +11,7 @@
  *
  * Does NOT modify anything. Output is a human-readable text report on
  * stdout. Use case: pre-deploy sanity check, periodic state audit, or
- * input for the `/sync-pinned` decision.
+ * input for the `/admin sync-pinned` decision.
  *
  * Usage:
  *   npm run audit-server

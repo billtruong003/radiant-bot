@@ -7,7 +7,7 @@ import { themedEmbed } from '../utils/embed.js';
 import { requireSectMaster } from '../utils/command-guard.js';
 
 /**
- * /ai-debug <question> — show exactly how a question would be routed,
+ * /ai debug <question> — show exactly how a question would be routed,
  * without answering it.
  *
  * Built because the routing decisions were previously invisible: when a

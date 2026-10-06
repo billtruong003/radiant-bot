@@ -15,7 +15,7 @@ import type { WeaponStats } from '../db/types.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * /weapon list|info|equip|unequip|upgrade — Phase 14.
+ * /gear weapon list|info|equip|unequip|upgrade — Phase 14.
  *
  * Equipped weapon contributes to LC via combat/power.ts. Bản mệnh weapons
  * (forged per-user, slug `phap-khi-ban-menh-<id>`) live in `userWeapons`
@@ -154,7 +154,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const owned = store.userWeapons.query((w) => w.discord_id === userId);
     if (owned.length === 0) {
       await interaction.reply({
-        content: '🗡️ Bạn chưa có vũ khí. Forge bản mệnh qua `/arena` hoặc mua từ shop.',
+        content: '🗡️ Bạn chưa có vũ khí. Forge bản mệnh qua `/admin arena` hoặc mua từ shop.',
         ephemeral: true,
       });
       return;
@@ -266,7 +266,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           case 'not-found':
             return `⚠️ Không có vũ khí \`${slug}\` trong catalog.`;
           case 'not-buyable':
-            return `⚠️ Vũ khí này không bán (vd bản mệnh — forge qua \`/arena\`).`;
+            return `⚠️ Vũ khí này không bán (vd bản mệnh — forge qua \`/admin arena\`).`;
           case 'already-owned':
             return `ℹ️ Bạn đã sở hữu \`${slug}\` rồi.`;
           case 'rank-too-low': {
@@ -287,7 +287,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     }
     const w = store.weaponCatalog.get(slug);
     await interaction.reply({
-      content: `✅ Đã mua **${w?.display_name ?? slug}**! Còn lại: ${r.newPills}💊 + ${r.newContribution}🪙. Dùng \`/weapon equip ${slug}\` để trang bị.`,
+      content: `✅ Đã mua **${w?.display_name ?? slug}**! Còn lại: ${r.newPills}💊 + ${r.newContribution}🪙. Dùng \`/gear weapon equip ${slug}\` để trang bị.`,
       ephemeral: true,
     });
     return;

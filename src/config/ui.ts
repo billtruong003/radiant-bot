@@ -36,7 +36,7 @@ export const DIVIDER_DOUBLE = '════════════════�
 // ---------- Universal glyph palette ----------
 
 /**
- * Phase 14.8 — themed section icons cho /help + /me hub. Mystical /
+ * Phase 14.8 — themed section icons cho /help menu + /profile me hub. Mystical /
  * alchemy glyphs thay vì generic emoji (Bill: "icon hiện tại k đc ngầu").
  * Unicode hỗ trợ trên mọi nền tảng, không cần upload custom emoji.
  */

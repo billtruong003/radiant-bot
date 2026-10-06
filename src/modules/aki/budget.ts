@@ -5,7 +5,7 @@ import { dayKey } from '../leveling/daily.js';
 /**
  * Budget enforcement for Aki. Server-wide cap on cost per VN calendar
  * day (Asia/Ho_Chi_Minh). Aggregates `AkiCallLog.cost_usd` over the
- * current day; refuses new /ask if cumulative ≥ AKI_DAILY_BUDGET_USD.
+ * current day; refuses new /ask aki if cumulative ≥ AKI_DAILY_BUDGET_USD.
  *
  * Uses the same `dayKey` helper as /daily so "today" matches the
  * user's expectation (Vietnamese calendar, not UTC).

@@ -11,7 +11,7 @@ import {
 } from 'discord.js';
 
 /**
- * /tutorial — Phase 14.5 onboarding flow.
+ * /help tutorial — Phase 14.5 onboarding flow.
  *
  * Five pages, button-navigated, ephemeral. Each page explains one core
  * mechanic so a new disciple can self-orient without reading docs. Tone:
@@ -20,9 +20,9 @@ import {
  * Pages:
  *   1. Welcome + cảnh giới + XP earning paths
  *   2. Daily ritual: /daily + streak + quests
- *   3. Inventory & shop: /shop tabs + /inventory equipment management
- *   4. Combat: /duel + /stat + /stat-alloc
- *   5. Endgame: /weapon upgrade + /phap-khi + /nhan + /danh-hieu
+ *   3. Inventory & shop: /shop browse tabs + /gear inventory equipment management
+ *   4. Combat: /duel + /profile stat + /profile alloc
+ *   5. Endgame: /gear weapon upgrade + /gear phap-khi + /gear nhan + /title danh-hieu
  */
 
 const COLLECTOR_TIMEOUT_MS = 10 * 60 * 1000;
@@ -71,8 +71,8 @@ const PAGES: readonly Page[] = [
       '· 💊 **Đan dược** — kiếm chủ yếu từ /daily, quest, duel win, tribulation pass',
       '· 🪙 **Cống hiến** — auto-earn 1/10 XP từ chat',
       '',
-      '**`/shop`** — cửa hàng 4 tab: 📜 Công pháp · ⚔️ Vũ khí · ✨ Pháp khí · 💍 Nhẫn. Click tab xem catalog, chọn select-menu để mua nhanh.',
-      '**`/inventory`** — túi đồ 5 tab: 💰 Tổng (currency + stat overview) · 📜 Công pháp · ⚔️ Vũ khí · ✨ Pháp khí · 💍 Nhẫn. Mỗi tab có select-menu equip.',
+      '**`/shop browse`** — cửa hàng 4 tab: 📜 Công pháp · ⚔️ Vũ khí · ✨ Pháp khí · 💍 Nhẫn. Click tab xem catalog, chọn select-menu để mua nhanh.',
+      '**`/gear inventory`** — túi đồ 5 tab: 💰 Tổng (currency + stat overview) · 📜 Công pháp · ⚔️ Vũ khí · ✨ Pháp khí · 💍 Nhẫn. Mỗi tab có select-menu equip.',
       '',
       '**Icon trạng thái shop:**',
       '⭐ đang trang bị · ✅ sở hữu · 🟢 mua được · ⏳ chưa đủ tiền · 🔒 chưa đủ cảnh giới',
@@ -83,8 +83,8 @@ const PAGES: readonly Page[] = [
   {
     title: '⚔️ Trang 4/5 — Combat & chỉ số',
     description: [
-      '**`/stat`** — combat profile: lực chiến (LC) breakdown, cảnh giới, currency, equipment, danh hiệu. Hiện cả "mở khoá kế" + "preview cường hóa".',
-      '**`/stat-alloc`** — phân điểm chỉ số. Mỗi level cộng 2 điểm; phân vào DMG / HP / DEF / SPD. Reset miễn phí.',
+      '**`/profile stat`** — combat profile: lực chiến (LC) breakdown, cảnh giới, currency, equipment, danh hiệu. Hiện cả "mở khoá kế" + "preview cường hóa".',
+      '**`/profile alloc`** — phân điểm chỉ số. Mỗi level cộng 2 điểm; phân vào DMG / HP / DEF / SPD. Reset miễn phí.',
       '**`/duel @opponent stake:N`** — PvP 5 hiệp. Stake 1-10 đan dược. Cooldown 30 phút, 3 trận/ngày.',
       '',
       '**Miểu sát**: cách cảnh giới ≥ 2 → instant kill không cần chấp nhận, không lấy đan dược. Riêng cooldown 24h.',
@@ -99,7 +99,7 @@ const PAGES: readonly Page[] = [
     description: [
       'Khi cảnh giới cao, mở những hệ thống này:',
       '',
-      '**Cường hóa** — `/cong-phap upgrade`, `/weapon upgrade`, `/phap-khi upgrade`. Mỗi level 0→10. Cost tăng tuyến tính (2+L×3 pills + 200+L×200 cống hiến).',
+      '**Cường hóa** — `/gear cong-phap upgrade`, `/gear weapon upgrade`, `/gear phap-khi upgrade`. Mỗi level 0→10. Cost tăng tuyến tính (2+L×3 pills + 200+L×200 cống hiến).',
       '· Công pháp + pháp khí: forgiving curve, fail = giữ nguyên level',
       '· Vũ khí: RNG hardcore — fail ≥ L7 = tụt xuống 1 cấp',
       '',
@@ -108,11 +108,11 @@ const PAGES: readonly Page[] = [
       '· Pháp khí: Kim Đan',
       '· Nhẫn slot 1 free → slot 2 Nguyên Anh',
       '',
-      '**`/danh-hieu`** — honor titles auto-grant theo achievement: thắng N duel, max upgrade item, vượt thiên kiếp, lên cảnh giới Đại Thừa. Trang bị 1 → hiện trong /stat.',
+      '**`/title danh-hieu`** — honor titles auto-grant theo achievement: thắng N duel, max upgrade item, vượt thiên kiếp, lên cảnh giới Đại Thừa. Trang bị 1 → hiện trong /profile stat.',
       '',
       '**Sẵn sàng tu hành! Chúc đạo tâm vững vàng.** 🌌',
     ].join('\n'),
-    footer: 'Trang 5/5 — hết. Chạy /tutorial lại bất cứ khi nào.',
+    footer: 'Trang 5/5 — hết. Chạy /help tutorial lại bất cứ khi nào.',
     color: 0xe6c87e,
   },
 ];
@@ -190,7 +190,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   collector.on('end', async () => {
     try {
       await msg.edit({
-        embeds: [buildEmbed(pageIdx).setFooter({ text: '⏱️ Hết phiên / đóng — chạy /tutorial lại để tiếp.' })],
+        embeds: [buildEmbed(pageIdx).setFooter({ text: '⏱️ Hết phiên / đóng — chạy /help tutorial lại để tiếp.' })],
         components: [],
       });
     } catch {

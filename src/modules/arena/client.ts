@@ -13,7 +13,7 @@ import { signBody } from './tokens.js';
  *
  * Behaviour gated by `ARENA_ENABLED`:
  *   - false → return mock `{ ok: true, room_name: 'mock-...', ws_url: '' }`
- *     so /arena debug subcommand can exercise the call path without
+ *     so /admin arena debug subcommand can exercise the call path without
  *     Colyseus being up yet (Lát A ships before Lát D Colyseus).
  *   - true  → real fetch with 5s timeout.
  */
@@ -145,7 +145,7 @@ export async function requestRoom(req: CreateRoomRequest): Promise<CreateRoomRes
 }
 
 /**
- * Health probe — used by /arena debug. Returns latency in ms on success
+ * Health probe — used by /admin arena debug. Returns latency in ms on success
  * or a string error reason.
  */
 export async function probeColyseus(): Promise<
@@ -216,7 +216,7 @@ export function weaponToRoomWeapon(
 
 /**
  * @deprecated Use {@link weaponToRoomWeapon} + wrap result in an array.
- * Retained for callers still in transition; will be removed once `/arena duel`
+ * Retained for callers still in transition; will be removed once `/admin arena duel`
  * slash command (Phase 13 Lát A) lands a real call site using the new shape.
  */
 export function weaponToRoomData(

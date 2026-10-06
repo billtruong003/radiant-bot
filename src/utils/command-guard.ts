@@ -10,7 +10,7 @@ import { logger } from './logger.js';
  * who can manage the server can override it per-role or per-channel —
  * after which the bot happily executes the command, because it never
  * checked. Nine admin commands were relying on that default alone,
- * including `/grant`, which mints XP and items.
+ * including `/mod grant`, which mints XP and items.
  *
  * So: declare the default for discoverability, and check again here for
  * the actual decision.
@@ -73,7 +73,7 @@ export async function requireSectMaster(
  * Chưởng Môn or Chấp Pháp — the roles that carry enforcement duty.
  *
  * Trưởng Lão is deliberately excluded: it is a seniority title, not a
- * moderation post, and `/grant` can mint the cultivation economy from
+ * moderation post, and `/mod grant` can mint the cultivation economy from
  * nothing.
  */
 export async function requireEnforcement(

@@ -49,7 +49,7 @@ export function getBanMenhTemplateSlug(discordId: string): string {
  * Resolve the catalog template a user's bản mệnh maps to. Returns the
  * full Weapon entry (with stats, lore, icon) from `weaponCatalog`.
  *
- * Used by display paths in /weapon list/info, /inventory, /shop, /stat,
+ * Used by display paths in /gear weapon list/info, /gear inventory, /shop browse, /profile stat,
  * and autocomplete so users see the themed name ("Hoả Tâm Kiếm") instead
  * of the generic "Bản Mệnh Khí" slug-prefix string.
  */

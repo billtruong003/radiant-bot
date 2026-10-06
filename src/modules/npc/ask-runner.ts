@@ -35,7 +35,7 @@ import { runFilter } from '../aki/filter.js';
 import { tryAcquireAskQuota } from '../aki/rate-limit.js';
 
 /**
- * Phase 12 Lát 5 — shared runner for /ask, /ask-akira, /ask-meifeng.
+ * Phase 12 Lát 5 — shared runner for /ask aki, /ask akira, /ask meifeng.
  *
  * All NPCs share the same pipeline (filter → quota → budget → Grok) so
  * cost analytics + rate limits are unified. Only the system prompt
@@ -104,7 +104,7 @@ export async function runAskFlow(input: RunAskInput): Promise<void> {
   }
 
   // Đợt 1 guards — same rules as the @-mention path, so a troll can't just
-  // switch to /ask to get around them. Both run before the quota check.
+  // switch to /ask aki to get around them. Both run before the quota check.
   const absurd = guardAbsurdTask(question, userId);
   if (absurd.blocked) {
     logger.info({ discord_id: userId, reason: absurd.reason }, 'guard: absurd task blocked');

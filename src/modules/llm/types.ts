@@ -2,11 +2,11 @@
  * Provider-agnostic LLM interface for free/cheap text completion.
  *
  * Existing modules using this:
- *   - aki-filter   (classify /ask question)
+ *   - aki-filter   (classify /ask aki question)
  *   - aki-nudge    (Aki profanity reminder — coming Phase 11.2)
  *   - narration    (Thiên Đạo punishment + level-up prose — coming Phase 11.2)
  *
- * NOT in scope: xAI Grok (answer LLM for /ask) — its own client because
+ * NOT in scope: xAI Grok (answer LLM for /ask aki) — its own client because
  * it has vision input + paid pricing + prompt caching. See
  * `src/modules/aki/client.ts`.
  *

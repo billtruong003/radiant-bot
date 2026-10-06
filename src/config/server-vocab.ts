@@ -2,7 +2,7 @@
  * Canonical server vocabulary for request routing.
  *
  * Pure data, zero imports — `src/commands/index.ts` pulls in every command
- * module (including `/ask`, which pulls in Aki's client), so importing the
+ * module (including `/ask aki`, which pulls in Aki's client), so importing the
  * live registry from the analysis path would close an import cycle.
  *
  * The anti-drift measure is a test, not discipline:
@@ -13,40 +13,54 @@
 
 /** Slash command names, mirrored from `src/commands/index.ts`. */
 export const SERVER_COMMAND_NAMES: readonly string[] = [
+  'admin',
+  'ai',
+  'ask',
+  'breakthrough',
+  'contribute-doc',
+  'daily',
+  'duel',
+  'gear',
+  'help',
+  'hunter',
+  'leaderboard',
+  'mod',
+  'profile',
+  'quest',
+  'shop',
+  'title',
+  'tra-cuu',
+];
+
+/**
+ * Names the commands had before they were merged (/weapon is now /gear
+ * weapon). Members keep typing them for a while, so a question that mentions
+ * one is still about this server.
+ */
+export const LEGACY_COMMAND_NAMES: readonly string[] = [
   'ai-debug',
   'ai-models',
   'aki-memory',
   'arena',
-  'ask',
   'ask-akira',
   'ask-meifeng',
   'automod-config',
-  'breakthrough',
   'cong-phap',
-  'contribute-doc',
-  'daily',
   'danh-hieu',
-  'duel',
   'grant',
-  'help',
   'inventory',
-  'leaderboard',
   'link-whitelist',
   'me',
   'nhan',
   'phap-khi',
-  'quest',
   'raid-mode',
   'rank',
   'selftest',
-  'shop',
   'stat',
   'stat-alloc',
   'stats',
   'sync-pinned',
   'thien-dao',
-  'title',
-  'tra-cuu',
   'trade',
   'tutorial',
   'verify-test',

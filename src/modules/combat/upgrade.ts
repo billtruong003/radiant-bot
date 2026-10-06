@@ -1,7 +1,7 @@
 /**
  * Phase 14 — item upgrade (Cường Hóa) shared logic.
  *
- * Both `/cong-phap upgrade` and `/weapon upgrade` route through this
+ * Both `/gear cong-phap upgrade` and `/gear weapon upgrade` route through this
  * module. Output is deterministic-given-seed (or wall-clock when omitted),
  * so tests can pin a seed and assert success/fail behavior.
  *

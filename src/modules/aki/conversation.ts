@@ -2,7 +2,7 @@ import type { Guild, Message } from 'discord.js';
 
 /**
  * ONE conversation/context builder for every way of talking to Aki:
- * `@Aki`, replying to Aki, `/ask`, `/ask-akira`, `/ask-meifeng`.
+ * `@Aki`, replying to Aki, `/ask aki`, `/ask akira`, `/ask meifeng`.
  *
  * Before this there were three near-copies of `collectRecentContext`, and
  * they had drifted into different products:
@@ -14,7 +14,7 @@ import type { Guild, Message } from 'discord.js';
  *
  * Dropping the assistant's own turns makes multi-turn structurally
  * impossible: "còn cái đó thì sao?" has nothing to resolve "cái đó"
- * against, so `/ask` could not do follow-ups at all while `@Aki` could.
+ * against, so `/ask aki` could not do follow-ups at all while `@Aki` could.
  *
  * Selection is relevance-scored rather than last-N. Deterministic integer
  * scoring on data Discord already gave us — no vector store, no extra
@@ -237,7 +237,7 @@ export function selectRelevantTurns(input: ScoreInput): ConversationTurn[] {
 export interface BuiltContext {
   recentMessages: Array<{ authorDisplayName: string; content: string }>;
   repliedTo?: { authorDisplayName: string; content: string };
-  /** Diagnostics for /ai-debug. */
+  /** Diagnostics for /ai debug. */
   stats: { fetched: number; selected: number };
 }
 

@@ -8,7 +8,6 @@ import { command as aiModels } from './ai-models.js';
 import { command as akiMemory } from './aki-memory.js';
 import { command as arena } from './arena.js';
 import { command as askAkira } from './ask-akira.js';
-import { command as traCuu } from './tra-cuu.js';
 import { command as askMeifeng } from './ask-meifeng.js';
 import { command as ask } from './ask.js';
 import { command as automodConfig } from './automod-config.js';
@@ -25,6 +24,7 @@ import { command as inventory } from './inventory.js';
 import { command as leaderboard } from './leaderboard.js';
 import { command as linkWhitelist } from './link-whitelist.js';
 import { command as me } from './me.js';
+import { mergeCommands } from './merge.js';
 import { command as nhan } from './nhan.js';
 import { command as phapKhi } from './phap-khi.js';
 import { command as quest } from './quest.js';
@@ -38,6 +38,7 @@ import { command as stats } from './stats.js';
 import { command as syncPinned } from './sync-pinned.js';
 import { command as thienDao } from './thien-dao.js';
 import { command as title } from './title.js';
+import { command as traCuu } from './tra-cuu.js';
 import { command as trade } from './trade.js';
 import { command as tutorial } from './tutorial.js';
 import { command as verifyTest } from './verify-test.js';
@@ -63,58 +64,89 @@ export interface SlashCommand {
   autocomplete?(interaction: AutocompleteInteraction): Promise<void>;
 }
 
-const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map([
-  [raidMode.data.name, raidMode as SlashCommand],
-  [rank.data.name, rank as SlashCommand],
-  [leaderboard.data.name, leaderboard as SlashCommand],
-  [daily.data.name, daily as SlashCommand],
-  [automodConfig.data.name, automodConfig as SlashCommand],
-  [title.data.name, title as SlashCommand],
-  [breakthrough.data.name, breakthrough as SlashCommand],
-  [ask.data.name, ask as SlashCommand],
-  [verifyTest.data.name, verifyTest as SlashCommand],
-  [linkWhitelist.data.name, linkWhitelist as SlashCommand],
-  [stats.data.name, stats as SlashCommand],
-  [stat.data.name, stat as SlashCommand],
-  [statAlloc.data.name, statAlloc as SlashCommand],
-  [grant.data.name, grant as SlashCommand],
-  [hunter.data.name, hunter as SlashCommand],
-  // Phase 12 Lát 2-6
-  [inventory.data.name, inventory as SlashCommand],
-  [shop.data.name, shop as SlashCommand],
-  [congPhap.data.name, congPhap as SlashCommand],
-  [quest.data.name, quest as SlashCommand],
-  [askAkira.data.name, askAkira as SlashCommand],
-  [traCuu.data.name, traCuu as SlashCommand],
-  [askMeifeng.data.name, askMeifeng as SlashCommand],
-  [duel.data.name, duel as SlashCommand],
-  [trade.data.name, trade as SlashCommand],
-  [help.data.name, help as SlashCommand],
-  [akiMemory.data.name, akiMemory as SlashCommand],
-  [contributeDoc.data.name, contributeDoc as SlashCommand],
-  [thienDao.data.name, thienDao as SlashCommand],
-  [syncPinned.data.name, syncPinned as SlashCommand],
-  // Phase 13 Lát A
-  [arena.data.name, arena as SlashCommand],
-  // Phase 14 — weapon management
-  [weapon.data.name, weapon as SlashCommand],
-  // Phase 14 — danh hiệu (honor titles)
-  [danhHieu.data.name, danhHieu as SlashCommand],
-  // Phase 14 round 3 — pháp khí + nhẫn multi-slot equipment
-  [phapKhi.data.name, phapKhi as SlashCommand],
-  [nhan.data.name, nhan as SlashCommand],
-  // Phase 14.5 — onboarding
-  [tutorial.data.name, tutorial as SlashCommand],
-  // Phase 14.8 — personalized hub
-  [me.data.name, me as SlashCommand],
-  // Phase 14.9 — admin diagnostic
-  [selftest.data.name, selftest as SlashCommand],
-  // Zero-cost AI runtime diagnostics (Chưởng Môn only)
-  [aiDebug.data.name, aiDebug as SlashCommand],
-  [aiModels.data.name, aiModels as SlashCommand],
-]);
+const ADMIN = '8'; // PermissionFlagsBits.Administrator, as Discord expects it in JSON
+
+/**
+ * Related commands share one name (39 commands became 17). Each child keeps
+ * its own file and code; `mergeCommands` only routes to it.
+ */
+const ALL: SlashCommand[] = [
+  mergeCommands('profile', 'Hồ sơ của bạn: tổng quan, cảnh giới, lực chiến, phân bố chỉ số', [
+    { as: 'me', command: me as SlashCommand },
+    { as: 'rank', command: rank as SlashCommand },
+    { as: 'stat', command: stat as SlashCommand },
+    { as: 'alloc', command: statAlloc as SlashCommand },
+  ]),
+  mergeCommands('title', 'Phong hiệu và danh hiệu', [
+    { as: 'phong-hieu', command: title as SlashCommand },
+    { as: 'danh-hieu', command: danhHieu as SlashCommand },
+  ]),
+  mergeCommands('ask', 'Hỏi Aki, Akira hoặc Meifeng', [
+    { as: 'aki', command: ask as SlashCommand },
+    { as: 'akira', command: askAkira as SlashCommand },
+    { as: 'meifeng', command: askMeifeng as SlashCommand },
+    { as: 'memory', command: akiMemory as SlashCommand },
+  ]),
+  mergeCommands('help', 'Hướng dẫn: menu điều hướng và nhập môn', [
+    { as: 'menu', command: help as SlashCommand },
+    { as: 'tutorial', command: tutorial as SlashCommand },
+  ]),
+  mergeCommands('gear', 'Trang bị: túi đồ, vũ khí, công pháp, pháp khí, nhẫn', [
+    { as: 'inventory', command: inventory as SlashCommand },
+    { as: 'weapon', command: weapon as SlashCommand },
+    { as: 'cong-phap', command: congPhap as SlashCommand },
+    { as: 'phap-khi', command: phapKhi as SlashCommand },
+    { as: 'nhan', command: nhan as SlashCommand },
+  ]),
+  mergeCommands('shop', 'Cửa hàng: xem đồ và bán lại công pháp', [
+    { as: 'browse', command: shop as SlashCommand },
+    { as: 'trade', command: trade as SlashCommand },
+  ]),
+  mergeCommands('ai', 'Chẩn đoán AI (Chưởng Môn)', [
+    { as: 'debug', command: aiDebug as SlashCommand },
+    { as: 'models', command: aiModels as SlashCommand },
+  ]),
+  mergeCommands(
+    'mod',
+    'Kiểm duyệt: automod, link, raid, Thiên Đạo, cấp thưởng (admin)',
+    [
+      { as: 'automod', command: automodConfig as SlashCommand },
+      { as: 'links', command: linkWhitelist as SlashCommand },
+      { as: 'raid', command: raidMode as SlashCommand },
+      { as: 'thien-dao', command: thienDao as SlashCommand },
+      { as: 'grant', command: grant as SlashCommand },
+    ],
+    ADMIN,
+  ),
+  mergeCommands(
+    'admin',
+    'Quản trị bot: thống kê, selftest, verify, pinned, arena (admin)',
+    [
+      { as: 'stats', command: stats as SlashCommand },
+      { as: 'selftest', command: selftest as SlashCommand },
+      { as: 'verify-test', command: verifyTest as SlashCommand },
+      { as: 'sync-pinned', command: syncPinned as SlashCommand },
+      { as: 'arena', command: arena as SlashCommand },
+    ],
+    ADMIN,
+  ),
+  daily as SlashCommand,
+  quest as SlashCommand,
+  duel as SlashCommand,
+  leaderboard as SlashCommand,
+  breakthrough as SlashCommand,
+  hunter as SlashCommand,
+  traCuu as SlashCommand,
+  contributeDoc as SlashCommand,
+];
+
+const COMMANDS: ReadonlyMap<string, SlashCommand> = new Map(ALL.map((c) => [c.data.name, c]));
+
+/** What deploy-commands registers with Discord. */
+export function listCommands(): readonly SlashCommand[] {
+  return ALL;
+}
 
 export function findCommand(name: string): SlashCommand | undefined {
   return COMMANDS.get(name);
 }
-

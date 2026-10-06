@@ -2,7 +2,7 @@
  * Phase 14 — danh hiệu (honor title) catalog.
  *
  * Each title has an `id` (referenced by User.equipped_title_id), a display
- * name + emoji, a one-line description shown in /danh-hieu, and a `check`
+ * name + emoji, a one-line description shown in /title danh-hieu, and a `check`
  * function that decides if a given user qualifies. Earning is auto-checked
  * by `awardEligibleTitles()` after relevant events (duel, upgrade, rank
  * promotion, tribulation).

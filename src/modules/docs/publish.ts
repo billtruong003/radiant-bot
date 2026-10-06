@@ -27,7 +27,7 @@ import { logger } from '../../utils/logger.js';
  * Behaviour:
  *   - Non-throwing — any failure logs + returns a `skipped` outcome. The
  *     contribution is already persisted in the store with `thread_id=null`;
- *     a follow-up `/sync-pinned`-style retry could republish.
+ *     a follow-up `/admin sync-pinned`-style retry could republish.
  *   - Best-effort thread name (max 100 chars, trimmed).
  *   - Best-effort pin on the starter message (ignored if bot lacks
  *     ManageMessages on the channel).

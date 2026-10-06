@@ -10,11 +10,11 @@
 ┌────────────────────────────────────────────────────────────────────┐
 │  ❶ JOIN  →  ❷ VERIFY  →  ❸ ORIENT  →  ❹ EARLY  →  ❺ MID  →  ❻ END │
 │                                                                    │
-│  ❷ #verify           ❸ #rules               ❺ /quest, /shop,      │
+│  ❷ #verify           ❸ #rules               ❺ /quest, /shop browse,      │
 │  DM captcha          #introductions          /breakthrough, /duel  │
 │  fallback thread     #leveling-guide                               │
 │  retry 1h cooldown   #bot-commands           ❻ /contribute-doc,    │
-│                                              /ask-akira, sect war   │
+│                                              /ask akira, sect war   │
 │  ❹ /daily, chat XP,                                                │
 │     react XP, sub-title chọn ở Lv 10                               │
 └────────────────────────────────────────────────────────────────────┘
@@ -71,7 +71,7 @@
 - Mình đang ở cảnh giới gì (Phàm Nhân, Lv 0).
 - Cách tích XP (message + voice + react + /daily).
 - Có 11 cảnh giới mục tiêu.
-- Có thể hỏi Aki bằng `/ask`.
+- Có thể hỏi Aki bằng `/ask aki`.
 - Tribulation = đột phá chủ động, cần đạt Trúc Cơ trước.
 
 ---
@@ -90,7 +90,7 @@
 **Milestone Lv 10 (Trúc Cơ)**:
 - Bot DM/embed: "Đệ tử đạt Trúc Cơ — chọn sub-title trong vòng 7 ngày."
 - 4 lựa chọn: ⚔️ Kiếm Tu · 💊 Đan Sư · 🔮 Trận Pháp Sư · 🌿 Tán Tu.
-- `/title add <name>` set vĩnh viễn (có thể đổi qua `/title remove` rồi `add` lại).
+- `/title phong-hieu add <name>` set vĩnh viễn (có thể đổi qua `/title phong-hieu remove` rồi `add` lại).
 - Mở khoá perks: external emoji, embed links, dùng `/breakthrough`.
 
 **Pinned tại `#daily-checkin`**: routine 6 bước hằng ngày + giải thích streak + tribulation random.
@@ -104,13 +104,13 @@
 | Action | Lệnh | Thưởng |
 |---|---|---|
 | **Daily quests** | `/quest` | 25-100 XP / quest + pills + contribution |
-| **Mua công pháp** | `/shop` → `/cong-phap buy` | +lực chiến |
-| **Trang bị / đổi** | `/cong-phap equip <slug>` | Refresh stat |
-| **Bán lại** | `/trade sell <slug>` | Hoàn 50-60% giá + 10% chance Aki bonus |
+| **Mua công pháp** | `/shop browse` → `/gear cong-phap buy` | +lực chiến |
+| **Trang bị / đổi** | `/gear cong-phap equip <slug>` | Refresh stat |
+| **Bán lại** | `/shop trade sell <slug>` | Hoàn 50-60% giá + 10% chance Aki bonus |
 | **PvP** | `/duel @target [stake]` | Win → +XP + pills, lose → -XP |
 | **Active breakthrough** | `/breakthrough` | +500 XP + 5 pills (cần 1 pill khởi) |
 | **Random tribulation** | (system 18:00 VN, 25%) | Free shot lên cảnh giới |
-| **Hỏi NPC** | `/ask-akira`, `/ask-meifeng` | Tu duy / combat advice |
+| **Hỏi NPC** | `/ask akira`, `/ask meifeng` | Tu duy / combat advice |
 
 **Channels active thêm**:
 - `#🎮-game-dev-🎮`, `#🤖-ai-ml-🤖`, `#🛠️-tools-showcase-🛠️` — chia sẻ project.
@@ -160,12 +160,12 @@
 
 | Action | Channel / Command | Purpose |
 |---|---|---|
-| Áp Chế Thiên Đạo | `/thien-dao target:@user crime:<text>` | LLM-judged punishment menu |
-| Cấp currency | `/grant pills\|contribution @user N` | Event reward / compensation |
-| Raid response | `/raid-mode on` | Lock unverified + slow chat |
-| Dashboard | `/stats` | 24h overview |
-| Whitelist quản lý | `/link-whitelist add/remove/list` | Runtime URL whitelist |
-| Pinned sync | `/sync-pinned` | Re-publish canonical pins (idempotent) |
+| Áp Chế Thiên Đạo | `/mod thien-dao target:@user crime:<text>` | LLM-judged punishment menu |
+| Cấp currency | `/mod grant pills\|contribution @user N` | Event reward / compensation |
+| Raid response | `/mod raid on` | Lock unverified + slow chat |
+| Dashboard | `/admin stats` | 24h overview |
+| Whitelist quản lý | `/mod links add/remove/list` | Runtime URL whitelist |
+| Pinned sync | `/admin sync-pinned` | Re-publish canonical pins (idempotent) |
 | Audit | `npm run audit-server` (VPS) | Members/roles/channels/pinned report |
 
 **Voice retreat**: `#🍵 Elder Lounge 🍵` (voice) + `#🏛️-elder-lounge-🏛️` (text, admin-only).
@@ -176,16 +176,16 @@
 
 | Where users see LLM | Provider | Cost |
 |---|---|---|
-| `/ask` answer | Grok 4.1 Fast | ~$0.05-0.50/day |
-| `/ask-akira`, `/ask-meifeng` | Grok 4.1 Fast | same budget |
+| `/ask aki` answer | Grok 4.1 Fast | ~$0.05-0.50/day |
+| `/ask akira`, `/ask meifeng` | Grok 4.1 Fast | same budget |
 | Aki nudge (profanity 1-14) | Groq free (Qwen/Llama) | $0 |
 | Thiên Đạo narration (`#bot-log`) | Groq free | $0 |
 | Chronicler narration (rank breakthrough) | Groq free | $0 |
 | `/contribute-doc` validate | Groq free | $0 |
-| `/thien-dao` punishment selection | Groq free | $0 |
-| Filter (anti-spam `/ask` input) | Gemini Flash → Groq fallback | $0 (free tier) |
+| `/mod thien-dao` punishment selection | Groq free | $0 |
+| Filter (anti-spam `/ask aki` input) | Gemini Flash → Groq fallback | $0 (free tier) |
 
-**Privacy**: Aki memory = opt-in only (`/aki-memory toggle`). Discord usernames / display names đều sanitize trước khi đưa vào prompt (`src/utils/sanitize.ts`).
+**Privacy**: Aki memory = opt-in only (`/ask memory toggle`). Discord usernames / display names đều sanitize trước khi đưa vào prompt (`src/utils/sanitize.ts`).
 
 ---
 
@@ -196,8 +196,8 @@
 | Đệ tử join nhưng không thấy DM verify | Discord DM block | Pinned `#verify` chỉ ping `@Trưởng Lão` |
 | Verify timeout 2 ngày → bị kick | Đệ tử quên / busy | Re-invite + thử lại sau 1h cooldown |
 | Channel category bị xáo trộn | Manual move trên Discord | `npm run sync-server -- --dry-run` rồi sync |
-| Pinned messages bị edit / xoá | User pin mới đè bot pin | `/sync-pinned` re-publish (chỉ thay bot pin) |
-| Lực chiến không khớp | Công pháp inventory drift | `/cong-phap list` → `/cong-phap unequip` → equip lại |
+| Pinned messages bị edit / xoá | User pin mới đè bot pin | `/admin sync-pinned` re-publish (chỉ thay bot pin) |
+| Lực chiến không khớp | Công pháp inventory drift | `/gear cong-phap list` → `/gear cong-phap unequip` → equip lại |
 | Quest không progress | Quest type không match action | Đọc pinned `#daily-checkin` — quest type liệt kê đầy đủ |
 | XP không tích sau spam | Cooldown 60s | _Working as intended_ — chống grind |
 | Aki không trả lời 1 ngày | Daily $2 budget exhausted | Đợi 00:00 VN reset |
@@ -231,7 +231,7 @@
 
 **Tổng**: 13 pinned messages chính thức / ~24 text channels.
 
-Re-sync any time với `/sync-pinned` (admin slash). Sync **chỉ thay bot pin** — user pins không bao giờ bị unpin.
+Re-sync any time với `/admin sync-pinned` (admin slash). Sync **chỉ thay bot pin** — user pins không bao giờ bị unpin.
 
 ---
 
@@ -240,7 +240,7 @@ Re-sync any time với `/sync-pinned` (admin slash). Sync **chỉ thay bot pin**
 1. **Ngôi 3 vô danh** — không "tôi/em/Aki yêu cầu". Tông môn / hệ thống / quy tắc speak. (Bill 2026-05-14)
 2. **Aesthetic dividers** — `━━━━━━━━━━━━━━━━━━━━━━━━━━━━` giữa sections.
 3. **Themed emoji palette** — mỗi kênh có cluster 4-6 emoji riêng (rules: 📜⚖️🌸☯️✨; tribulation: 🌩️⚡💥🔥☯️; daily: 📅🌅✨🔥🌙).
-4. **Idempotent re-sync** — chạy `/sync-pinned` nhiều lần không tích luỹ pin; chỉ thay bot pin một lần.
+4. **Idempotent re-sync** — chạy `/admin sync-pinned` nhiều lần không tích luỹ pin; chỉ thay bot pin một lần.
 5. **User pins inviolable** — `BOT_PIN_MARKER` footer phân biệt; bot không bao giờ unpin user pins.
 6. **Cross-link** — mỗi pinned message dẫn tới kênh / lệnh liên quan thay vì duplicate content.
 
@@ -255,7 +255,7 @@ Khi thêm / sửa pinned content:
 3. `npm run typecheck && npm test && npm run smoke-test && npm run build`.
 4. Commit.
 5. Deploy: `git pull && npm run build && pm2 restart radiant-tech-sect-bot`.
-6. Trong Discord, admin chạy `/sync-pinned` để re-publish canonical pins.
+6. Trong Discord, admin chạy `/admin sync-pinned` để re-publish canonical pins.
 7. Verify: `npm run audit-server` trên VPS — kiểm bot-pin count per channel.
 
 Nếu cần thêm canonical channel mới:

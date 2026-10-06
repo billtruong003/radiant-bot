@@ -33,9 +33,9 @@ import { runFilter } from '../aki/filter.js';
 import { tryAcquireAskQuota } from '../aki/rate-limit.js';
 
 /**
- * Phase 17 — talk to Aki by @-mentioning her, instead of `/ask`.
+ * Phase 17 — talk to Aki by @-mentioning her, instead of `/ask aki`.
  *
- * Reuses the exact `/ask` pipeline (filter → quota → archive lookup →
+ * Reuses the exact `/ask aki` pipeline (filter → quota → archive lookup →
  * answer), so there is ONE set of rules: same rate limits, same content
  * filter, same search privileges. Only the trigger and the reply surface
  * differ.
@@ -152,7 +152,7 @@ export async function handleAkiMention(message: Message): Promise<boolean> {
     return true;
   }
 
-  // Same quota pool as /ask — mentions are far easier to fire off than a
+  // Same quota pool as /ask aki — mentions are far easier to fire off than a
   // slash command, so they must not get a separate, looser allowance.
   const quota = tryAcquireAskQuota(userId);
   if (!quota.ok) {
@@ -229,7 +229,7 @@ export async function handleAkiMention(message: Message): Promise<boolean> {
       recentCount: recentMessages.length,
     });
 
-    // Archive lookup — same double gate as /ask: feature flag + role.
+    // Archive lookup — same double gate as /ask aki: feature flag + role.
     let searchContext = '';
     if (
       env.ARCHIVE_ENABLED &&
