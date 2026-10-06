@@ -10,15 +10,19 @@ import type {
   AkiCallLog,
   ArenaSession,
   AutomodLog,
+  Avatar,
   CongPhap,
   DailyQuest,
   DocContribution,
   DocReviewLog,
+  GuardianStrike,
+  Hunter,
+  MemberProfile,
+  Nhan,
+  PhapKhi,
   RaidState,
   ReactionRolesConfig,
   SectEvent,
-  Nhan,
-  PhapKhi,
   User,
   UserCongPhap,
   UserNhan,
@@ -28,9 +32,6 @@ import type {
   Verification,
   VoiceSession,
   Weapon,
-  MemberProfile,
-  GuardianStrike,
-  Hunter,
   XpLog,
   XpSource,
 } from './types.js';
@@ -96,6 +97,7 @@ interface SnapshotShape {
   member_profiles?: MemberProfile[];
   guardian_strikes?: GuardianStrike[];
   hunters?: Hunter[];
+  avatars?: Avatar[];
   // Phase 14 round 3 — pháp khí + nhẫn (V2 multi-slot equipment).
   phap_khi_catalog?: PhapKhi[];
   user_phap_khi?: UserPhapKhi[];
@@ -161,6 +163,7 @@ export class Store {
   readonly memberProfiles: Collection<MemberProfile>;
   readonly guardianStrikes: Collection<GuardianStrike>;
   readonly hunters: Collection<Hunter>;
+  readonly avatars: Collection<Avatar>;
   // Phase 14 round 3 — V2 multi-slot equipment catalogs + ownership.
   readonly phapKhiCatalog: Collection<PhapKhi>;
   readonly userPhapKhi: Collection<UserPhapKhi>;
@@ -246,6 +249,8 @@ export class Store {
     );
     // Hunter power, keyed by member: one GitHub link each.
     this.hunters = new Collection<Hunter>('hunters', this.log, (h) => h.discord_id);
+    // Cultivator look (paper-doll choices), keyed by member.
+    this.avatars = new Collection<Avatar>('avatars', this.log, (a) => a.discord_id);
     // Phase 14 round 3 — pháp khí + nhẫn multi-slot equipment.
     this.phapKhiCatalog = new Collection<PhapKhi>('phap_khi_catalog', this.log, (p) => p.slug);
     this.userPhapKhi = new Collection<UserPhapKhi>('user_phap_khi', this.log, (up) => up.id);
@@ -275,6 +280,7 @@ export class Store {
       this.memberProfiles,
       this.guardianStrikes,
       this.hunters,
+      this.avatars,
       this.phapKhiCatalog,
       this.userPhapKhi,
       this.nhanCatalog,
@@ -320,6 +326,7 @@ export class Store {
       this.memberProfiles._bulkLoad(snapshot.member_profiles ?? []);
       this.guardianStrikes._bulkLoad(snapshot.guardian_strikes ?? []);
       this.hunters._bulkLoad(snapshot.hunters ?? []);
+      this.avatars._bulkLoad(snapshot.avatars ?? []);
       this.phapKhiCatalog._bulkLoad(snapshot.phap_khi_catalog ?? []);
       this.userPhapKhi._bulkLoad(snapshot.user_phap_khi ?? []);
       this.nhanCatalog._bulkLoad(snapshot.nhan_catalog ?? []);
@@ -510,6 +517,7 @@ export class Store {
         member_profiles: this.memberProfiles._serialize(),
         guardian_strikes: this.guardianStrikes._serialize(),
         hunters: this.hunters._serialize(),
+        avatars: this.avatars._serialize(),
         phap_khi_catalog: this.phapKhiCatalog._serialize(),
         user_phap_khi: this.userPhapKhi._serialize(),
         nhan_catalog: this.nhanCatalog._serialize(),

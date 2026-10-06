@@ -793,3 +793,21 @@ export interface Hunter extends Record<string, unknown> {
   duel_wins: number;
   duel_losses: number;
 }
+
+/**
+ * How a member's cultivator looks: one index per paper-doll layer, chosen on
+ * the web customizer. The bot draws the character from these numbers every
+ * time, so no image is stored. Indices point into src/modules/avatar/catalog.ts.
+ */
+export interface Avatar extends Record<string, unknown> {
+  discord_id: string;
+  skin: number;
+  eyes: number;
+  hair_style: number;
+  hair_color: number;
+  robe_style: number;
+  robe_color: number;
+  /** Item carried on the back; the last option means none. */
+  back: number;
+  updated_at: number;
+}
