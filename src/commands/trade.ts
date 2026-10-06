@@ -1,5 +1,9 @@
-import { type ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { type ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { getStore } from '../db/index.js';
+import { withCard } from '../modules/cards/attach.js';
+import { renderSellCard } from '../modules/cards/dodac-cards.js';
+import { congPhapItem } from '../modules/cards/item-views.js';
+import { LOOK_AKI } from '../modules/cards/samples.js';
 import { unequipCongPhap } from '../modules/combat/cong-phap.js';
 import { logger } from '../utils/logger.js';
 
@@ -72,10 +76,17 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  // Auto-unequip if needed.
-  if (user.equipped_cong_phap_slug === slug) {
-    await unequipCongPhap(userId);
+  // Auto-unequip if needed — the slug may sit in any of the 5 slots.
+  const slots = user.equipped_cong_phap_slugs?.length
+    ? user.equipped_cong_phap_slugs
+    : user.equipped_cong_phap_slug
+      ? [user.equipped_cong_phap_slug]
+      : [];
+  const slotIdx = slots.indexOf(slug);
+  if (slotIdx >= 0) {
+    await unequipCongPhap(userId, slotIdx);
   }
+  const soldLevel = owned[0]?.level ?? 0;
 
   // Determine refund — Aki premium roll.
   const isPremium = Math.random() < AKI_PREMIUM_CHANCE;
@@ -112,7 +123,17 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     ? `🎉 **AKI HÔM NAY HÀO PHÓNG!** Mua full giá — ${refundPills} 💊 + ${refundContrib} 🪙. Hên thật ٩(◕‿◕)۶`
     : `💰 Aki nhận **${item.name}** — refund ${refundPills} 💊 + ${refundContrib} 🪙 (50-60% giá gốc).`;
 
-  await interaction.reply({ content: flavor, ephemeral: true });
+  const embed = new EmbedBuilder()
+    .setColor(isPremium ? 0xf4d03f : 0x8a8298)
+    .setDescription(flavor);
+  const card = await renderSellCard({
+    ...congPhapItem(item, soldLevel),
+    pills: refundPills,
+    coins: refundContrib,
+    jackpot: isPremium,
+    aki: LOOK_AKI,
+  });
+  await interaction.reply({ ...withCard(embed, card), ephemeral: true });
 }
 
 export const __for_testing = {

@@ -1,6 +1,14 @@
 import type { Rendered } from '../pixel/output.js';
 import { renderAvatarCard } from './avatar-card.js';
 import {
+  renderForgeCard,
+  renderInventoryCard,
+  renderItemCard,
+  renderSellCard,
+  renderShopCard,
+  renderUpgradeCard,
+} from './dodac-cards.js';
+import {
   renderAllocCard,
   renderRankCard,
   renderStatCard,
@@ -9,7 +17,7 @@ import {
 } from './hoso-cards.js';
 import { renderKitSheet } from './kit-sheet.js';
 import { renderProfileCard } from './profile-card.js';
-import { LOOK_BILL, sampleProfile } from './samples.js';
+import { LOOK_AKI, LOOK_BILL, sampleProfile } from './samples.js';
 
 /** Every card with sample data, for scripts/render-preview.ts and tests. */
 export const PREVIEWS: Record<string, () => Promise<Rendered>> = {
@@ -65,4 +73,194 @@ export const PREVIEWS: Record<string, () => Promise<Rendered>> = {
         on: false,
       },
     ]),
+  upgrade: () =>
+    renderUpgradeCard({
+      kind: 'weapon',
+      icon: 'jian_sword__icy_frost_steel',
+      name: 'Hàn Sương Kiếm',
+      grade: 'Thiên Phẩm',
+      color: '#5fa8e8',
+      level: 8,
+      from: 7,
+      to: 8,
+      result: 'success',
+      rate: 0.15,
+      costPills: 23,
+      costCoins: 1600,
+      detail: 'dmg 42 → 47',
+    }),
+  'upgrade-heavy': () =>
+    renderUpgradeCard({
+      kind: 'weapon',
+      icon: 'jian_sword__icy_frost_steel',
+      name: 'Hàn Sương Kiếm',
+      grade: 'Thiên Phẩm',
+      color: '#5fa8e8',
+      level: 6,
+      from: 7,
+      to: 6,
+      result: 'fail-downgrade',
+      rate: 0.15,
+      costPills: 23,
+      costCoins: 1600,
+    }),
+  item: () =>
+    renderItemCard({
+      kindLabel: 'Vũ khí · xuyên phá',
+      icon: 'spear__green_jade',
+      name: 'Lôi Nha Kích',
+      grade: 'Thánh Phẩm',
+      color: '#b48ef0',
+      level: 8,
+      sub: 'Cường hóa +8: lực chiến vũ khí ×2.2',
+      stats: [
+        ['SÁT THƯƠNG', '46', '#e8806e'],
+        ['CHÍ MẠNG', '12%', '#f0b84a', '×1.5 sát thương'],
+        ['XUYÊN', '2', '#7fb2e8', 'mục tiêu'],
+      ],
+      skill: 'Kỹ năng: Lôi Nha. Đòn thứ ba trong hiệp gây thêm 30% sát thương.',
+      lore: 'Rèn từ răng lôi thú ở Thiên Lôi Sơn, mỗi lần vung kèm tiếng sấm nhỏ.',
+    }),
+  inventory: () =>
+    renderInventoryCard({
+      tab: 'Tổng',
+      pills: 37,
+      coins: 1240,
+      items: [
+        {
+          icon: 'jian_sword__icy_frost_steel',
+          name: 'a',
+          grade: '',
+          color: '#5fa8e8',
+          level: 5,
+          equipped: true,
+        },
+        {
+          icon: 'dao_saber__forged_iron',
+          name: 'b',
+          grade: '',
+          color: '#6fbf73',
+          level: 2,
+          equipped: false,
+        },
+        {
+          icon: 'spear__green_jade',
+          name: 'c',
+          grade: '',
+          color: '#b48ef0',
+          level: 8,
+          equipped: false,
+        },
+        { icon: 'scroll_thanh', name: 'd', grade: '', color: '#f0b84a', level: 10, equipped: true },
+        { icon: 'scroll_thien', name: 'e', grade: '', color: '#5fa8e8', level: 4, equipped: true },
+        {
+          icon: 'iron_fan__shining_silver',
+          name: 'f',
+          grade: '',
+          color: '#5fa8e8',
+          level: 8,
+          equipped: true,
+        },
+        {
+          icon: 'dragon_ring__green_jade',
+          name: 'g',
+          grade: '',
+          color: '#b48ef0',
+          level: 0,
+          equipped: true,
+        },
+      ],
+    }),
+  shop: () =>
+    renderShopCard({
+      tab: 'Vũ khí',
+      rankName: 'Kim Đan',
+      pills: 37,
+      coins: 1240,
+      items: [
+        {
+          icon: 'jian_sword__icy_frost_steel',
+          name: 'Hàn Sương Kiếm',
+          grade: 'Thiên Phẩm',
+          color: '#5fa8e8',
+          level: 5,
+          stat: 'dmg 42',
+          pills: 18,
+          coins: 900,
+          state: 'equipped',
+        },
+        {
+          icon: 'dao_saber__forged_iron',
+          name: 'Đồng Cổ Đao',
+          grade: 'Địa Phẩm',
+          color: '#6fbf73',
+          level: 0,
+          stat: 'dmg 28',
+          pills: 6,
+          coins: 300,
+          state: 'owned',
+        },
+        {
+          icon: 'spear__forged_iron',
+          name: 'Phong Vũ Thương',
+          grade: 'Địa Phẩm',
+          color: '#6fbf73',
+          level: 0,
+          stat: 'dmg 31',
+          pills: 8,
+          coins: 350,
+          state: 'buy',
+        },
+        {
+          icon: 'spear__green_jade',
+          name: 'Lôi Nha Kích',
+          grade: 'Thánh Phẩm',
+          color: '#b48ef0',
+          level: 0,
+          stat: 'dmg 46',
+          pills: 30,
+          coins: 1600,
+          state: 'poor',
+        },
+        {
+          icon: 'jian_sword__divine_gold_inlaid_wood',
+          name: 'Sát Thần Kiếm',
+          grade: 'Thần Phẩm',
+          color: '#f0b84a',
+          level: 0,
+          stat: 'dmg 64',
+          pills: 60,
+          coins: 4000,
+          state: 'locked',
+          need: 'Nguyên Anh',
+        },
+      ],
+    }),
+  sell: () =>
+    renderSellCard({
+      icon: 'scroll_thien',
+      name: 'Băng Tâm Quyết',
+      grade: 'Hiếm',
+      color: '#5fa8e8',
+      level: 3,
+      pills: 12,
+      coins: 800,
+      jackpot: true,
+      aki: LOOK_AKI,
+    }),
+  forge: () =>
+    renderForgeCard({
+      icon: 'staff__meteoric_lava_iron',
+      name: 'Phá Hư Đao',
+      grade: 'Bản Mệnh',
+      color: '#e8806e',
+      level: 0,
+      element: 'Hỏa',
+      stats: [
+        ['SÁT THƯƠNG', '24', '#e8806e'],
+        ['CHÍ MẠNG', '8%', '#f0b84a'],
+        ['NẢY', '0.6', '#7fb2e8'],
+      ],
+      skill: 'Kỹ năng bản mệnh: Hỏa Ngục. Đòn đầu trận đốt 5% máu đối thủ mỗi hiệp.',
+    }),
 };

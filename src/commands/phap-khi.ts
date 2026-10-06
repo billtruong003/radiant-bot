@@ -1,13 +1,16 @@
-import { ulid } from 'ulid';
 import {
   type ChatInputCommandInteraction,
   EmbedBuilder,
   SlashCommandBuilder,
 } from 'discord.js';
+import { ulid } from 'ulid';
 import { rankById } from '../config/cultivation.js';
 import { getStore } from '../db/index.js';
+import { withCard } from '../modules/cards/attach.js';
+import { renderItemCard, renderUpgradeCard } from '../modules/cards/dodac-cards.js';
+import { phapKhiDetail, phapKhiItem } from '../modules/cards/item-views.js';
 import { autocompletePhapKhi } from '../modules/combat/autocomplete.js';
-import { canEquipPhapKhi, PHAP_KHI_MIN_RANK } from '../modules/combat/equipment-resolver.js';
+import { PHAP_KHI_MIN_RANK, canEquipPhapKhi } from '../modules/combat/equipment-resolver.js';
 import {
   MAX_LEVEL,
   congPhapSuccessRate,
@@ -143,7 +146,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         ...(item.passive_text ? [{ name: '✨ Passive', value: item.passive_text }] : []),
       )
       .setFooter({ text: `slug: ${item.slug}` });
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    const infoLevel =
+      store.userPhapKhi.query((o) => o.discord_id === userId && o.phap_khi_slug === slug)[0]?.level ?? 0;
+    const card = await renderItemCard(phapKhiDetail(item, infoLevel));
+    await interaction.reply({ ...withCard(embed, card), ephemeral: true });
     return;
   }
 
@@ -309,10 +315,22 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       outcome.result === 'success'
         ? `✨ **THÀNH CÔNG** (${ratePct}%) — \`${item?.name ?? slug}\` → **Lv ${outcome.newLevel}**.`
         : `💥 **THẤT BẠI** (${ratePct}%) — linh khí bất ổn, giữ Lv ${currentLevel}.`;
-    await interaction.reply({
-      content: `${flavor}\n💸 Trừ: ${cost.pills}💊 + ${cost.contribution}🪙`,
-      ephemeral: true,
-    });
+    const embed = new EmbedBuilder()
+      .setColor(outcome.result === 'success' ? 0xd4af37 : 0x8a3b3b)
+      .setDescription(`${flavor}\n💸 Trừ: ${cost.pills}💊 + ${cost.contribution}🪙`);
+    const card = item
+      ? await renderUpgradeCard({
+          ...phapKhiItem(item, outcome.newLevel),
+          kind: 'phap_khi',
+          from: currentLevel,
+          to: outcome.newLevel,
+          result: outcome.result,
+          rate,
+          costPills: cost.pills,
+          costCoins: cost.contribution,
+        })
+      : null;
+    await interaction.reply({ ...withCard(embed, card), ephemeral: true });
   }
 }
 

@@ -1,11 +1,14 @@
-import { ulid } from 'ulid';
 import {
   type ChatInputCommandInteraction,
   EmbedBuilder,
   SlashCommandBuilder,
 } from 'discord.js';
+import { ulid } from 'ulid';
 import { rankById } from '../config/cultivation.js';
 import { getStore } from '../db/index.js';
+import { withCard } from '../modules/cards/attach.js';
+import { renderItemCard } from '../modules/cards/dodac-cards.js';
+import { nhanDetail } from '../modules/cards/item-views.js';
 import { autocompleteNhan } from '../modules/combat/autocomplete.js';
 import { maxNhanSlots, readEquippedRingSlugs } from '../modules/combat/equipment-resolver.js';
 
@@ -148,7 +151,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         ...(passives.length ? [{ name: '✨ Passive', value: passives.join(' · ') }] : []),
       )
       .setFooter({ text: `slug: ${item.slug}` });
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ ...withCard(embed, await renderItemCard(nhanDetail(item))), ephemeral: true });
     return;
   }
 

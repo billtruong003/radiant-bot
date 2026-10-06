@@ -31,27 +31,27 @@ Ký hiệu: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong · ⛔ chờ Bill
 
 Nền cho mọi phase sau. Mỗi hàm vẽ được test bằng ảnh chụp so khớp kích thước và vài điểm ảnh.
 
-- [ ] P0.1 Font: đăng ký VT323 (tên family không có chữ weight); bỏ `NotoSerif-ExtraBold.ttf` khỏi repo. Hàm `text()` có chế độ đậm bằng cách vẽ lệch 1–2 px.
-- [ ] P0.2 Token màu và thành phần: panel, chip, nút giả, thanh tiến độ phân đoạn, ô chỉ số, dòng tiền tệ (đan dược, cống hiến), nhãn chữ hoa. Khớp trang Base UI.
-- [ ] P0.3 Icon: vẽ icon chỉ ở 32/64/128 px (assert tỉ lệ nguyên), `imageSmoothingEnabled = false`.
-- [ ] P0.4 Bảng ánh xạ catalog → icon wuxia: vũ khí theo từ khóa tên (Kiếm, Đao, Đại Đao, Thương, Côn, Chuỳ, Phiến…) rồi theo `category`; phẩm (`pham…than, ban_menh`) → chất liệu; pháp khí, nhẫn theo `type`/`rarity`; công pháp → cuộn trục theo rarity. Test: mọi slug trong 4 catalog đều có icon.
-- [ ] P0.5 Ghép nhân vật từ sprite sheet (da, mắt, tóc, áo, giày, đồ đeo), lật trái phải, hình bóng xám khi chưa tạo hình. Cache theo bộ số + scale.
-- [ ] P0.6 Sprite quái từ pack: nạp strip, cắt khung, vẽ theo khung (sói 4 màu, dơi, kiếm vệ, hộ pháp) và 5 quái tự vẽ (dạng lưới điểm ảnh).
-- [ ] P0.7 Thư viện hiệu ứng trên canvas, theo đúng tên ở Base UI: lấp lánh, hạt bay, vòng hào quang, tia xoay, cột sáng, sét có nhánh + mây + chớp màn hình, vệt chém, số sát thương, lửa, mảnh vỡ, rung, thở. Mỗi hiệu ứng nhận `t` (0–1) để vẽ theo khung.
-- [ ] P0.8 Dấu ấn cường hóa 4 bậc (+1~3, +4~6, +7~9, +10) vẽ đè lên icon; bỏ vòng hào quang khi ô < 70 px.
-- [ ] P0.9 Hào quang 11 cảnh giới (`realmFx(i, t)`), mỗi bậc chồng thêm lớp như trang Đột phá.
-- [ ] P0.10 Bộ dựng GIF: nhận hàm `draw(ctx, t)`, xuất N khung, palette chung, giới hạn dung lượng, tự lùi về PNG khung đẹp nhất nếu quá cỡ. Thêm dependency encoder GIF (thuần JS).
-- [ ] P0.11 Script `npm run render:preview` xuất mọi màn ra `tmp/preview/` để soát bằng mắt; test chụp ảnh cho từng màn.
+- [x] P0.1 Font: VT323 vẽ từ atlas bitmap dựng sẵn (`scripts/build-font-atlas.py`) vì node-canvas không nạp được font trên Windows; bỏ Noto Serif. `text()` có chế độ đậm bằng cách vẽ lệch 1–2 px. (`bbd5122`)
+- [x] P0.2 Token màu và thành phần: panel, chip, nút giả, thanh tiến độ phân đoạn, ô chỉ số, dòng tiền tệ (đan dược, cống hiến), nhãn chữ hoa. Khớp trang Base UI.
+- [x] P0.3 Icon: vẽ icon chỉ ở 32/64/128 px (assert tỉ lệ nguyên), `imageSmoothingEnabled = false`.
+- [x] P0.4 Bảng ánh xạ catalog → icon wuxia: vũ khí theo từ khóa tên (Kiếm, Đao, Đại Đao, Thương, Côn, Chuỳ, Phiến…) rồi theo `category`; phẩm (`pham…than, ban_menh`) → chất liệu; pháp khí, nhẫn theo `type`/`rarity`; công pháp → cuộn trục theo rarity. Test: mọi slug trong 4 catalog đều có icon.
+- [x] P0.5 Ghép nhân vật từ sprite sheet (da, mắt, tóc, áo, giày, đồ đeo), lật trái phải, hình bóng xám khi chưa tạo hình. Cache theo bộ số + scale.
+- [x] P0.6 Sprite quái từ pack: nạp strip, cắt khung, vẽ theo khung (sói 4 màu, dơi, kiếm vệ, hộ pháp) và 5 quái tự vẽ (dạng lưới điểm ảnh).
+- [x] P0.7 Thư viện hiệu ứng trên canvas, theo đúng tên ở Base UI: lấp lánh, hạt bay, vòng hào quang, tia xoay, cột sáng, sét có nhánh + mây + chớp màn hình, vệt chém, số sát thương, lửa, mảnh vỡ, rung, thở. Mỗi hiệu ứng nhận `t` (0–1) để vẽ theo khung.
+- [x] P0.8 Dấu ấn cường hóa 4 bậc (+1~3, +4~6, +7~9, +10) vẽ đè lên icon; bỏ vòng hào quang khi ô < 70 px.
+- [x] P0.9 Hào quang 11 cảnh giới (`realmFx(i, t)`), mỗi bậc chồng thêm lớp như trang Đột phá.
+- [x] P0.10 Bộ dựng GIF: nhận hàm `draw(ctx, t)`, xuất N khung, palette chung, giới hạn dung lượng, tự lùi về PNG khung đẹp nhất nếu quá cỡ. Thêm dependency encoder GIF (thuần JS).
+- [x] P0.11 Script `npm run render:preview` xuất mọi màn ra `tmp/preview/` để soát bằng mắt; test chụp ảnh cho từng màn.
 
 ## P1 — Tạo hình tu sĩ (đã làm dở: store, catalog, link)
 
 - [x] P1.1 Kiểu `Avatar` và collection `avatars` (WAL + snapshot).
 - [x] P1.2 `avatar/catalog.ts`: 7 nhóm lựa chọn, khóa theo cảnh giới, kiểm tra, ngẫu nhiên, mô tả.
 - [x] P1.3 `avatar/link.ts`: link ký HMAC, 15 phút, link mới thay link cũ, 10 lần lưu/phút.
-- [ ] P1.4 Test cho catalog, link, lưu/đọc store.
-- [ ] P1.5 API web: `GET /avatar` (trang), `GET /avatar/assets/*` (whitelist), `GET /avatar/api/state`, `POST /avatar/api/save`. Trang tạo hình theo mockup, chạy cả trên điện thoại.
-- [ ] P1.6 Lệnh `/profile avatar`: tin nhắn ẩn có ảnh hiện tại, nút mở link, nút Ngẫu nhiên. Lưu trên web thì sửa luôn tin nhắn ẩn (webhook của interaction).
-- [ ] P1.7 Trang hết hạn, trang lỗi, chặn món chưa mở ở server.
+- [x] P1.4 Test cho catalog, link, lưu/đọc store.
+- [x] P1.5 API web: `GET /avatar` (trang), `GET /avatar/assets/*` (whitelist), `GET /avatar/api/state`, `POST /avatar/api/save`. Trang tạo hình theo mockup, chạy cả trên điện thoại.
+- [x] P1.6 Lệnh `/profile avatar`: tin nhắn ẩn có ảnh hiện tại, nút mở link, nút Ngẫu nhiên. Lưu trên web thì sửa luôn tin nhắn ẩn (webhook của interaction).
+- [x] P1.7 Trang hết hạn, trang lỗi, chặn món chưa mở ở server.
 
 ## P2 — Ảnh cho các lệnh đang có
 
@@ -62,17 +62,17 @@ Thay embed chữ bằng ảnh, giữ phần chữ quan trọng trong embed để
 - [ ] P2.3 `/profile stat` lực chiến 9 nguồn + công pháp.
 - [ ] P2.4 `/profile alloc` ảnh vẽ lại sau mỗi lần bấm +1, ô vừa cộng sáng lên.
 - [ ] P2.5 `/title danh-hieu` và `/title phong-hieu`.
-- [ ] P2.6 `/gear inventory` túi đồ 5 tab; `/gear … info` thẻ chi tiết vũ khí, công pháp, pháp khí, nhẫn.
-- [ ] P2.7 `/gear … upgrade` kết quả cường hóa (GIF: thành công, thất bại, thất bại nặng).
-- [ ] P2.8 `/shop browse` đan tiệm 4 tab với 5 trạng thái; `/shop trade sell` (GIF khi Aki hào phóng).
-- [ ] P2.9 `/admin arena forge` rèn bản mệnh (GIF).
+- [x] P2.6 `/gear inventory` túi đồ 5 tab; `/gear … info` thẻ chi tiết vũ khí, công pháp, pháp khí, nhẫn.
+- [x] P2.7 `/gear … upgrade` kết quả cường hóa (GIF: thành công, thất bại, thất bại nặng).
+- [x] P2.8 `/shop browse` đan tiệm 4 tab với 5 trạng thái; `/shop trade sell` (GIF khi Aki hào phóng).
+- [x] P2.9 `/admin arena forge` rèn bản mệnh (GIF).
 - [ ] P2.10 `/daily` lịch 30 ngày; `/quest` bảng nhiệm vụ.
 - [ ] P2.11 `/duel`: lời thách đấu (PNG), kết quả (GIF 5 hiệp), miểu sát (GIF).
 - [ ] P2.12 `/leaderboard` bục top 3 + danh sách; bảng tuần tự đăng dùng cùng ảnh.
 - [ ] P2.13 `/breakthrough` Lôi Kiếp (GIF ra đề, qua, trượt).
 - [ ] P2.14 Thông báo lên cảnh giới tự đăng (GIF theo 11 bậc), thay `aura.ts` dạng emoji.
 - [ ] P2.15 `/mod thien-dao` Thiên Đạo phán quyết (GIF).
-- [ ] P2.16 Sửa lệch có sẵn: chân bảng xếp hạng ghi "level×10" nhưng `/profile stat` tính ×5; `/quest` in slug thô cho 6 loại nhiệm vụ; `trade` chỉ gỡ trang bị ở trường cũ, bỏ sót mảng nhiều ô.
+- [ ] P2.16 Sửa lệch có sẵn: chân bảng xếp hạng ghi "level×10" nhưng `/profile stat` tính ×5; `/quest` in slug thô cho 6 loại nhiệm vụ; `trade` chỉ gỡ trang bị ở trường cũ, bỏ sót mảng nhiều ô (phần trade đã sửa cùng P2.8).
 
 ## P3 — Phong Kiếp (thiên kiếp bậc 2, trong Discord)
 

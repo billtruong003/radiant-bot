@@ -18,8 +18,11 @@ import {
   probeColyseus,
 } from '../modules/arena/index.js';
 import { describeSkill } from '../modules/arena/skill-descriptions.js';
-import { logger } from '../utils/logger.js';
+import { withCard } from '../modules/cards/attach.js';
+import { renderForgeCard } from '../modules/cards/dodac-cards.js';
+import { forgeView } from '../modules/cards/item-views.js';
 import { requireAdmin } from '../utils/command-guard.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Phase 13 Lát A — `/admin arena` admin slash.
@@ -132,7 +135,8 @@ async function handleForge(interaction: ChatInputCommandInteraction): Promise<vo
     )
     .setFooter({ text: 'Bản mệnh mạch tương ứng deterministic theo Discord ID · stats riêng cho mỗi user' });
 
-  await interaction.editReply({ embeds: [embed] });
+  const card = await renderForgeCard(forgeView(target.id, preview.stats));
+  await interaction.editReply(withCard(embed, card));
 }
 
 async function handleInspect(interaction: ChatInputCommandInteraction): Promise<void> {

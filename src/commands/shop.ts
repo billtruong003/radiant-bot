@@ -12,6 +12,8 @@ import {
 } from 'discord.js';
 import { rankById } from '../config/cultivation.js';
 import { getStore } from '../db/index.js';
+import { withCard, withCardEdit } from '../modules/cards/attach.js';
+import { renderShop } from '../modules/cards/item-views.js';
 import { RARITY_EMOJI, buyCongPhap, listShopAvailable } from '../modules/combat/cong-phap.js';
 import {
   NHAN_RARITY_EMOJI,
@@ -478,7 +480,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   };
 
   const msg = (await interaction.reply({
-    embeds: [buildEmbed(activeTab, userId)],
+    ...withCard(buildEmbed(activeTab, userId), await renderShop(userId, activeTab)),
     components: buildComponents(activeTab, userId, pageState),
     ephemeral: true,
     fetchReply: true,
@@ -503,7 +505,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         activeTab = next;
         pageState[next] = 0;
         await cmp.update({
-          embeds: [buildEmbed(activeTab, userId)],
+          ...withCardEdit(buildEmbed(activeTab, userId), await renderShop(userId, activeTab)),
           components: buildComponents(activeTab, userId, pageState),
         });
         return;
@@ -521,7 +523,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         if (dir === 'next') pageState[tab] += 1;
         else if (dir === 'prev') pageState[tab] -= 1;
         await cmp.update({
-          embeds: [buildEmbed(activeTab, userId)],
+          ...withCardEdit(buildEmbed(activeTab, userId), await renderShop(userId, activeTab)),
           components: buildComponents(activeTab, userId, pageState),
         });
         return;
@@ -547,7 +549,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           text: `✅ Mua \`${slug}\` thành công · Còn ${result.newPills}💊 + ${result.newContribution}🪙`,
         });
         await cmp.update({
-          embeds: [embed],
+          ...withCardEdit(embed, await renderShop(userId, activeTab)),
           components: buildComponents(activeTab, userId, pageState),
         });
       }
@@ -577,6 +579,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           }),
         ],
         components: [expiredRow],
+        attachments: [],
       });
     } catch {
       /* ephemeral dismissed */

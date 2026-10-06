@@ -1,6 +1,11 @@
 import { type ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { rankById } from '../config/cultivation.js';
+import { getStore } from '../db/index.js';
+import type { WeaponStats } from '../db/types.js';
 import { BAN_MENH_SLUG_PREFIX } from '../modules/arena/forge.js';
+import { withCard } from '../modules/cards/attach.js';
+import { renderItemCard, renderUpgradeCard } from '../modules/cards/dodac-cards.js';
+import { resolveWeapon, weaponDetail, weaponItem } from '../modules/cards/item-views.js';
 import { autocompleteWeapon } from '../modules/combat/autocomplete.js';
 import { getBanMenhDisplay } from '../modules/combat/ban-menh-templates.js';
 import {
@@ -10,8 +15,6 @@ import {
   weaponSuccessRate,
 } from '../modules/combat/upgrade.js';
 import { buyWeapon } from '../modules/combat/weapon-shop.js';
-import { getStore } from '../db/index.js';
-import type { WeaponStats } from '../db/types.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -208,7 +211,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         { name: '🔁 Pierce', value: `${r.stats.pierce_count}`, inline: true },
       )
       .setFooter({ text: `slug: ${r.slug}` });
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    const ref = resolveWeapon(userId, r.slug);
+    const card = ref ? await renderItemCard(weaponDetail(ref, r.level)) : null;
+    await interaction.reply({ ...withCard(embed, card), ephemeral: true });
     return;
   }
 
@@ -374,10 +379,23 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     } else {
       flavor = `💥 **THẤT BẠI** (xác suất thành công ${ratePct}%) — luyện khí bất ổn, giữ nguyên Lv ${r.level}. Đan dược + cống hiến đã tiêu tan.`;
     }
-    await interaction.reply({
-      content: `${flavor}\n💸 Trừ: ${cost.pills}💊 + ${cost.contribution}🪙`,
-      ephemeral: true,
-    });
+    const ref = resolveWeapon(userId, slug);
+    const embed = new EmbedBuilder()
+      .setColor(outcome.result === 'success' ? 0xd4af37 : 0x8a3b3b)
+      .setDescription(`${flavor}\n💸 Trừ: ${cost.pills}💊 + ${cost.contribution}🪙`);
+    const card = ref
+      ? await renderUpgradeCard({
+          ...weaponItem(ref.weapon, outcome.newLevel),
+          kind: 'weapon',
+          from: r.level,
+          to: outcome.newLevel,
+          result: outcome.result,
+          rate,
+          costPills: cost.pills,
+          costCoins: cost.contribution,
+        })
+      : null;
+    await interaction.reply({ ...withCard(embed, card), ephemeral: true });
   }
 }
 

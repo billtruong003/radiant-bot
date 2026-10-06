@@ -14,6 +14,8 @@ import {
 import { rankIndex } from '../config/cultivation.js';
 import { getStore } from '../db/index.js';
 import { BAN_MENH_SLUG_PREFIX } from '../modules/arena/forge.js';
+import { withCard, withCardEdit } from '../modules/cards/attach.js';
+import { renderBag } from '../modules/cards/item-views.js';
 import { getBanMenhDisplay } from '../modules/combat/ban-menh-templates.js';
 import { RARITY_EMOJI, listOwnedCongPhap } from '../modules/combat/cong-phap.js';
 import { readEquippedRingSlugs } from '../modules/combat/equipment-resolver.js';
@@ -499,7 +501,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const initial = renderActiveTab(activeTab, userId, displayName, pageState);
   const msg = (await interaction.reply({
-    embeds: [initial.embed],
+    ...withCard(initial.embed, await renderBag(userId, activeTab)),
     components: initial.rows,
     ephemeral: true,
     fetchReply: true,
@@ -524,7 +526,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         activeTab = next;
         if (next !== 'overview') pageState[next] = 0;
         const r = renderActiveTab(activeTab, userId, displayName, pageState);
-        await cmp.update({ embeds: [r.embed], components: r.rows });
+        await cmp.update({
+          ...withCardEdit(r.embed, await renderBag(userId, activeTab)),
+          components: r.rows,
+        });
         return;
       }
 
@@ -540,7 +545,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         if (dir === 'next') pageState[kind] += 1;
         else if (dir === 'prev') pageState[kind] -= 1;
         const r = renderActiveTab(activeTab, userId, displayName, pageState);
-        await cmp.update({ embeds: [r.embed], components: r.rows });
+        await cmp.update({
+          ...withCardEdit(r.embed, await renderBag(userId, activeTab)),
+          components: r.rows,
+        });
         return;
       }
 
@@ -607,7 +615,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           void checkEquipBothQuest(userId);
         }
         const r = renderActiveTab(activeTab, userId, displayName, pageState);
-        await cmp.update({ embeds: [r.embed], components: r.rows });
+        await cmp.update({
+          ...withCardEdit(r.embed, await renderBag(userId, activeTab)),
+          components: r.rows,
+        });
       }
     } catch (err) {
       logger.error({ err, userId, customId: cmp.customId }, 'inventory: handler failed');
@@ -635,6 +646,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           }),
         ],
         components: [disabledTab],
+        attachments: [],
       });
     } catch {
       // ephemeral dismissed — ignore

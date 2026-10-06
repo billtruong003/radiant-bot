@@ -1,6 +1,9 @@
 import { type ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { rankById } from '../config/cultivation.js';
 import { getStore } from '../db/index.js';
+import { withCard } from '../modules/cards/attach.js';
+import { renderItemCard, renderUpgradeCard } from '../modules/cards/dodac-cards.js';
+import { congPhapDetail, congPhapItem } from '../modules/cards/item-views.js';
 import { autocompleteCongPhap } from '../modules/combat/autocomplete.js';
 import {
   RARITY_EMOJI,
@@ -168,7 +171,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         { name: '🪙 Cống hiến', value: `${item.cost_contribution}`, inline: true },
       )
       .setFooter({ text: `slug: ${item.slug}` });
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    const infoLevel =
+      store.userCongPhap.query((o) => o.discord_id === userId && o.cong_phap_slug === slug)[0]?.level ?? 0;
+    const card = await renderItemCard(congPhapDetail(item, infoLevel));
+    await interaction.reply({ ...withCard(embed, card), ephemeral: true });
     return;
   }
 
@@ -337,10 +343,22 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         ? `✨ **THÀNH CÔNG** (xác suất ${ratePct}%) — \`${item?.name ?? slug}\` Lv ${currentLevel} → **Lv ${outcome.newLevel}**.`
         : `💥 **THẤT BẠI** (xác suất thành công ${ratePct}%) — linh khí công pháp bất ổn, giữ nguyên Lv ${currentLevel}. Đan dược + cống hiến đã tiêu tan.`;
 
-    await interaction.reply({
-      content: `${flavor}\n💸 Trừ: ${cost.pills}💊 + ${cost.contribution}🪙`,
-      ephemeral: true,
-    });
+    const embed = new EmbedBuilder()
+      .setColor(outcome.result === 'success' ? 0xd4af37 : 0x8a3b3b)
+      .setDescription(`${flavor}\n💸 Trừ: ${cost.pills}💊 + ${cost.contribution}🪙`);
+    const card = item
+      ? await renderUpgradeCard({
+          ...congPhapItem(item, outcome.newLevel),
+          kind: 'cong_phap',
+          from: currentLevel,
+          to: outcome.newLevel,
+          result: outcome.result,
+          rate,
+          costPills: cost.pills,
+          costCoins: cost.contribution,
+        })
+      : null;
+    await interaction.reply({ ...withCard(embed, card), ephemeral: true });
     return;
   }
 }
