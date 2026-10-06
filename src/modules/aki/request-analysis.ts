@@ -181,7 +181,8 @@ export function preflight(input: AnalyzeInput): RequestAnalysis | null {
   }
 
   const fresh = FRESH_WORDS.test(q) || URL_RE.test(q);
-  const coding = CODING_WORDS.test(q);
+  // An action verb is coding outright; a language name alone yields to a current-info question.
+  const coding = CODING_ACTION.test(q) || (CODING_TOPIC.test(q) && !fresh);
   const debugging = DEBUG_WORDS.test(q);
   const reasoning = REASONING_WORDS.test(q);
 
