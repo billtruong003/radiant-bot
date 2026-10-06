@@ -10,6 +10,7 @@ import {
 import { findCommand } from '../commands/index.js';
 import { loadVerificationConfig } from '../config/verification.js';
 import { AVATAR_RANDOM_ID, handleAvatarButton } from '../modules/avatar/discord.js';
+import { handleQuestButton } from '../modules/quests/discord.js';
 import {
   BUTTON_ID_OPEN_MODAL,
   BUTTON_ID_START,
@@ -39,7 +40,8 @@ async function dispatchButton(interaction: ButtonInteraction): Promise<void> {
       await handleAvatarButton(interaction);
       return;
     default:
-      // Unknown button — ignore. Other modules will own their own IDs.
+      // Study quest buttons; anything else belongs to a collector elsewhere.
+      await handleQuestButton(interaction);
       return;
   }
 }

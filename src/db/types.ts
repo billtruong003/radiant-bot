@@ -495,7 +495,14 @@ export type DailyQuestType =
   | 'spend_contribution'
   | 'upgrade_attempt'
   | 'equip_both'
-  | 'tribulation_pass';
+  | 'tribulation_pass'
+  // Tu Tiên Pixel P5 — study and monster quests.
+  | 'study_solve'
+  | 'study_read'
+  | 'slay_monsters';
+
+/** Board row a daily quest belongs to; missing on quests from before P5 (= 'daily'). */
+export type QuestGroup = 'daily' | 'study' | 'slay';
 
 /**
  * Phase 14 V2 — probabilistic item drop attached to a quest. Rolled when
@@ -588,6 +595,8 @@ export interface DailyQuest extends Record<string, unknown> {
   reward_contribution: number;
   assigned_at: number;
   completed_at: number | null;
+  /** Board row; absent on quests created before the study / slay rows. */
+  group?: QuestGroup;
   /**
    * Phase 14 V2 — optional item drop pool rolled on completion. Each entry
    * is an independent probability check. Null/undefined = no item drops

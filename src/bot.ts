@@ -14,6 +14,7 @@ import { startTrialSweeper } from './modules/judge/trial.js';
 import { startCooldownSweeps, stopCooldownSweeps } from './modules/leveling/cooldown.js';
 import { assertZeroCostRouting } from './modules/llm/startup-audit.js';
 import { ensureFont } from './modules/pixel/canvas.js';
+import { wireQuestDiscord } from './modules/quests/discord.js';
 import { startScheduler, stopScheduler } from './modules/scheduler/index.js';
 import { startHealthServer, stopHealthServer } from './utils/health.js';
 import { logger } from './utils/logger.js';
@@ -81,6 +82,7 @@ export async function startBot(): Promise<Client> {
     wireAvatarDiscord();
     wireJudgeTribulations(c);
     startTrialSweeper();
+    wireQuestDiscord();
     // Load the pixel font once up front so the first card of the day is fast.
     void ensureFont().catch((err: unknown) => logger.error({ err }, 'pixel font failed to load'));
     startHealthServer(env.HEALTH_PORT, c);

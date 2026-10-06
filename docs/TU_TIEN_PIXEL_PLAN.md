@@ -92,10 +92,10 @@ Thay embed chữ bằng ảnh, giữ phần chữ quan trọng trong embed để
 
 ## P5 — Nhiệm vụ hằng ngày mới
 
-- [ ] P5.1 Nhóm Học tập: giải 1 bài ở Tàng Kinh Các (dùng bộ chấm P4, đề dễ, không tính kiếp); đọc 1 bài docs + trả lời 3 câu.
+- [x] P5.1 Nhóm Học tập: giải 1 bài ở Tàng Kinh Các (dùng bộ chấm P4, đề dễ, không tính kiếp); đọc 1 bài docs + trả lời 3 câu.
 - [ ] P5.2 Nhóm Trảm yêu: hạ N quái ở bí cảnh (nối P6).
 - [ ] P5.3 Boss tuần dùng chung máu cho cả tông môn.
-- [ ] P5.4 Tên tiếng Việt cho mọi loại nhiệm vụ; nút "Vào web" cho nhiệm vụ cần web.
+- [x] P5.4 Tên tiếng Việt cho mọi loại nhiệm vụ; nút "Vào web" cho nhiệm vụ cần web.
 
 ## P6 — Bí cảnh treo máy (web)
 

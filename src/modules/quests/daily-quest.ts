@@ -1,6 +1,6 @@
 import { ulid } from 'ulid';
 import { getStore } from '../../db/index.js';
-import type { DailyQuest, DailyQuestType } from '../../db/types.js';
+import type { DailyQuest, DailyQuestType, QuestGroup } from '../../db/types.js';
 import { logger } from '../../utils/logger.js';
 
 /**
@@ -108,7 +108,9 @@ export const QUEST_POOL: readonly QuestTemplate[] = [
 
 /** Player-facing text for a quest: its pool label, or a generic one per type. */
 export function questLabel(q: Pick<DailyQuest, 'quest_type' | 'target'>): string {
-  const exact = QUEST_POOL.find((t) => t.type === q.quest_type && t.target === q.target);
+  const exact = [...QUEST_POOL, ...STUDY_POOL, ...SLAY_POOL].find(
+    (t) => t.type === q.quest_type && t.target === q.target,
+  );
   if (exact) return exact.label;
   const n = q.target;
   switch (q.quest_type) {
@@ -130,10 +132,68 @@ export function questLabel(q: Pick<DailyQuest, 'quest_type' | 'target'>): string
       return 'Trang bị đồng thời 1 công pháp + 1 vũ khí';
     case 'tribulation_pass':
       return `Vượt qua ${n} thiên kiếp`;
+    case 'study_solve':
+      return `Giải ${n} bài ở Tàng Kinh Các`;
+    case 'study_read':
+      return `Ôn bài: trả lời đúng ${n} câu`;
+    case 'slay_monsters':
+      return `Hạ ${n} yêu thú ở bí cảnh`;
     default:
       return 'Nhiệm vụ bí ẩn';
   }
 }
+
+/**
+ * Tu Tiên Pixel P5: two more rows on the daily board. Study alternates by
+ * day between solving a Tàng Kinh Các problem on the web and a short
+ * docs quiz in Discord; slay counts monsters beaten in the bí cảnh.
+ */
+export const STUDY_POOL: readonly QuestTemplate[] = [
+  {
+    type: 'study_solve',
+    target: 1,
+    reward_xp: 120,
+    reward_pills: 3,
+    reward_contribution: 40,
+    label: 'Giải 1 bài ở Tàng Kinh Các (trên web)',
+  },
+  {
+    type: 'study_read',
+    target: 3,
+    reward_xp: 80,
+    reward_pills: 2,
+    reward_contribution: 25,
+    label: 'Ôn bài: trả lời đúng 3 câu Tàng Kinh Các',
+  },
+];
+
+export const SLAY_POOL: readonly QuestTemplate[] = [
+  {
+    type: 'slay_monsters',
+    target: 30,
+    reward_xp: 100,
+    reward_pills: 2,
+    reward_contribution: 30,
+    label: 'Hạ 30 yêu thú ở bí cảnh',
+  },
+  {
+    type: 'slay_monsters',
+    target: 60,
+    reward_xp: 150,
+    reward_pills: 3,
+    reward_contribution: 45,
+    label: 'Hạ 60 yêu thú ở bí cảnh',
+  },
+];
+
+export const GROUP_ORDER: readonly QuestGroup[] = ['daily', 'study', 'slay'];
+export const GROUP_LABEL: Record<QuestGroup, string> = {
+  daily: 'Hằng ngày',
+  study: 'Học tập',
+  slay: 'Trảm yêu',
+};
+
+export const groupOf = (q: Pick<DailyQuest, 'group'>): QuestGroup => q.group ?? 'daily';
 
 const VN_TZ = 'Asia/Ho_Chi_Minh';
 
@@ -154,12 +214,59 @@ export function vnDayStart(now: number): number {
  * Find user's current daily quest (for today VN), or null if none assigned.
  */
 export function getCurrentQuest(discordId: string, now: number = Date.now()): DailyQuest | null {
+  return todayIn(discordId, 'daily', now);
+}
+
+function todayIn(discordId: string, group: QuestGroup, now: number): DailyQuest | null {
   const dayStart = vnDayStart(now);
   const quests = getStore().dailyQuests.query(
-    (q) => q.discord_id === discordId && q.assigned_at >= dayStart,
+    (q) => q.discord_id === discordId && q.assigned_at >= dayStart && groupOf(q) === group,
   );
-  // Should be at most 1 per day; if multiple (race?), return most recent.
+  // Should be at most 1 per group per day; if multiple (race?), return most recent.
   return quests.sort((a, b) => b.assigned_at - a.assigned_at)[0] ?? null;
+}
+
+/** Today's board, in display order (daily, study, slay). */
+export function getTodayQuests(discordId: string, now: number = Date.now()): DailyQuest[] {
+  return GROUP_ORDER.map((g) => todayIn(discordId, g, now)).filter(
+    (q): q is DailyQuest => q !== null,
+  );
+}
+
+/** The open (not completed) quest of `type` today, whichever row it sits in. */
+function openQuestOf(discordId: string, type: DailyQuestType, now: number): DailyQuest | null {
+  return (
+    getTodayQuests(discordId, now).find((q) => q.quest_type === type && q.completed_at === null) ??
+    null
+  );
+}
+
+async function assignGroup(
+  discordId: string,
+  group: Exclude<QuestGroup, 'daily'>,
+  now: number,
+): Promise<DailyQuest | null> {
+  const existing = todayIn(discordId, group, now);
+  if (existing) return existing;
+  const pool = group === 'study' ? STUDY_POOL : SLAY_POOL;
+  const day = Math.floor(vnDayStart(now) / 86_400_000);
+  const tpl = pool[(day + discordId.length) % pool.length] ?? pool[0];
+  if (!tpl) return null;
+  const quest: DailyQuest = {
+    id: ulid(),
+    discord_id: discordId,
+    quest_type: tpl.type,
+    target: tpl.target,
+    progress: 0,
+    reward_xp: tpl.reward_xp,
+    reward_pills: tpl.reward_pills,
+    reward_contribution: tpl.reward_contribution,
+    assigned_at: now,
+    completed_at: null,
+    group,
+  };
+  await getStore().dailyQuests.set(quest);
+  return quest;
 }
 
 /**
@@ -174,6 +281,10 @@ export async function assignDailyQuest(
   const store = getStore();
   const user = store.users.get(discordId);
   if (!user) return null;
+
+  // The study and slay rows are added alongside the classic quest.
+  await assignGroup(discordId, 'study', now);
+  await assignGroup(discordId, 'slay', now);
 
   const existing = getCurrentQuest(discordId, now);
   if (existing) return existing;
@@ -217,10 +328,8 @@ export async function incrementProgress(
 ): Promise<{ updated: boolean; completed: boolean }> {
   if (delta <= 0) return { updated: false, completed: false };
   const store = getStore();
-  const quest = getCurrentQuest(discordId, now);
+  const quest = openQuestOf(discordId, type, now);
   if (!quest) return { updated: false, completed: false };
-  if (quest.quest_type !== type) return { updated: false, completed: false };
-  if (quest.completed_at !== null) return { updated: false, completed: false };
 
   const newProgress = Math.min(quest.target, quest.progress + delta);
   const justCompleted = newProgress >= quest.target;
@@ -290,10 +399,8 @@ export async function setProgress(
 ): Promise<{ updated: boolean; completed: boolean }> {
   if (value < 0) return { updated: false, completed: false };
   const store = getStore();
-  const quest = getCurrentQuest(discordId, now);
+  const quest = openQuestOf(discordId, type, now);
   if (!quest) return { updated: false, completed: false };
-  if (quest.quest_type !== type) return { updated: false, completed: false };
-  if (quest.completed_at !== null) return { updated: false, completed: false };
 
   const clamped = Math.min(quest.target, value);
   if (clamped <= quest.progress) return { updated: false, completed: false };
