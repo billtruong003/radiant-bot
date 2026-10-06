@@ -6,7 +6,11 @@
  */
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { PREVIEWS } from '../src/modules/cards/previews.js';
+
+// Cards never talk to Discord; placeholders keep the env schema happy.
+for (const k of ['DISCORD_TOKEN', 'DISCORD_CLIENT_ID', 'DISCORD_GUILD_ID'])
+  process.env[k] ??= 'preview';
+const { PREVIEWS } = await import('../src/modules/cards/previews.js');
 
 const out = path.join(process.cwd(), 'tmp', 'preview');
 await mkdir(out, { recursive: true });

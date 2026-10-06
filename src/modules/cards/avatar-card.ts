@@ -54,6 +54,6 @@ export function renderAvatarCard(d: AvatarCardData): Promise<Rendered> {
         color: d.look ? col : PX.muted,
       });
     },
-    'avatar',
+    d.look ? 'avatar' : 'avatar-empty',
   );
 }

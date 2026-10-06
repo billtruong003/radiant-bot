@@ -1,4 +1,5 @@
 import {
+  AttachmentBuilder,
   type ChatInputCommandInteraction,
   EmbedBuilder,
   SlashCommandBuilder,
@@ -9,6 +10,8 @@ import { HUB_ICONS, RANK_ICONS } from '../config/ui.js';
 import { getStore } from '../db/index.js';
 import { resolveEquippedSlots } from '../modules/combat/equipment-resolver.js';
 import { computeCombatPowerBreakdown } from '../modules/combat/power.js';
+import { renderProfileCard } from '../modules/cards/profile-card.js';
+import { profileData } from '../modules/cards/profile-data.js';
 
 /**
  * /profile me — Phase 14.8 personalized hub.
@@ -186,6 +189,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     ? suggestions.map((s, i) => `**${i + 1}.** ${s.emoji} \`${s.cmd}\` — ${s.reason}`)
     : ['_Mọi thứ đã chạy mượt — đi /duel hoặc thử /shop browse xem có gì mới._'];
 
+  await interaction.deferReply({ ephemeral: true });
+  const data = profileData(userId, displayName);
+  const card = data ? await renderProfileCard(data) : null;
   const embed = new EmbedBuilder()
     .setColor(Number.parseInt(rank.colorHex.slice(1), 16))
     .setTitle(`${HUB_ICONS.path} ${displayName}`)
@@ -196,13 +202,17 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         `${HUB_ICONS.sparkle_alt} **Gợi ý kế:**`,
         ...suggestionLines,
         '',
-        `_${HUB_ICONS.diamond} Dùng \`/help menu\` để xem toàn bộ lệnh theo mục._`,
+        `_${HUB_ICONS.diamond} Dùng \`/help menu\` để xem toàn bộ lệnh · \`/profile avatar\` để đổi tạo hình._`,
       ].join('\n'),
     )
-    .setThumbnail(interaction.user.displayAvatarURL({ size: 256 }))
-    .setFooter({ text: `Trạng thái cá nhân · Phase 14.8 hub` });
+    .setFooter({ text: 'Thẻ tu sĩ · Radiant Tech Sect' });
+  if (card) embed.setImage(`attachment://${card.name}`);
+  else embed.setThumbnail(interaction.user.displayAvatarURL({ size: 256 }));
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  await interaction.editReply({
+    embeds: [embed],
+    files: card ? [new AttachmentBuilder(card.buffer, { name: card.name })] : [],
+  });
 }
 
 export const command = { data, execute };
