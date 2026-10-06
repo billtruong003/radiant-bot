@@ -43,6 +43,18 @@ const envSchema = z.object({
   HUNTER_STATE_SECRET: z.string().default(''),
   /** Signs player web links (tạo hình, Thiên Kiếp Đài, bí cảnh). Empty = falls back to HUNTER_STATE_SECRET. */
   WEB_LINK_SECRET: z.string().default(''),
+  /** Thiên Kiếp Đài code runner. JDoodle keys are set by Bill in .env; empty = runner off. */
+  JDOODLE_CLIENT_ID: z.string().default(''),
+  JDOODLE_CLIENT_SECRET: z.string().default(''),
+  /** Daily run budget kept below JDoodle's free 200 so a few are left for checks. */
+  JDOODLE_DAILY_LIMIT: z.coerce.number().int().nonnegative().default(180),
+  /** Optional self-hosted Piston (e.g. http://127.0.0.1:2000), used when JDoodle fails or is out. */
+  PISTON_URL: z.string().default(''),
+  /** Development only: run submissions with the local python / node / dotnet. Never in production. */
+  JUDGE_LOCAL: z
+    .enum(['0', '1'])
+    .default('0')
+    .transform((v) => v === '1'),
   AWAKEN_API_URL: z.string().default('https://git-profile-awaken.vercel.app'),
 
   // --- Aki AI helper (Phase 10; moved to free-tier models in Phase 15) ---
