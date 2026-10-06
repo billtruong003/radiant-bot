@@ -234,7 +234,7 @@ export interface Verification extends Record<string, unknown> {
 export interface AutomodLog extends Record<string, unknown> {
   id: string;
   discord_id: string;
-  rule: 'spam' | 'profanity' | 'mass_mention' | 'link' | 'caps';
+  rule: 'spam' | 'profanity' | 'mass_mention' | 'link' | 'caps' | 'scam';
   action: 'delete' | 'warn' | 'timeout' | 'kick' | 'ban';
   context: Record<string, unknown> | null;
   created_at: number;

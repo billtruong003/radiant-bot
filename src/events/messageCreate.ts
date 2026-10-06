@@ -6,10 +6,11 @@ import { STAFF_ROLE_NAMES } from '../config/roles.js';
 import { ICONS } from '../config/ui.js';
 import { loadVerificationConfig } from '../config/verification.js';
 import { getStore } from '../db/index.js';
-import { archiveMessage } from '../modules/archive/message-archive.js';
 import { maybeDivineWrath } from '../modules/admin/aki-defense.js';
 import { handleGuardian } from '../modules/admin/guardian.js';
+import { archiveMessage } from '../modules/archive/message-archive.js';
 import { applyDecision, automodEngine } from '../modules/automod/index.js';
+import { scamGuard } from '../modules/automod/scam-guard.js';
 import { messageXpCooldown } from '../modules/leveling/cooldown.js';
 import { isXpEligibleMessage } from '../modules/leveling/eligibility.js';
 import { maybePromoteRank, postLevelUpEmbed } from '../modules/leveling/rank-promoter.js';
@@ -141,9 +142,10 @@ async function handleGuildMessage(message: Message): Promise<void> {
     archiveMessage({
       id: message.id,
       channelId: message.channelId,
-      channelName: message.channel.isTextBased() && 'name' in message.channel
-        ? (message.channel.name ?? '')
-        : '',
+      channelName:
+        message.channel.isTextBased() && 'name' in message.channel
+          ? (message.channel.name ?? '')
+          : '',
       authorId: message.author.id,
       // `member` is null for the bot's own messages in some gateway
       // payloads, so fall back to the username rather than skipping.
@@ -155,6 +157,10 @@ async function handleGuildMessage(message: Message): Promise<void> {
 
   if (message.author.bot) return;
   if (!message.member) return;
+
+  // Scam raids first, for everyone but the owner: a hacked staff account
+  // keeps its roles, so the staff exemption below must not cover this.
+  if (await scamGuard(message)) return;
 
   // Automod first — runs in ALL channels (including no-XP ones like
   // #bot-commands). Staff (Chưởng Môn / Trưởng Lão / Chấp Pháp) are
