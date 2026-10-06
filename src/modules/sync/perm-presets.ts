@@ -149,13 +149,14 @@ const PRESETS: Record<PermPreset, PresetBundle> = {
     },
   },
 
-  // Admin-only (elder-lounge). Both Trưởng Lão (elder) + Chưởng Môn read+post;
+  // Admin-only (elder-lounge, text and voice). Both Trưởng Lão (elder) +
+  // Chưởng Môn read+post and can join, talk and stream in the voice room;
   // Chưởng Môn additionally has manage perms. Mod is denied.
   admin_only: {
-    everyoneDeny: READ,
+    everyoneDeny: READ | F.Connect,
     allow: {
-      [STAFF_ELDER]: FULL_TEXT | MANAGE_TEXT,
-      [STAFF_SECT_MASTER]: ADMIN_TEXT,
+      [STAFF_ELDER]: FULL_TEXT | MANAGE_TEXT | VOICE_CONNECT | F.Stream,
+      [STAFF_SECT_MASTER]: ADMIN_TEXT | VOICE_CONNECT | F.Stream,
     },
     deny: {
       [UNVERIFIED]: READ,
