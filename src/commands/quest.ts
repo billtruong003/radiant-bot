@@ -1,18 +1,18 @@
 import { type ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
-import { assignDailyQuest, getCurrentQuest } from '../modules/quests/daily-quest.js';
+import { withCard } from '../modules/cards/attach.js';
+import { renderQuestCard } from '../modules/cards/daily-cards.js';
+import {
+  assignDailyQuest,
+  getCurrentQuest,
+  questLabel,
+  vnDayStart,
+} from '../modules/quests/daily-quest.js';
 
 /**
  * /quest — show today's daily quest + progress. Auto-assigns one if
  * the user has no quest for today yet (covers the case where the cron
  * hasn't fired or the user is brand new).
  */
-
-const QUEST_LABEL: Record<string, string> = {
-  message_count: '📝 Chat tin nhắn',
-  voice_minutes: '🎤 Voice chat',
-  reaction_count: '👍 Thả reaction',
-  daily_streak_check: '🌅 Điểm danh /daily',
-};
 
 export const data = new SlashCommandBuilder()
   .setName('quest')
@@ -39,7 +39,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  const label = QUEST_LABEL[quest.quest_type] ?? quest.quest_type;
+  const label = questLabel(quest);
   const bar = progressBar(quest.progress, quest.target);
   const pct = Math.round((quest.progress / quest.target) * 100);
   const status = quest.completed_at
@@ -47,7 +47,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     : `⏳ ${quest.progress}/${quest.target} (${pct}%)`;
 
   const description = [
-    `**${label}** — đạt ${quest.target}`,
+    `**${label}**`,
     `\`${bar}\` ${status}`,
     '',
     '**Thưởng khi hoàn thành:**',
@@ -66,7 +66,24 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         : 'Tiến độ tự tăng khi bạn hoạt động trong server.',
     });
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  const left = vnDayStart(Date.now()) + 24 * 3600_000 - Date.now();
+  const card = await renderQuestCard({
+    name: interaction.user.displayName,
+    resetIn: `${Math.floor(left / 3600_000)} giờ ${Math.floor((left % 3600_000) / 60_000)} phút`,
+    quests: [
+      {
+        group: 'Hằng ngày',
+        label,
+        progress: quest.progress,
+        target: quest.target,
+        done: quest.completed_at !== null,
+        xp: quest.reward_xp,
+        pills: quest.reward_pills,
+        coins: quest.reward_contribution,
+      },
+    ],
+  });
+  await interaction.reply({ ...withCard(embed, card), ephemeral: true });
 }
 
 export const command = { data, execute };

@@ -106,6 +106,35 @@ export const QUEST_POOL: readonly QuestTemplate[] = [
   },
 ];
 
+/** Player-facing text for a quest: its pool label, or a generic one per type. */
+export function questLabel(q: Pick<DailyQuest, 'quest_type' | 'target'>): string {
+  const exact = QUEST_POOL.find((t) => t.type === q.quest_type && t.target === q.target);
+  if (exact) return exact.label;
+  const n = q.target;
+  switch (q.quest_type) {
+    case 'message_count':
+      return `Gửi ${n} tin nhắn`;
+    case 'voice_minutes':
+      return `Voice chat ${n} phút`;
+    case 'reaction_count':
+      return `Thả ${n} reaction`;
+    case 'daily_streak_check':
+      return `Giữ streak điểm danh ${n} ngày`;
+    case 'duel_win':
+      return `Thắng ${n} trận duel`;
+    case 'spend_contribution':
+      return `Chi ${n} điểm cống hiến ở shop`;
+    case 'upgrade_attempt':
+      return `Cường hóa ${n} lần`;
+    case 'equip_both':
+      return 'Trang bị đồng thời 1 công pháp + 1 vũ khí';
+    case 'tribulation_pass':
+      return `Vượt qua ${n} thiên kiếp`;
+    default:
+      return 'Nhiệm vụ bí ẩn';
+  }
+}
+
 const VN_TZ = 'Asia/Ho_Chi_Minh';
 
 /** Returns the start-of-day VN timestamp (ms epoch) for `now`. */

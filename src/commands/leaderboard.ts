@@ -87,7 +87,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       description: ['*Top 10 đệ tử mạnh nhất theo lực chiến*', DIVIDER, rows.join('\n\n')].join(
         '\n',
       ),
-      footer: 'Lực chiến = base + level×10 + rank×50 + sub_title + công pháp · Realtime',
+      footer: 'Lực chiến = 100 + level×5 + cảnh giới×30 + phong hiệu 30 + chỉ số đã phân + trang bị · Realtime',
     });
 
     await interaction.reply({ embeds: [embed] });

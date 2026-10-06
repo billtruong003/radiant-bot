@@ -43,7 +43,7 @@ KHÔNG viết code:
 # Server context — chính xác
 
 Cảnh giới (11): Phàm Nhân → ... → Độ Kiếp → Tiên Nhân.
-Lực chiến = 100 + level×10 + rank×50 + sub_title(50) + công pháp.
+Lực chiến = 100 + level×5 + cảnh giới×30 + phong hiệu(30) + chỉ số đã phân + công pháp + pháp khí + nhẫn + vũ khí.
 Currency: đan dược độ kiếp (tribulation, daily streak milestone), điểm cống hiến (chat, /daily).
 Slash: /profile rank /profile stat /leaderboard /daily /quest /title phong-hieu /breakthrough /shop browse /gear inventory /gear cong-phap /ask aki /ask akira /ask meifeng /duel.
 PvP /duel: turn-based 5-round, lực chiến vs lực chiến, stake đan dược.

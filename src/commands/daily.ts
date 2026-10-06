@@ -1,6 +1,10 @@
 import { type ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { DAILY_STREAK_BONUSES } from '../config/leveling.js';
 import { DIVIDER_SHORT, ICONS } from '../config/ui.js';
 import { getStore } from '../db/index.js';
+import { getLook } from '../modules/avatar/service.js';
+import { withCard } from '../modules/cards/attach.js';
+import { renderDailyCard } from '../modules/cards/daily-cards.js';
 import { computeDailyAward, nextMilestoneHint } from '../modules/leveling/daily.js';
 import { maybePromoteRank, postLevelUpEmbed } from '../modules/leveling/rank-promoter.js';
 import { awardXp } from '../modules/leveling/tracker.js';
@@ -115,7 +119,21 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     footer: 'Cron reset theo lịch VN (Asia/Ho_Chi_Minh)',
   }).setThumbnail(interaction.user.displayAvatarURL({ size: 128 }));
 
-  await interaction.reply({ embeds: [embed] });
+  const card = await renderDailyCard({
+    name: displayName,
+    look: getLook(interaction.user.id),
+    streak: award.newStreak,
+    xp: award.amount,
+    bonus: award.bonus,
+    pills: pillsGrant,
+    coins: contribGrant,
+    milestones: [...DAILY_STREAK_BONUSES].map(([day, xp]) => ({
+      day,
+      xp,
+      pills: pillsBase + (day === 30 ? 10 : 2),
+    })),
+  });
+  await interaction.reply(withCard(embed, card));
 
   // Phase 12 Lát 4 / 2026-05-20 fix — quest progress for daily_streak_check.
   //

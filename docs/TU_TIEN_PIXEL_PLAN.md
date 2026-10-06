@@ -66,13 +66,13 @@ Thay embed chữ bằng ảnh, giữ phần chữ quan trọng trong embed để
 - [x] P2.7 `/gear … upgrade` kết quả cường hóa (GIF: thành công, thất bại, thất bại nặng).
 - [x] P2.8 `/shop browse` đan tiệm 4 tab với 5 trạng thái; `/shop trade sell` (GIF khi Aki hào phóng).
 - [x] P2.9 `/admin arena forge` rèn bản mệnh (GIF).
-- [ ] P2.10 `/daily` lịch 30 ngày; `/quest` bảng nhiệm vụ.
+- [x] P2.10 `/daily` lịch 30 ngày; `/quest` bảng nhiệm vụ.
 - [ ] P2.11 `/duel`: lời thách đấu (PNG), kết quả (GIF 5 hiệp), miểu sát (GIF).
 - [ ] P2.12 `/leaderboard` bục top 3 + danh sách; bảng tuần tự đăng dùng cùng ảnh.
 - [ ] P2.13 `/breakthrough` Lôi Kiếp (GIF ra đề, qua, trượt).
 - [ ] P2.14 Thông báo lên cảnh giới tự đăng (GIF theo 11 bậc), thay `aura.ts` dạng emoji.
 - [ ] P2.15 `/mod thien-dao` Thiên Đạo phán quyết (GIF).
-- [ ] P2.16 Sửa lệch có sẵn: chân bảng xếp hạng ghi "level×10" nhưng `/profile stat` tính ×5; `/quest` in slug thô cho 6 loại nhiệm vụ; `trade` chỉ gỡ trang bị ở trường cũ, bỏ sót mảng nhiều ô (phần trade đã sửa cùng P2.8).
+- [x] P2.16 Sửa lệch có sẵn: chân bảng xếp hạng ghi "level×10" nhưng `/profile stat` tính ×5; `/quest` in slug thô cho 6 loại nhiệm vụ; `trade` chỉ gỡ trang bị ở trường cũ, bỏ sót mảng nhiều ô. (Đã sửa cả ba: trade cùng P2.8, chân bảng và nhãn nhiệm vụ cùng P2.10.)
 
 ## P3 — Phong Kiếp (thiên kiếp bậc 2, trong Discord)
 

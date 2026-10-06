@@ -1,5 +1,6 @@
 import type { Rendered } from '../pixel/output.js';
 import { renderAvatarCard } from './avatar-card.js';
+import { renderDailyCard, renderQuestCard } from './daily-cards.js';
 import {
   renderForgeCard,
   renderInventoryCard,
@@ -262,5 +263,72 @@ export const PREVIEWS: Record<string, () => Promise<Rendered>> = {
         ['NẢY', '0.6', '#7fb2e8'],
       ],
       skill: 'Kỹ năng bản mệnh: Hỏa Ngục. Đòn đầu trận đốt 5% máu đối thủ mỗi hiệp.',
+    }),
+  daily: () =>
+    renderDailyCard({
+      name: 'Bill The Dev',
+      look: LOOK_BILL,
+      streak: 12,
+      xp: 100,
+      bonus: 0,
+      pills: 2,
+      coins: 5,
+      milestones: [
+        { day: 7, xp: 50, pills: 2 },
+        { day: 14, xp: 150, pills: 2 },
+        { day: 30, xp: 500, pills: 10 },
+      ],
+    }),
+  'daily-milestone': () =>
+    renderDailyCard({
+      name: 'Bill The Dev',
+      look: LOOK_BILL,
+      streak: 14,
+      xp: 250,
+      bonus: 150,
+      pills: 4,
+      coins: 5,
+      milestones: [
+        { day: 7, xp: 50, pills: 2 },
+        { day: 14, xp: 150, pills: 2 },
+        { day: 30, xp: 500, pills: 10 },
+      ],
+    }),
+  quest: () =>
+    renderQuestCard({
+      name: 'Bill The Dev',
+      resetIn: '7 giờ 12 phút',
+      quests: [
+        {
+          group: 'Hằng ngày',
+          label: 'Gửi 25 tin nhắn',
+          progress: 25,
+          target: 25,
+          done: true,
+          xp: 100,
+          pills: 1,
+          coins: 20,
+        },
+        {
+          group: 'Học tập',
+          label: 'Giải 1 bài Tàng Kinh Các',
+          progress: 0,
+          target: 1,
+          done: false,
+          xp: 120,
+          pills: 3,
+          coins: 40,
+        },
+        {
+          group: 'Săn yêu thú',
+          label: 'Hạ 3 Hổ Yêu ở bí cảnh',
+          progress: 1,
+          target: 3,
+          done: false,
+          xp: 80,
+          pills: 2,
+          coins: 30,
+        },
+      ],
     }),
 };
