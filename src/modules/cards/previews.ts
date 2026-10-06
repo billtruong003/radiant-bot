@@ -25,6 +25,7 @@ import {
 import { renderKitSheet } from './kit-sheet.js';
 import { renderLeaderboardCard } from './leaderboard-card.js';
 import { renderProfileCard } from './profile-card.js';
+import { renderRealmUpCard } from './realm-card.js';
 import {
   LOOK_AKI,
   LOOK_BILL,
@@ -456,4 +457,26 @@ export const PREVIEWS: Record<string, () => Promise<Rendered>> = {
       xpDelta: -100,
       pills: 0,
     }),
+  ...Object.fromEntries(
+    (
+      [
+        ['luyen_khi', 'Phàm Nhân', 'Luyện Khí'],
+        ['kim_dan', 'Trúc Cơ', 'Kim Đan'],
+        ['luyen_hu', 'Hóa Thần', 'Luyện Hư'],
+        ['do_kiep', 'Đại Thừa', 'Độ Kiếp'],
+        ['tien_nhan', 'Độ Kiếp', 'Tiên Nhân'],
+      ] as const
+    ).map(([id, from, to]) => [
+      `realm-${id}`,
+      () =>
+        renderRealmUpCard({
+          name: 'Bill The Dev',
+          look: LOOK_BILL,
+          level: 50,
+          oldRankName: from,
+          newRank: id,
+          newRankName: to,
+        }),
+    ]),
+  ),
 };

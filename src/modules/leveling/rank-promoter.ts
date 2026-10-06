@@ -1,4 +1,4 @@
-import type { GuildMember, Message, TextChannel } from 'discord.js';
+import type { GuildMember, TextChannel } from 'discord.js';
 import { ANNOUNCEMENT_CHANNELS, matchesChannelName } from '../../config/channels.js';
 import { CULTIVATION_RANKS, rankById, rankForLevel } from '../../config/cultivation.js';
 import { ICONS, RANK_ICONS } from '../../config/ui.js';
@@ -7,7 +7,10 @@ import type { CultivationRankId } from '../../db/types.js';
 import { themedEmbed } from '../../utils/embed.js';
 import { logger } from '../../utils/logger.js';
 import { sanitizeForDisplay } from '../../utils/sanitize.js';
-import { auraFor, renderBreakthroughDescription, renderPlainLevelUpDescription } from './aura.js';
+import { getLook } from '../avatar/service.js';
+import { withCard } from '../cards/attach.js';
+import { renderRealmUpCard } from '../cards/realm-card.js';
+import { renderBreakthroughDescription, renderPlainLevelUpDescription } from './aura.js';
 import { narrateRankPromotion } from './narration.js';
 
 /**
@@ -218,21 +221,24 @@ export async function postLevelUpEmbed(
           { name: `${newIcon} Cảnh giới`, value: newRank.name, inline: true },
         );
 
-      const sent = (await channel.send({
+      // The realm GIF carries the per-realm effect (it replaced the old
+      // border-colour edit loop for the top realms).
+      const card = await renderRealmUpCard({
+        name: member.displayName,
+        look: getLook(member.id),
+        level: newLevel,
+        oldRankName: oldRank.name,
+        newRank: promotion.newRank,
+        newRankName: newRank.name,
+      }).catch((err: unknown) => {
+        logger.warn({ err }, 'rank-promoter: realm card render failed');
+        return null;
+      });
+      await channel.send({
         content: `🎉 Chúc mừng ${member}!`,
-        embeds: [embed],
+        ...withCard(embed, card),
         allowedMentions: { users: [member.id] },
-      })) as Message;
-
-      // Phase 12.3 — rainbow animation for Đại Thừa / Độ Kiếp / Tiên Nhân.
-      // We re-edit the embed 5 times with successive border colors over
-      // ~3s. Discord rate limit is generous (5/5s per message); we space
-      // edits at 500ms intervals. Best-effort: any edit failure is
-      // swallowed and the final color stays whatever sent first.
-      const aura = auraFor(promotion.newRank);
-      if (aura.rainbowCycle.length > 0) {
-        void animateRainbow(sent, embed, aura.rainbowCycle, hexToInt(newRank.colorHex));
-      }
+      });
       return;
     }
 
@@ -258,43 +264,5 @@ export async function postLevelUpEmbed(
     });
   } catch (err) {
     logger.warn({ err, discord_id: member.id }, 'rank-promoter: embed post failed');
-  }
-}
-
-/**
- * Animate the embed border color through `cycle` over ~3 seconds. Used
- * for legendary-tier breakthroughs (Đại Thừa+) so visually-significant
- * promotions look genuinely special. Final frame restores `finalColor`
- * so the message persists with the rank's canonical color.
- *
- * Best-effort: any edit failure (rate limit, message deleted, perm
- * loss) is swallowed silently — the static first frame is already up
- * so the user sees the breakthrough regardless.
- */
-async function animateRainbow(
-  message: Message,
-  embed: ReturnType<typeof themedEmbed>,
-  cycle: readonly number[],
-  finalColor: number,
-): Promise<void> {
-  const FRAME_MS = 500;
-  for (let i = 0; i < cycle.length; i++) {
-    await new Promise((r) => setTimeout(r, FRAME_MS));
-    try {
-      const c = cycle[i];
-      if (c === undefined) continue;
-      embed.setColor(c);
-      await message.edit({ embeds: [embed] });
-    } catch {
-      return; // any failure → stop the animation
-    }
-  }
-  // Restore final color frame.
-  await new Promise((r) => setTimeout(r, FRAME_MS));
-  try {
-    embed.setColor(finalColor);
-    await message.edit({ embeds: [embed] });
-  } catch {
-    /* swallow */
   }
 }
