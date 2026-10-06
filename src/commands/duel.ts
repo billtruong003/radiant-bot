@@ -13,10 +13,18 @@ import { ulid } from 'ulid';
 import { rankById, rankIndex } from '../config/cultivation.js';
 import { getStore } from '../db/index.js';
 import { BAN_MENH_SLUG_PREFIX } from '../modules/arena/forge.js';
+import { withCard } from '../modules/cards/attach.js';
+import {
+  renderChallengeCard,
+  renderDuelResultCard,
+  renderMieuSatCard,
+} from '../modules/cards/duel-cards.js';
+import { fighterView } from '../modules/cards/item-views.js';
 import { getBanMenhDisplay } from '../modules/combat/ban-menh-templates.js';
 import { simulateDuel } from '../modules/combat/duel.js';
 import { resolveEquippedSlots } from '../modules/combat/equipment-resolver.js';
 import { type FighterDisplay, narrateMieuSat, narrateRounds } from '../modules/combat/narrate.js';
+import { computeCombatPowerBreakdown } from '../modules/combat/power.js';
 import { awardEligibleTitles } from '../modules/titles/index.js';
 import { logger } from '../utils/logger.js';
 
@@ -119,6 +127,15 @@ function resolveFighterDisplay(userId: string, displayName: string): FighterDisp
   return { name: displayName, weapon, congPhap };
 }
 
+/** Lực chiến for the cards, same numbers the duel itself uses. */
+function lcOf(userId: string): number {
+  const user = getStore().users.get(userId);
+  if (!user) return 0;
+  const slots = resolveEquippedSlots(userId);
+  return computeCombatPowerBreakdown(user, slots.congPhap, slots.phapKhi, slots.nhan, slots.weapon)
+    .total;
+}
+
 export const data = new SlashCommandBuilder()
   .setName('duel')
   .setDescription('Đấu PvP với đệ tử khác (5 hiệp, thắng lấy stake đan dược)')
@@ -204,9 +221,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     duelMetadata.set(challenger.id, { ...cMeta, lastMieuSatAt: now });
 
+    const mieuSatCard = await renderMieuSatCard(
+      fighterView(challenger.id, challenger.username, lcOf(challenger.id)),
+      fighterView(opponent.id, opponent.username, lcOf(opponent.id)),
+      rankGap,
+    );
     await interaction.reply({
       content: `${opponent}, ${challenger} áp chế.`,
-      embeds: [mieuSatEmbed],
+      ...withCard(mieuSatEmbed, mieuSatCard),
       allowedMentions: { users: [opponent.id] },
     });
 
@@ -308,9 +330,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     declineBtn,
   );
 
+  const challengeCard = await renderChallengeCard(
+    fighterView(challenger.id, challenger.username, lcOf(challenger.id)),
+    fighterView(opponent.id, opponent.username, lcOf(opponent.id)),
+    stake,
+  );
   const challengeMsg = (await interaction.reply({
     content: `${opponent}, ${challenger} thách đấu bạn!`,
-    embeds: [challengeEmbed],
+    ...withCard(challengeEmbed, challengeCard),
     components: [row],
     allowedMentions: { users: [opponent.id] },
     fetchReply: true,
@@ -328,6 +355,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         content: `❌ ${opponent.username} đã từ chối lời thách đấu của ${challenger.username}.`,
         embeds: [],
         components: [],
+        attachments: [],
       });
       return;
     }
@@ -340,6 +368,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         content: '⚠️ User record vanished mid-duel — abort.',
         embeds: [],
         components: [],
+        attachments: [],
       });
       return;
     }
@@ -348,6 +377,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         content: '💊 Một bên đã tiêu đan dược trong thời gian chờ — duel bị huỷ.',
         embeds: [],
         components: [],
+        attachments: [],
       });
       return;
     }
@@ -432,7 +462,21 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       )
       .setFooter({ text: '⚔️ tấn công · 🛡️ thủ · ⚡ chí mạng · Phase 12' });
 
-    await click.update({ content: '', embeds: [resultEmbed], components: [] });
+    // Render after acknowledging: the 5-round GIF can take longer than the
+    // 3 s Discord allows for an update.
+    await click.deferUpdate();
+    const resultCard = await renderDuelResultCard(
+      fighterView(challenger.id, challenger.username, result.challengerLc),
+      fighterView(opponent.id, opponent.username, result.opponentLc),
+      result,
+      stake,
+    );
+    await click.editReply({
+      content: '',
+      ...withCard(resultEmbed, resultCard),
+      components: [],
+      attachments: [],
+    });
 
     logger.info(
       {
@@ -473,6 +517,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           : '⚠️ Lỗi khi xử lý duel.',
         embeds: [],
         components: [],
+        attachments: [],
       });
     } catch {
       // Message gone — ignore.

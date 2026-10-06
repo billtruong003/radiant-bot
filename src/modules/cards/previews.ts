@@ -10,6 +10,12 @@ import {
   renderUpgradeCard,
 } from './dodac-cards.js';
 import {
+  type Fighter,
+  renderChallengeCard,
+  renderDuelResultCard,
+  renderMieuSatCard,
+} from './duel-cards.js';
+import {
   renderAllocCard,
   renderRankCard,
   renderStatCard,
@@ -18,7 +24,36 @@ import {
 } from './hoso-cards.js';
 import { renderKitSheet } from './kit-sheet.js';
 import { renderProfileCard } from './profile-card.js';
-import { LOOK_AKI, LOOK_BILL, sampleProfile } from './samples.js';
+import { LOOK_AKI, LOOK_BILL, LOOK_HUYET, sampleProfile } from './samples.js';
+
+const DUEL_A: Fighter = {
+  name: 'Bill The Dev',
+  look: LOOK_BILL,
+  rankName: 'Kim Đan',
+  rankColor: '#f0d060',
+  lc: 1840,
+  weapon: {
+    icon: 'jian_sword__icy_frost_steel',
+    name: 'Hàn Sương Kiếm',
+    grade: 'Thiên Phẩm',
+    color: '#5fa8e8',
+    level: 7,
+  },
+};
+const DUEL_B: Fighter = {
+  name: 'Huyết Ảnh',
+  look: LOOK_HUYET,
+  rankName: 'Trúc Cơ',
+  rankColor: '#6fbf73',
+  lc: 1620,
+  weapon: {
+    icon: 'dao_saber__forged_iron',
+    name: 'Đồng Cổ Đao',
+    grade: 'Địa Phẩm',
+    color: '#6fbf73',
+    level: 2,
+  },
+};
 
 /** Every card with sample data, for scripts/render-preview.ts and tests. */
 export const PREVIEWS: Record<string, () => Promise<Rendered>> = {
@@ -331,4 +366,38 @@ export const PREVIEWS: Record<string, () => Promise<Rendered>> = {
         },
       ],
     }),
+  duel: () => renderChallengeCard(DUEL_A, DUEL_B, 3),
+  'duel-result': () =>
+    renderDuelResultCard(
+      DUEL_A,
+      DUEL_B,
+      {
+        challengerLc: 1840,
+        opponentLc: 1620,
+        challengerHpStart: 1840,
+        opponentHpStart: 1620,
+        challengerHpEnd: 410,
+        opponentHpEnd: 0,
+        winner: 'challenger',
+        rounds: [
+          [1, 320, 290, 1550, 1300, false, false, false, false],
+          [2, 610, 280, 1270, 690, true, false, false, false],
+          [3, 300, 330, 940, 390, false, false, false, true],
+          [4, 390, 530, 410, 0, false, true, false, false],
+        ].map(([round, cd, od, ch, oh, cc, oc, cdf, odf]) => ({
+          round: round as number,
+          challengerDamage: cd as number,
+          opponentDamage: od as number,
+          challengerHpAfter: ch as number,
+          opponentHpAfter: oh as number,
+          challengerCrit: cc as boolean,
+          opponentCrit: oc as boolean,
+          challengerDefended: cdf as boolean,
+          opponentDefended: odf as boolean,
+        })),
+      },
+      3,
+    ),
+  'mieu-sat': () =>
+    renderMieuSatCard({ ...DUEL_A, rankName: 'Hóa Thần', rankColor: '#7fd0d8' }, DUEL_B, 3),
 };

@@ -9,11 +9,19 @@ import type {
   Weapon,
   WeaponStats,
 } from '../../db/types.js';
+import { getLook } from '../avatar/service.js';
 import { BAN_MENH_SLUG_PREFIX, getBanMenhTemplate } from '../combat/ban-menh-templates.js';
 import { readEquippedRingSlugs } from '../combat/equipment-resolver.js';
 import { congPhapIcon, nhanIcon, phapKhiIcon, weaponIcon } from '../pixel/icons.js';
 import type { Rendered } from '../pixel/output.js';
-import { RARITY_COLOR, RARITY_NAME, TIER_COLOR, TIER_NAME } from '../pixel/palette.js';
+import {
+  PX,
+  RARITY_COLOR,
+  RARITY_NAME,
+  REALM_COLOR,
+  TIER_COLOR,
+  TIER_NAME,
+} from '../pixel/palette.js';
 import {
   type BagItem,
   type ItemDetail,
@@ -22,6 +30,7 @@ import {
   renderInventoryCard,
   renderShopCard,
 } from './dodac-cards.js';
+import type { Fighter } from './duel-cards.js';
 import { fmt } from './profile-data.js';
 
 /**
@@ -437,5 +446,26 @@ export function forgeView(discordId: string, stats: WeaponStats) {
         : ['NẢY', `${stats.bounce}`, '#7fb2e8'],
     ] as [string, string, string][],
     skill: w.lore || 'Linh khí bản mệnh đang thức tỉnh.',
+  };
+}
+
+/** One duel side: look, realm, lực chiến and the equipped weapon. */
+export function fighterView(discordId: string, name: string, lc: number): Fighter {
+  const store = getStore();
+  const user = store.users.get(discordId);
+  const rank = user?.cultivation_rank ?? 'pham_nhan';
+  const slug = user?.equipped_weapon_slug ?? null;
+  const ref = slug ? resolveWeapon(discordId, slug) : null;
+  const level = slug
+    ? (store.userWeapons.query((w) => w.discord_id === discordId && w.weapon_slug === slug)[0]
+        ?.level ?? 0)
+    : 0;
+  return {
+    name,
+    look: getLook(discordId),
+    rankName: rankById(rank).name,
+    rankColor: REALM_COLOR[rank] ?? PX.ink,
+    lc,
+    weapon: ref ? weaponItem(ref.weapon, level) : null,
   };
 }

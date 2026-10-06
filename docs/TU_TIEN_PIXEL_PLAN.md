@@ -67,7 +67,7 @@ Thay embed chữ bằng ảnh, giữ phần chữ quan trọng trong embed để
 - [x] P2.8 `/shop browse` đan tiệm 4 tab với 5 trạng thái; `/shop trade sell` (GIF khi Aki hào phóng).
 - [x] P2.9 `/admin arena forge` rèn bản mệnh (GIF).
 - [x] P2.10 `/daily` lịch 30 ngày; `/quest` bảng nhiệm vụ.
-- [ ] P2.11 `/duel`: lời thách đấu (PNG), kết quả (GIF 5 hiệp), miểu sát (GIF).
+- [x] P2.11 `/duel`: lời thách đấu (PNG), kết quả (GIF 5 hiệp), miểu sát (GIF).
 - [ ] P2.12 `/leaderboard` bục top 3 + danh sách; bảng tuần tự đăng dùng cùng ảnh.
 - [ ] P2.13 `/breakthrough` Lôi Kiếp (GIF ra đề, qua, trượt).
 - [ ] P2.14 Thông báo lên cảnh giới tự đăng (GIF theo 11 bậc), thay `aura.ts` dạng emoji.
