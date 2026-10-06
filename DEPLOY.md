@@ -204,6 +204,51 @@ endpoints stay private.
 The card uses the Chakra Petch fonts in `assets/fonts` (OFL). On Linux `canvas` loads them through
 fontconfig; if the card shows a plain sans-serif font, install `fontconfig` and restart.
 
+## 3c. Tu Tiên Pixel web pages (tạo hình, Thiên Kiếp Đài, bí cảnh)
+
+The player pages are served by the same HTTP server as `/oauth/*`. Each link is signed and private to one
+member; nothing else on the server becomes public.
+
+1. **Caddy:** add the page paths to the `hunter.billthedev.com` block (or a new `tutien.billthedev.com` block
+   with the same `reverse_proxy`):
+
+   ```
+   hunter.billthedev.com {
+     @player path /oauth/* /avatar /avatar/* /judge /judge/* /raid /raid/* /cult/* /app/*
+     handle @player {
+       reverse_proxy localhost:3030
+     }
+     respond 404
+   }
+   ```
+
+   `/cult/*` serves the pixel art, `/app/*` the page scripts (bundled by esbuild on first request, so the
+   `web-client/` folder must be on the VM; it is, with the git checkout).
+2. **.env** (Bill fills the secrets himself):
+
+   ```
+   WEB_LINK_SECRET=<openssl rand -hex 32>
+   JDOODLE_CLIENT_ID=...          # jdoodle.com → Compiler API, free plan (200 runs/day)
+   JDOODLE_CLIENT_SECRET=...
+   JDOODLE_DAILY_LIMIT=180
+   PISTON_URL=                    # optional self-hosted fallback
+   ```
+
+   Without JDoodle keys Thiên Kiếp Đài stays off: Tâm Ma / Cửu Thiên fall back to the Phong Kiếp quiz and the
+   Tàng Kinh Các practice button says the judge is resting. Never set `JUDGE_LOCAL=1` in production.
+3. `npm ci && npm run build && pm2 restart radiant-bot`, then `npm run deploy-commands` (new `/bi-canh`).
+4. Check: `/profile avatar` opens the customizer; `/bi-canh xem` shows the card and its web link opens;
+   `/quest` → "Ôn bài" runs the quiz; with JDoodle keys, `/quest` → "Vào Tàng Kinh Các" opens a problem and a
+   correct submit completes the study quest.
+
+**Load.** Cards are drawn with node-canvas; GIFs are encoded one at a time (a queue in
+`src/modules/pixel/output.ts`) and yield between frames, so the gateway stays responsive. Measured on a dev machine: a card takes
+0.13–0.37 s; resident memory rises by up to ~50 MB while one is drawn and settles back (the whole bot sat at
+180–240 MB during the test). Watch `pm2 monit` for the first days; if the queue backs up, lower the
+frame counts in the busiest cards (`/bi-canh`, `/leaderboard`).
+
+Art and font credits: `docs/ASSETS.md`.
+
 ## 4. UptimeRobot
 
 - Sign up at https://uptimerobot.com (free tier: 50 monitors).

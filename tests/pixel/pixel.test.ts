@@ -61,3 +61,25 @@ describe('output', () => {
     expect(gif.animated).toBe(true);
   });
 });
+
+describe('render queue', () => {
+  it('runs GIFs one at a time and drains', async () => {
+    const { renderGif, renderQueueDepth } = await import('../../src/modules/pixel/output.js');
+    const order: string[] = [];
+    const job = (name: string) =>
+      renderGif(
+        8,
+        8,
+        () => {
+          order.push(name);
+        },
+        name,
+        { frames: 2 },
+      );
+    const all = Promise.all([job('a'), job('b')]);
+    expect(renderQueueDepth()).toBe(2);
+    await all;
+    expect(order).toEqual(['a', 'a', 'b', 'b']);
+    expect(renderQueueDepth()).toBe(0);
+  });
+});
