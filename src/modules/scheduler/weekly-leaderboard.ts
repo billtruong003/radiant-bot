@@ -6,6 +6,9 @@ import { env } from '../../config/env.js';
 import { getStore } from '../../db/index.js';
 import { weeklyLeaderboard } from '../../db/queries/leaderboard.js';
 import { logger } from '../../utils/logger.js';
+import { withCard } from '../cards/attach.js';
+import { boardEntry } from '../cards/item-views.js';
+import { renderLeaderboardCard } from '../cards/leaderboard-card.js';
 
 /**
  * Weekly leaderboard post — Sunday 20:00 VN time per SPEC §8.4.
@@ -63,7 +66,15 @@ export async function postWeeklyLeaderboard(client: Client): Promise<void> {
     .setTimestamp();
 
   try {
-    await channel.send({ embeds: [embed] });
+    const card = await renderLeaderboardCard({
+      title: 'Bảng xếp hạng tuần',
+      subtitle: 'Top 10 đệ tử tu vi nhanh nhất 7 ngày qua',
+      entries: entries.map((e) => boardEntry(e.user, `+${e.score.toLocaleString('en-US')} XP`)),
+    }).catch((err: unknown) => {
+      logger.warn({ err }, 'weekly-leaderboard: card render failed, posting text only');
+      return null;
+    });
+    await channel.send(withCard(embed, card));
     logger.info({ entries: entries.length }, 'weekly-leaderboard: posted');
   } catch (err) {
     logger.error({ err }, 'weekly-leaderboard: post failed');

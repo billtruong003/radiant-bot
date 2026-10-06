@@ -31,6 +31,7 @@ import {
   renderShopCard,
 } from './dodac-cards.js';
 import type { Fighter } from './duel-cards.js';
+import type { BoardEntry } from './leaderboard-card.js';
 import { fmt } from './profile-data.js';
 
 /**
@@ -467,5 +468,16 @@ export function fighterView(discordId: string, name: string, lc: number): Fighte
     rankColor: REALM_COLOR[rank] ?? PX.ink,
     lc,
     weapon: ref ? weaponItem(ref.weapon, level) : null,
+  };
+}
+
+/** A leaderboard row for one member. */
+export function boardEntry(user: User, score: string): BoardEntry {
+  return {
+    name: user.display_name ?? user.username,
+    look: getLook(user.discord_id),
+    rankName: rankById(user.cultivation_rank).name,
+    rankColor: REALM_COLOR[user.cultivation_rank] ?? PX.ink,
+    score,
   };
 }

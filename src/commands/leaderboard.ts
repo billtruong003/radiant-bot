@@ -3,6 +3,9 @@ import { rankById } from '../config/cultivation.js';
 import { DIVIDER, ICONS, RANK_ICONS } from '../config/ui.js';
 import { getStore } from '../db/index.js';
 import { topByXp, weeklyLeaderboard } from '../db/queries/leaderboard.js';
+import { withCard } from '../modules/cards/attach.js';
+import { boardEntry } from '../modules/cards/item-views.js';
+import { renderLeaderboardCard } from '../modules/cards/leaderboard-card.js';
 import { computeCombatPower } from '../modules/combat/power.js';
 import { themedEmbed } from '../utils/embed.js';
 
@@ -90,7 +93,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       footer: 'Lực chiến = 100 + level×5 + cảnh giới×30 + phong hiệu 30 + chỉ số đã phân + trang bị · Realtime',
     });
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.deferReply();
+    const card = await renderLeaderboardCard({
+      title: 'Bảng xếp hạng lực chiến',
+      subtitle: 'Top 10 đệ tử mạnh nhất',
+      entries: ranked.map((e) => boardEntry(e.user, `${e.score.toLocaleString('en-US')} LC`)),
+    });
+    await interaction.editReply(withCard(embed, card));
     return;
   }
 
@@ -136,7 +145,18 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         : 'XP all-time, không reset',
   });
 
-  await interaction.reply({ embeds: [embed] });
+  await interaction.deferReply();
+  const card = await renderLeaderboardCard({
+    title: period === 'weekly' ? 'Bảng xếp hạng tuần' : 'Bảng xếp hạng tu vi',
+    subtitle: `Top 10 đệ tử tu vi nhanh nhất · ${periodLabel.toLowerCase()}`,
+    entries: entries.map((e) =>
+      boardEntry(
+        e.user,
+        period === 'weekly' ? `+${e.score.toLocaleString('en-US')} XP` : `${e.score.toLocaleString('en-US')} XP`,
+      ),
+    ),
+  });
+  await interaction.editReply(withCard(embed, card));
 }
 
 export const command = { data, execute };

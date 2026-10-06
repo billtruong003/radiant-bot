@@ -23,8 +23,17 @@ import {
   renderTitlesCard,
 } from './hoso-cards.js';
 import { renderKitSheet } from './kit-sheet.js';
+import { renderLeaderboardCard } from './leaderboard-card.js';
 import { renderProfileCard } from './profile-card.js';
-import { LOOK_AKI, LOOK_BILL, LOOK_HUYET, sampleProfile } from './samples.js';
+import {
+  LOOK_AKI,
+  LOOK_BILL,
+  LOOK_HUYET,
+  LOOK_LAM,
+  LOOK_MOC,
+  LOOK_VAN,
+  sampleProfile,
+} from './samples.js';
 
 const DUEL_A: Fighter = {
   name: 'Bill The Dev',
@@ -400,4 +409,24 @@ export const PREVIEWS: Record<string, () => Promise<Rendered>> = {
     ),
   'mieu-sat': () =>
     renderMieuSatCard({ ...DUEL_A, rankName: 'Hóa Thần', rankColor: '#7fd0d8' }, DUEL_B, 3),
+  leaderboard: () =>
+    renderLeaderboardCard({
+      title: 'Bảng xếp hạng tuần',
+      subtitle: 'Top 10 đệ tử tu vi nhanh nhất 7 ngày qua',
+      entries: [
+        ['Bill The Dev', LOOK_BILL, 'Kim Đan', '#f0d060', '+4,210 XP'],
+        ['Lam Nguyệt', LOOK_LAM, 'Trúc Cơ', '#6fbf73', '+3,880 XP'],
+        ['Mộc Lan', LOOK_MOC, 'Trúc Cơ', '#6fbf73', '+2,940 XP'],
+        ['Huyết Ảnh', LOOK_HUYET, 'Luyện Khí', '#cfd6e0', '+2,100 XP'],
+        ['Vân Du', LOOK_VAN, 'Luyện Khí', '#cfd6e0', '+1,760 XP'],
+        ['Aki', LOOK_AKI, 'Luyện Khí', '#cfd6e0', '+1,200 XP'],
+        ['Tán Tu 042', null, 'Phàm Nhân', '#a89f8a', '+640 XP'],
+      ].map(([name, look, rankName, rankColor, score]) => ({
+        name: name as string,
+        look: look as typeof LOOK_BILL | null,
+        rankName: rankName as string,
+        rankColor: rankColor as string,
+        score: score as string,
+      })),
+    }),
 };
